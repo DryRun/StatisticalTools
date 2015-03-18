@@ -1,0 +1,17 @@
+imax 1
+jmax 1
+kmax *
+---------------
+shapes * * Qstar3000_workspace.root w:$PROCESS
+---------------
+bin 1
+observation 433156.694265
+------------------------------
+bin          1          1
+process      signal     background
+process      0          1
+rate         1001.0         433156.694265
+------------------------------
+p1  param    6.21862535247   1.07392076648
+p2  param    6.48308946408   0.605622330455
+p3  param    0.217160577769   0.104404931761
