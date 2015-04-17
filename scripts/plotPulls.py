@@ -3,24 +3,28 @@
 import os
 import sys
 import argparse
+import math
 from ROOT import *
 from setTDRStyle import setTDRStyle
 from array import array
 
-usage = "usage: To be run from "
+
+
+usage = "usage: python plotPulls.py -i <inputlist> -o <outputdir> --mu <mu> (-999. if you wat to inject the signal corresponding to the 2sigma band of the upper limit)"
+print usage
 
 parser = argparse.ArgumentParser(description='Process options.')
 
 parser.add_argument("-i", "--inputList", type=str, dest="inputList", default="",
-    help="directory containing the lists of datacards processed",
+    help="list of datacard processed",
     )
 parser.add_argument("-o", "--output", type=str, dest="output", default="",
     help="the directory OUTDIR contains the output of the program",
     metavar="OUTDIR"
     )
-parser.add_argument("-s", "--signal", type=float, dest="signal", default=0.,
+parser.add_argument("--mu", type=float, dest="mu", default=0,
     help="injected signal strenght",
-    metavar="SIGNAL"
+    metavar="MU"
     )
 
 
@@ -28,6 +32,8 @@ parser.add_argument("-s", "--signal", type=float, dest="signal", default=0.,
 args = parser.parse_args()
 print args
 #####################################
+
+gStyle.SetOptFit(1111)
 
 pull_mu_list = []
 err_pull_mu_list = []
@@ -37,6 +43,7 @@ mass = [2,3,4,5,6]
 
 ins = open(args.inputList,"r")
 
+k=0
 for line in  ins:
   sample = os.path.basename(line)
   #sample = os.path.splitext(line)[0]
@@ -44,20 +51,47 @@ for line in  ins:
   print ("process %s" % sample)
   line = line.rstrip('\n')
   sample = sample.rstrip('\n')
+  mass_string = sample.split("Qstar")[1]
+  print mass_string
+
+  #extract mu limit 2 sigma band 
+  filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_combine/src/CMSDIJET/StatisticalTools/dijet_limits/higgsCombineNormal.Asymptotic.mH'+mass_string+'.root'
+  inf = TFile.Open(filename)
+  tr = inf.Get('limit')
+  y = []
+  N = tr.GetEntriesFast()
+  for i in xrange(N):
+    tr.GetEntry(i)
+    y.append(tr.limit)
+    k+=1
+ 
 
   if not(args.output):
     os.system("mkdir "+args.output)
 
-  inputFile = TFile("output_toys/mlfit"+sample+"_MLfit.root","read") 
+  if not(args.mu==-999.):
+    inputFile = TFile("output_toys_mu"+str(int(args.mu))+"/mlfit"+sample+"_MLfit.root","read") 
+  else:
+    inputFile = TFile("output_toys_mu_limit_2Sband/mlfit"+sample+"_MLfit.root","read") 
+   
+  
   tree_fit_sb = inputFile.Get("tree_fit_sb")
   h_pull_mu = TH1F("h_pull_mu", "S_{true} - S_{fit} / err", 100, -3., 3.)
+  if not (args.mu == -999):
+    mu = args.mu
+  else:
+    mu = y[4]
+
   for event in tree_fit_sb:
-    if tree_fit_sb.mu > args.signal:
-      pull_mu = (tree_fit_sb.mu - args.signal)/tree_fit_sb.muLoErr
+    if tree_fit_sb.mu > mu:
+      err_mu = tree_fit_sb.muLoErr
+      pull_mu = (tree_fit_sb.mu - mu)/tree_fit_sb.muLoErr
     else:
-      pull_mu = (tree_fit_sb.mu - args.signal)/tree_fit_sb.muHiErr
-    #print tree_fit_sb.mu
-    #print pull_mu
+      err_mu = tree_fit_sb.muHiErr
+      pull_mu = (tree_fit_sb.mu - mu)/tree_fit_sb.muHiErr
+    #print "mu_fit - mu_exp  = "+str(tree_fit_sb.mu)
+    #print "err_mu = "+str(err_mu)
+    #print "pull_mu = "+str(pull_mu)
     h_pull_mu.Fill( pull_mu )
   
   h_pull_mu.Print() 
@@ -84,8 +118,13 @@ for line in  ins:
   ##### Draw and save fit to pulls #####
   c = TCanvas("c","",800,600)
   h_pull_mu.Draw()
-  c.SaveAs(args.output+"/pull_"+sample+".png")
-  c.SaveAs(args.output+"/pull_"+sample+".pdf")
+  if not(args.mu==-999.):
+    c.SaveAs(args.output+"/pull_"+sample+"_mu_"+str(int(args.mu))+".png")
+    c.SaveAs(args.output+"/pull_"+sample+"_mu_"+str(int(args.mu))+".pdf")
+  else:
+    c.SaveAs(args.output+"/pull_"+sample+"_mu_limit_2Sband.png")
+    c.SaveAs(args.output+"/pull_"+sample+"_mu_limit_2Sband.pdf")
+
   c.Clear()
 
   #LOOP finished
@@ -134,7 +173,11 @@ line_0.Draw()
 line_up.Draw()
 line_do.Draw()
 
+if not(args.mu==-999.):
+  can.SaveAs(args.output+"/bias_standard_param_mu"+str(int(args.mu))+".png")
+  can.SaveAs(args.output+"/bias_standard_param_mu"+str(int(args.mu))+".pdf")
+else:
+  can.SaveAs(args.output+"/bias_standard_param_mu_limit_2Sband.png")
+  can.SaveAs(args.output+"/bias_standard_param_mu_limit_2Sband.pdf")
 
-can.SaveAs(args.output+"/bias_standard_param.png")
-can.SaveAs(args.output+"/bias_standard_param.pdf")
 
