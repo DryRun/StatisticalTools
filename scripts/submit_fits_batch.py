@@ -3,8 +3,9 @@
 import os
 import sys
 import argparse
+from ROOT import TFile
 
-#usage = "usage: To be run from "
+usage = "python submit_fits_batch.py -q <queue> -i <input list> -o <output dir> -t <num of toys> --run"
 
 parser = argparse.ArgumentParser(description='Process options.')
 
@@ -13,7 +14,7 @@ parser.add_argument('-q', '--queue', type=str, action='store',     dest='queue',
     default='cmslong',
     metavar="QUEUE"
     )
-parser.add_argument("-i", "--inputList", type=str, dest="inputList", default="list.txt",
+parser.add_argument("-i", "--inputList", type=str, dest="inputList", default="../lists/list_Qstar.txt",
     help="directory containing the lists of datacards to be processed",
     )
 parser.add_argument("-o", "--output", type=str, dest="output", default="./",
@@ -24,6 +25,10 @@ parser.add_argument("-t", "--toys", type=int, dest="toys", default=10,
     help="number of toys",
     metavar="TOYS"
     )
+parser.add_argument("--mu", action="store", type=float, dest="mu", default=-999.,
+    help="MU",
+    )
+
 parser.add_argument("--run", action="store_true", dest="run", default=False,
     help="run in batch",
     )
@@ -40,6 +45,7 @@ pwd = os.environ['PWD']
 #print(args.queue)
 ins = open(args.inputList,"r")
 
+k=0
 for line in  ins:
   sample = os.path.basename(line)
   #sample = os.path.splitext(line)[0]
@@ -47,11 +53,29 @@ for line in  ins:
   print ("process %s" % sample)
   line = line.rstrip('\n')
   sample = sample.rstrip('\n')
+  mass = sample.split("Qstar")[1]
+  print mass
 
   if not(os.path.isdir("args.output")):
     os.system("mkdir "+args.output)
 
-  command = "combine -M MaxLikelihoodFit --minos all --expectSignal 0  -n "+sample+"_MLfit --saveWorkspace -t "+str(args.toys)+" --out "+args.output+" --saveToys --rMin -10  "+line
+  if not(args.mu==-999.):
+    command = "combine -M MaxLikelihoodFit --minos all --expectSignal "+str(args.mu)+"  -n "+sample+"_MLfit  --saveWorkspace -t "+str(args.toys)+" --out "+args.output+" --saveToys --rMin -10 --rMax 100  "+line
+  else:
+    filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_combine/src/CMSDIJET/StatisticalTools/dijet_limits/higgsCombineNormal.Asymptotic.mH'+mass+'.root'
+    inf = TFile.Open(filename)
+    tr = inf.Get('limit')
+    y = []
+    N = tr.GetEntriesFast()
+    for i in xrange(N):
+      tr.GetEntry(i)
+      y.append(tr.limit)
+      k+=1
+   
+    print "mu lim hi band : "+str(y[4])
+    command = "combine -M MaxLikelihoodFit --minos all --expectSignal "+str(y[4])+"  -n "+sample+"_MLfit  --saveWorkspace -t "+str(args.toys)+" --out "+args.output+" --saveToys --rMin -10  --rMax 100 "+line
+
+  
   print "submit "+command
   print ""
 
