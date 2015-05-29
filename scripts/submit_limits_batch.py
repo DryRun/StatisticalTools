@@ -45,10 +45,10 @@ for line in  ins:
   line = line.rstrip('\n')
   sample = sample.rstrip('\n')
 
-  if not(os.path.isdir("args.output")):
-    os.system("mkdir "+args.output)
+  #if not(os.path.isdir("args.output")):
+  #  os.system("mkdir "+args.output)
 
-  command = "combine combine -M Asymptotic -n "+sample+"_limit  --out "+args.output+"  "+line
+  command = "combine -M Asymptotic -n "+sample+"_limit   "+line
   print "submit "+command
   print ""
 
@@ -60,7 +60,9 @@ for line in  ins:
   outputfile.write('cd '+pwd+' \n')
   outputfile.write('eval `scramv1 runtime -sh`\n')
   outputfile.write(command+"\n")
+  outputfile.write("mv higgsCombine"+sample+"_limit.Asymptotic.mH120.root "+args.output+"\n")
+
+  
   print outputname 
   if args.run:
     os.system("bsub -q "+args.queue+" -o batch/"+logfile+" source "+pwd+"/"+outputname)
-
