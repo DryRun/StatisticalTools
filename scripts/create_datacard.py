@@ -3,7 +3,7 @@ import sys, getopt
 import ROOT
 from ROOT import TFile, TH1F, TCanvas, TPad, TMath
 from ROOT import gROOT, gPad 
-from ROOT import RooRealVar, RooDataHist, RooPlot, RooArgList, RooArgSet,  RooBernstein, RooCBShape, RooAddPdf, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, RooBinning, RooUniformBinning
+from ROOT import RooRealVar, RooDataHist, RooPlot, RooArgList, RooArgSet,  RooBernstein, RooCBShape, RooAddPdf, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, RooBinning, RooUniformBinning, RooExtendPdf
 from setTDRStyle import setTDRStyle
 
 import optparse
@@ -54,6 +54,7 @@ if histpdfBkg: fitDat=False
 #############
 
 
+gROOT.SetBatch(ROOT.kTRUE)
 gROOT.Reset()
 setTDRStyle()
 gROOT.ForceStyle()
@@ -102,7 +103,7 @@ hDat   = infDat.Get(inputHistNameDat)
 
 
 infSig = TFile.Open(filenameSig)
-hSig = infSig.Get('h_qg_'+str(int(mass)))
+hSig = infSig.Get('h_qq_'+str(int(mass)))
 
 #tree_sig = infSig.Get("rootTupleTree/tree")
 #hSig = TH1F("hist_mass_1GeV","",13999,1,14000)
@@ -117,8 +118,8 @@ hSig.Draw()
 # -----------------------------------------
 # define observable
 #test -- restrict mjj range
-x = RooRealVar('mjj','mjj',1500,6000)
-#x = RooRealVar('mjj','mjj',1118,6099)
+#x = RooRealVar('mjj','mjj',1500,6000)
+x = RooRealVar('mjj','mjj',1118,6099)
 
 dataHist_data=RooDataHist("RooDataHist","RooDataHist",RooArgList(x),hDat)
 
@@ -199,10 +200,12 @@ if fitDat:
     #if fitModel==0:
     p1 = RooRealVar('p1','p1',6.21862535247,0.,100)
     p2 = RooRealVar('p2','p2',6.48308946408,0,60)
-    p3 = RooRealVar('p3','p3',0.217160577769,0,10)
+    p3 = RooRealVar('p3','p3',0.217160577769,-10,10)
 
     background = RooGenericPdf('background','(pow(1-@0/13000,@1)/pow(@0/13000,@2+@3*log(@0/13000)))',RooArgList(x,p1,p2,p3))
-    background_norm = RooRealVar('background_norm','background_norm',1,0,10000000)
+    background_norm = RooRealVar('background_norm','background_norm',434176,0,10000000)
+    
+    ebkg = RooExtendPdf("ebkg","extended background p.d.f",background,background_norm)
     
     ##variation 1, with one more parameter 
     #if fitModel==1:
@@ -213,7 +216,8 @@ if fitDat:
     roohistBkg = RooDataHist('roohist','roohist',RooArgList(x),hDat)
     #roohistBkg = RooDataHist('roohist','roohist',RooArgList(x),hBkg)
     roohistBkg.Print()
-    res = background.fitTo(roohistBkg, RooFit.Save(ROOT.kTRUE))
+    #res = background.fitTo(roohistBkg, RooFit.Save(ROOT.kTRUE))
+    res = ebkg.fitTo(roohistBkg, RooFit.Save(ROOT.kTRUE))
     res.Print()
 
     # -----------------------------------------
@@ -335,12 +339,12 @@ datacard.write('---------------\n')
 datacard.write('shapes * * '+wsFN+' w:$PROCESS\n')
 datacard.write('---------------\n')
 datacard.write('bin 1\n')    
-datacard.write('observation '+str(nObs)+'\n')
+datacard.write('observation -1\n')
 datacard.write('------------------------------\n')
 datacard.write('bin          1          1\n')          
 datacard.write('process      signal     background\n')
 datacard.write('process      0          1\n')          
-datacard.write('rate         '+str(ExpectedSignalRate)+'         '+str(nObs)+'\n')
+datacard.write('rate         '+str(ExpectedSignalRate)+'      1\n')
 datacard.write('------------------------------\n')      
 #nuisance parameters --- gaussian prior
 if bkgNuisance:

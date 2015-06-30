@@ -33,8 +33,8 @@ massBins_list = [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156
 
 massBins = array("d",massBins_list)
 
-inputFileData = TFile("/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_DiJet/src/CMSDIJET/DijetRootTreeAnalyzer/test_fit/dijetFitResults_FuncType0_nParFit4_MC_1fb-1_Dinko.root")
-inputFitRes = TFile("mlfitgoldenDataset.root")
+inputFileData = TFile("dijetFitResults_FuncType0_nParFit4_MC_1fb-1.root")
+inputFitRes = TFile("mlfit.root")
 hist_mass = inputFileData.Get("hist_mass")
 hist_binned = inputFileData.Get("hist_binned")
 tree_fit_b = inputFitRes.Get("tree_fit_b")
@@ -61,11 +61,11 @@ integral = list.find("shapeBkg_background_bin1__norm")
 p1_val = p1.getVal()
 p2_val = p2.getVal()
 p3_val = p3.getVal()
-integral_val = integral.getVal() * hist_binned.Integral(hist_binned.FindBin(minX_mass),hist_binned.FindBin(maxX_mass))
+integral_val = integral.getVal() #* hist_binned.Integral(hist_binned.FindBin(minX_mass),hist_binned.FindBin(maxX_mass))
 p1_error = p1.getError()
 p2_error = p2.getError()
 p3_error = p3.getError()
-integral_error = integral.getError() * hist_binned.Integral(hist_binned.FindBin(minX_mass),hist_binned.FindBin(maxX_mass))
+integral_error = integral.getError() #* hist_binned.Integral(hist_binned.FindBin(minX_mass),hist_binned.FindBin(maxX_mass))
 
 
 print str(p1_val)+"  "+str(p2_val)+"  "+str(p3_val)+"  "+str(integral_val)
