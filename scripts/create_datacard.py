@@ -119,7 +119,8 @@ hSig.Draw()
 # define observable
 #test -- restrict mjj range
 #x = RooRealVar('mjj','mjj',1500,6000)
-x = RooRealVar('mjj','mjj',1118,6099)
+#x = RooRealVar('mjj','mjj',1118,6099)
+x = RooRealVar('mjj','mjj',1118,9067)
 
 dataHist_data=RooDataHist("RooDataHist","RooDataHist",RooArgList(x),hDat)
 
