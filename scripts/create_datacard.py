@@ -208,6 +208,12 @@ if fitDat:
     
     ebkg = RooExtendPdf("ebkg","extended background p.d.f",background,background_norm)
     
+    roohistSig = RooDataHist('roohist','roohist',RooArgList(x),hSig)
+    signal = RooHistPdf('signal','signal',RooArgSet(x),roohistSig)
+    signal_norm = RooRealVar('signal_norm','signal_norm',0,-1000,1000)
+    
+    model = RooAddPdf("model","s+b",RooArgList(background,signal),RooArgList(background_norm,signal_norm))
+
     ##variation 1, with one more parameter 
     #if fitModel==1:
     #  TMath::Power(1-x/8000,[1])*(1+[4]*x/8000) ) / ( TMath::Power(x/8000,[2]+[3]*log(x/8000))
@@ -218,7 +224,8 @@ if fitDat:
     #roohistBkg = RooDataHist('roohist','roohist',RooArgList(x),hBkg)
     roohistBkg.Print()
     #res = background.fitTo(roohistBkg, RooFit.Save(ROOT.kTRUE))
-    res = ebkg.fitTo(roohistBkg, RooFit.Save(ROOT.kTRUE))
+    #res = ebkg.fitTo(roohistBkg, RooFit.Save(ROOT.kTRUE))
+    res = model.fitTo(roohistBkg, RooFit.Save(ROOT.kTRUE))
     res.Print()
 
     # -----------------------------------------
