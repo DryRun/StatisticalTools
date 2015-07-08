@@ -1,2 +1,3 @@
 # StatisticalTools
-code to do fits, bias study, compute limits and significance
+
+Code to perform fits, bias studies, compute limits and significances
