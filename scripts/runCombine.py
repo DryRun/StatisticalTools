@@ -34,6 +34,8 @@ def main():
     parser.add_argument("--tries", dest="tries", type=int, default=10, help="Number of times to run the MCMC (default: %(default)i)")
 
     parser.add_argument("--noSyst", dest="noSyst", default=False, action="store_true", help="Run without systematic uncertainties")
+    
+    parser.add_argument("--noHint", dest="noHint", default=False, action="store_true", help="Do not run the hint method")
 
     parser.add_argument("--signif", dest="signif", default=False, action="store_true", help="Calculate significance instead of limits")
 
@@ -93,7 +95,7 @@ def main():
         options = options + ' --signif'
     if args.noSyst:
         options = options + ' --systematics 0'
-    if method != 'ProfileLikelihood' and not args.rMax != None:
+    if method != 'ProfileLikelihood' and not args.rMax != None and not args.noHint:
         options = options + ' --hintMethod ProfileLikelihood'
     if args.rMax != None:
         options = options + ' --rMin 0 --rMax %.1f'%(args.rMax)
@@ -104,7 +106,7 @@ def main():
 
         print ">> Calculating %s for %s resonance with m = %i GeV..."%(('significance' if args.signif else 'limits'), args.final_state, int(mass))
 
-        logName = '%s_%s_m%i.log'%(('significance' if args.signif else 'limits'), args.final_state, int(mass))
+        logName = '%s_%s_%s_m%i.log'%(('significance' if args.signif else 'limits'), method, args.final_state, int(mass))
 
         run_options = options + ' --name _%s_m%i --mass %i'%(args.final_state,int(mass),int(mass))
 
