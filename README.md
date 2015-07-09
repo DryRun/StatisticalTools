@@ -77,9 +77,9 @@ cd ../StatisticalTools
 Another essential ingredient for the statistical analysis are datacards and corresponding RooFit workspaces. Here again, we don't necessarily want to store all of these files in the repository since they can be easily remade using scripts available in the repository. Run the following commands to produce datacards for gg, qg, and qq resonances:
 
 ```
-./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards -l 1000 --massrange 1200 7000 100 --runFit
-./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards -l 1000 --massrange 1200 7000 100 --runFit
-./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root -f qq -o datacards -l 1000 --massrange 1200 7000 100 --runFit
+./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards -l 1000 --massrange 1300 7000 100 --runFit
+./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards -l 1000 --massrange 1300 7000 100 --runFit
+./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root -f qq -o datacards -l 1000 --massrange 1300 7000 100 --runFit
 
 ```
 
@@ -94,9 +94,9 @@ For more command line options, run
 We can now run `combine` to compute the limits. In the following examples the Asymptotic CL<sub>S</sub> method is used:
 
 ```
-./scripts/runCombine.py -M Asymptotic -d datacards -f gg --massrange 1200 7000 100
-./scripts/runCombine.py -M Asymptotic -d datacards -f qg --massrange 1200 7000 100
-./scripts/runCombine.py -M Asymptotic -d datacards -f qq --massrange 1200 7000 100
+./scripts/runCombine.py -M Asymptotic -d datacards -f gg --massrange 1300 7000 100
+./scripts/runCombine.py -M Asymptotic -d datacards -f qg --massrange 1300 7000 100
+./scripts/runCombine.py -M Asymptotic -d datacards -f qq --massrange 1300 7000 100
 ```
 
 For more command line options, run
@@ -108,9 +108,9 @@ For more command line options, run
 To produce the final limit plots, run:
 
 ```
-./scripts/plotLimits.py -l logs -f gg --massrange 1200 7000 100
-./scripts/plotLimits.py -l logs -f qg --massrange 1200 7000 100
-./scripts/plotLimits.py -l logs -f qq --massrange 1200 7000 100
+./scripts/plotLimits.py -l logs -f gg --massrange 1300 7000 100
+./scripts/plotLimits.py -l logs -f qg --massrange 1300 7000 100
+./scripts/plotLimits.py -l logs -f qq --massrange 1300 7000 100
 ```
 
 For more command line options, run
@@ -122,7 +122,7 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotLimits.py -r results/limits_qq_Run2_13TeV_MC.py -f qq --massrange 1200 7000 100
+./scripts/plotLimits.py -r results/limits_qq_Run2_13TeV_MC.py -f qq --massrange 1300 7000 100
 ```
 
 ### Significance calculation
@@ -130,17 +130,17 @@ If you are only interested in producing or modifying plots using already compute
 For the significance calculation we again use the `runCombine.py` script as in the following examples (note the `--signif` option):
 
 ```
-./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f gg --massrange 1200 6000 100
-./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qg --massrange 1200 6000 100
-./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qq --massrange 1200 6000 100
+./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f gg --massrange 1300 6000 100
+./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qg --massrange 1300 6000 100
+./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qq --massrange 1300 6000 100
 ```
 
 To produce the final significance plots, run:
 
 ```
-./scripts/plotSignificance.py -l logs -f gg --massrange 1200 6000 100
-./scripts/plotSignificance.py -l logs -f qg --massrange 1200 6000 100
-./scripts/plotSignificance.py -l logs -f qq --massrange 1200 6000 100
+./scripts/plotSignificance.py -l logs -f gg --massrange 1300 6000 100
+./scripts/plotSignificance.py -l logs -f qg --massrange 1300 6000 100
+./scripts/plotSignificance.py -l logs -f qq --massrange 1300 6000 100
 ```
 
 For more command line options, run
@@ -152,5 +152,5 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotSignificance.py -r results/significance_qq_Run2_13TeV_MC.py -f qq --massrange 1200 6000 100
+./scripts/plotSignificance.py -r results/significance_qq_Run2_13TeV_MC.py -f qq --massrange 1300 6000 100
 ```
