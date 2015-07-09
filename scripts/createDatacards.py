@@ -145,7 +145,7 @@ def main():
         rooSigHist.Print()
         signal = RooHistPdf('signal','signal',RooArgSet(mjj),rooSigHist)
         signal.Print()
-        signal_norm = RooRealVar('signal_norm','signal_norm',0,-1000,1000)
+        signal_norm = RooRealVar('signal_norm','signal_norm',0,-1e+04,1e+04)
         if args.fitBonly: signal_norm.setConstant()
         signal_norm.Print()
 
