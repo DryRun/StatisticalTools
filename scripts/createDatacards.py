@@ -33,7 +33,7 @@ def main():
 
     parser.add_argument("-l", "--lumi", dest="lumi", required=True,
                         default=1000., type=float,
-                        help="Integrated luminosity (default: %(default).1f)",
+                        help="Integrated luminosity in pb-1 (default: %(default).1f)",
                         metavar="LUMI")
 
     parser.add_argument("--massMin", dest="massMin",
