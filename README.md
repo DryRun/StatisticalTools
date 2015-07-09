@@ -54,9 +54,9 @@ cd DijetShapeInterpolator
 and run the following commands:
 
 ```
-./getResonanceShapes.py -i input_shapes_gg_13TeV_PU30_Spring15.py -f gg --fineBinning --massrange 500 9000 100 -o ResonanceShapes_gg_13TeV_PU30_Spring15.root
-./getResonanceShapes.py -i input_shapes_qg_13TeV_PU30_Spring15.py -f qg --fineBinning --massrange 500 9000 100 -o ResonanceShapes_qg_13TeV_PU30_Spring15.root
-./getResonanceShapes.py -i input_shapes_qq_13TeV_Phys14Spring15Mix.py  -f qq  --fineBinning --massrange 500 9000 100 -o ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root
+./getResonanceShapes.py -i inputs/input_shapes_gg_13TeV_PU30_Spring15.py -f gg --fineBinning --massrange 500 9000 100 -o ResonanceShapes_gg_13TeV_PU30_Spring15.root
+./getResonanceShapes.py -i inputs/input_shapes_qg_13TeV_PU30_Spring15.py -f qg --fineBinning --massrange 500 9000 100 -o ResonanceShapes_qg_13TeV_PU30_Spring15.root
+./getResonanceShapes.py -i inputs/input_shapes_qq_13TeV_Phys14Spring15Mix.py -f qq --fineBinning --massrange 500 9000 100 -o ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root
 ```
 
 This will produce gg, qg, and qq resonance shapes. For more command line options, run
