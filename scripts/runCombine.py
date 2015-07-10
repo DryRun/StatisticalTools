@@ -98,7 +98,7 @@ def main():
     if method != 'ProfileLikelihood' and not args.rMax != None and not args.noHint:
         options = options + ' --hintMethod ProfileLikelihood'
     if args.rMax != None:
-        options = options + ' --rMin 0 --rMax %.1f'%(args.rMax)
+        options = options + ' --rMin 0 --rMax %f'%(args.rMax)
     if method == 'MarkovChainMC':
         options = options + ' --tries %i --proposal fit'%(args.tries)
 
