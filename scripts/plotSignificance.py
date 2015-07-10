@@ -14,6 +14,12 @@ def main():
     # input parameters
     parser = ArgumentParser(description='Script that plots significance for specified mass points',epilog=usage)
 
+    parser.add_argument("-M", "--method", dest="method",
+                        choices=['ProfileLikelihood'],
+                        default='ProfileLikelihood',
+                        help="Method to calculate upper limits",
+                        metavar="METHOD")
+
     results_group = parser.add_mutually_exclusive_group(required=True)
     results_group.add_argument("-l", "--logs_path", dest="logs_path",
                                help="Path to log files",
@@ -85,7 +91,7 @@ def main():
 
             masses.append(mass)
 
-            logName = 'significance_%s_m%i.log'%(args.final_state,int(mass))
+            logName = 'significance_%s_%s_m%i.log'%(args.method,args.final_state,int(mass))
 
             log_file = open(os.path.join(logs_path,logName),'r')
 
@@ -172,7 +178,7 @@ def main():
 
     gPad.RedrawAxis()
 
-    fileName = 'significance_%s.%s'%(args.final_state + ( ('_' + args.postfix) if args.postfix != '' else '' ), args.fileFormat.lower())
+    fileName = 'significance_%s_%s.%s'%(args.method,args.final_state + ( ('_' + args.postfix) if args.postfix != '' else '' ), args.fileFormat.lower())
     c.SaveAs(fileName)
     print "Plot saved to '%s'"%(fileName)
 

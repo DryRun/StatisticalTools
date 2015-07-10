@@ -9,10 +9,15 @@ import CMS_lumi
 
 def main():
     # usage description
-    usage = "Example: ./scripts/plotLimits.py -l logs -f qq --massrange 1200 7000 100"
+    usage = "Example: ./scripts/plotLimits.py -M Asymptotic -l logs -f qq --massrange 1200 7000 100"
 
     # input parameters
     parser = ArgumentParser(description='Script that plots limits for specified mass points',epilog=usage)
+
+    parser.add_argument("-M", "--method", dest="method", required=True,
+                        choices=['ProfileLikelihood', 'Asymptotic', 'MarkovChainMC'],
+                        help="Method to calculate upper limits",
+                        metavar="METHOD")
 
     results_group = parser.add_mutually_exclusive_group(required=True)
     results_group.add_argument("-l", "--logs_path", dest="logs_path",
@@ -90,56 +95,61 @@ def main():
             print ">> Reading results for %s resonance with m = %i GeV..."%(args.final_state, int(mass))
 
             masses.append(mass)
-            masses_exp.append(mass)
+            if args.method == 'Asymptotic': masses_exp.append(mass)
 
-            logName = 'limits_%s_m%i.log'%(args.final_state,int(mass))
+            logName = 'limits_%s_%s_m%i.log'%(args.method,args.final_state,int(mass))
 
             log_file = open(os.path.join(logs_path,logName),'r')
 
             # read the log file
             for line in log_file:
-                if re.search("^Observed Limit: r", line):
-                  xs_obs_limits.append(float(line.split()[-1]))
-                if re.search("^Expected 50.0%: r", line):
-                  xs_exp_limits.append(float(line.split()[-1]))
-                if re.search("^Expected 16.0%: r", line):
-                  xs_exp_limits_1sigma.append(float(line.split()[-1]))
-                if re.search("^Expected 84.0%: r", line):
-                  xs_exp_limits_1sigma_up.append(float(line.split()[-1]))
-                if re.search("^Expected  2.5%: r", line):
-                  xs_exp_limits_2sigma.append(float(line.split()[-1]))
-                if re.search("^Expected 97.5%: r", line):
-                  xs_exp_limits_2sigma_up.append(float(line.split()[-1]))
+                if args.method == 'Asymptotic':
+                    if re.search("^Observed Limit: r", line):
+                        xs_obs_limits.append(float(line.split()[-1]))
+                    if re.search("^Expected 50.0%: r", line):
+                        xs_exp_limits.append(float(line.split()[-1]))
+                    if re.search("^Expected 16.0%: r", line):
+                        xs_exp_limits_1sigma.append(float(line.split()[-1]))
+                    if re.search("^Expected 84.0%: r", line):
+                        xs_exp_limits_1sigma_up.append(float(line.split()[-1]))
+                    if re.search("^Expected  2.5%: r", line):
+                        xs_exp_limits_2sigma.append(float(line.split()[-1]))
+                    if re.search("^Expected 97.5%: r", line):
+                        xs_exp_limits_2sigma_up.append(float(line.split()[-1]))
+                else:
+                    if re.search("^Limit: r", line):
+                        xs_obs_limits.append(float(line.split()[3]))
 
             if len(masses) != len(xs_obs_limits):
                 print "** ERROR: ** Could not find observed limit for m =", int(mass), "GeV. Aborting."
                 sys.exit(1)
 
-            if len(masses) != len(xs_exp_limits):
-                print "** ERROR: ** Could not find expected limit for m =", int(mass), "GeV. Aborting."
-                sys.exit(1)
+            if args.method == 'Asymptotic':
+                if len(masses) != len(xs_exp_limits):
+                    print "** ERROR: ** Could not find expected limit for m =", int(mass), "GeV. Aborting."
+                    sys.exit(1)
 
-            if len(masses) != len(xs_exp_limits_1sigma):
-                print "** ERROR: ** Could not find expected 1 sigma down limit for m =", int(mass), "GeV. Aborting."
-                sys.exit(1)
+                if len(masses) != len(xs_exp_limits_1sigma):
+                    print "** ERROR: ** Could not find expected 1 sigma down limit for m =", int(mass), "GeV. Aborting."
+                    sys.exit(1)
 
-            if len(masses) != len(xs_exp_limits_1sigma_up):
-                print "** ERROR: ** Could not find expected 1 sigma up limit for m =", int(mass), "GeV. Aborting."
-                sys.exit(1)
+                if len(masses) != len(xs_exp_limits_1sigma_up):
+                    print "** ERROR: ** Could not find expected 1 sigma up limit for m =", int(mass), "GeV. Aborting."
+                    sys.exit(1)
 
-            if len(masses) != len(xs_exp_limits_2sigma):
-                print "** ERROR: ** Could not find expected 2 sigma down limit for m =", int(mass), "GeV. Aborting."
-                sys.exit(1)
+                if len(masses) != len(xs_exp_limits_2sigma):
+                    print "** ERROR: ** Could not find expected 2 sigma down limit for m =", int(mass), "GeV. Aborting."
+                    sys.exit(1)
 
-            if len(masses) != len(xs_exp_limits_2sigma_up):
-                print "** ERROR: ** Could not find expected 2 sigma up limit for m =", int(mass), "GeV. Aborting."
-                sys.exit(1)
-
-        # complete the expected limit arrays
-        for i in range(0,len(masses)):
-            masses_exp.append( masses[len(masses)-i-1] )
-            xs_exp_limits_1sigma.append( xs_exp_limits_1sigma_up[len(masses)-i-1] )
-            xs_exp_limits_2sigma.append( xs_exp_limits_2sigma_up[len(masses)-i-1] )
+                if len(masses) != len(xs_exp_limits_2sigma_up):
+                    print "** ERROR: ** Could not find expected 2 sigma up limit for m =", int(mass), "GeV. Aborting."
+                    sys.exit(1)
+        if args.method == 'Asymptotic':
+            # complete the expected limit arrays
+            for i in range(0,len(masses)):
+                masses_exp.append( masses[len(masses)-i-1] )
+                xs_exp_limits_1sigma.append( xs_exp_limits_1sigma_up[len(masses)-i-1] )
+                xs_exp_limits_2sigma.append( xs_exp_limits_2sigma_up[len(masses)-i-1] )
     else:
         print ">> Importing results..."
 
@@ -158,10 +168,11 @@ def main():
             if len(where) == 0:
                 print "** WARNING: ** Cannot find results for m =", int(mass), "GeV in the provided results file. Skipping this mass point."
             indices.extend( where )
-            where = np.where(all_masses_exp==mass)[0]
-            if len(where) == 0:
-                print "** WARNING: ** Cannot find results for m =", int(mass), "GeV in the provided results file. Skipping this mass point."
-            indices_exp.extend( where )
+            if len(all_masses_exp) > 0:
+                where = np.where(all_masses_exp==mass)[0]
+                if len(where) == 0:
+                    print "** WARNING: ** Cannot find results for m =", int(mass), "GeV in the provided results file. Skipping this mass point."
+                indices_exp.extend( where )
 
         # sort indices
         indices.sort()
@@ -170,7 +181,7 @@ def main():
         for i in indices:
             masses.append( results.masses[i] )
             xs_obs_limits.append( results.xs_obs_limits[i] )
-            xs_exp_limits.append( results.xs_exp_limits[i] )
+            if len(all_masses_exp) > 0: xs_exp_limits.append( results.xs_exp_limits[i] )
         for i in indices_exp:
             masses_exp.append( results.masses_exp[i] )
             xs_exp_limits_1sigma.append( results.xs_exp_limits_1sigma[i] )
@@ -212,17 +223,13 @@ def main():
     gStyle.SetPadBottomMargin(0.15)
     gROOT.ForceStyle()
 
-    graph_exp_2sigma = TGraph(len(masses_exp),masses_exp,xs_exp_limits_2sigma)
+    graph_exp_2sigma = ( TGraph(len(masses_exp),masses_exp,xs_exp_limits_2sigma) if len(xs_exp_limits_2sigma) > 0 else TGraph(0) )
     graph_exp_2sigma.SetFillColor(kYellow)
-    graph_exp_2sigma.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
-    graph_exp_2sigma.GetYaxis().SetTitle("#sigma#timesBR(X#rightarrowjj)#timesA [pb]")
-    graph_exp_2sigma.GetYaxis().SetRangeUser(1e-03,1e+02)
-    #graph_exp_2sigma.GetXaxis().SetNdivisions(1005)
 
-    graph_exp_1sigma = TGraph(len(masses_exp),masses_exp,xs_exp_limits_1sigma)
+    graph_exp_1sigma = ( TGraph(len(masses_exp),masses_exp,xs_exp_limits_1sigma) if len(xs_exp_limits_2sigma) > 0 else TGraph(0) )
     graph_exp_1sigma.SetFillColor(kGreen+1)
 
-    graph_exp = TGraph(len(masses),masses,xs_exp_limits)
+    graph_exp = ( TGraph(len(masses),masses,xs_exp_limits) if len(xs_exp_limits_2sigma) > 0 else TGraph(0) )
     #graph_exp.SetMarkerStyle(24)
     graph_exp.SetLineWidth(3)
     graph_exp.SetLineStyle(2)
@@ -237,11 +244,6 @@ def main():
     c = TCanvas("c", "",800,800)
     c.cd()
 
-    graph_exp_2sigma.Draw("AF")
-    graph_exp_1sigma.Draw("F")
-    graph_exp.Draw("L")
-    graph_obs.Draw("LP")
-
     legend = TLegend(.60,.55,.90,.70)
     legend.SetBorderSize(0)
     legend.SetFillColor(0)
@@ -249,10 +251,33 @@ def main():
     legend.SetTextFont(42)
     legend.SetTextSize(0.03)
     legend.SetHeader('95% CL upper limits')
-    legend.AddEntry(graph_obs,"Observed","lp")
-    legend.AddEntry(graph_exp,"Expected","lp")
-    legend.AddEntry(graph_exp_1sigma,"#pm 1#sigma","F")
-    legend.AddEntry(graph_exp_2sigma,"#pm 2#sigma","F")
+
+    if len(xs_exp_limits_2sigma) > 0:
+        graph_exp_2sigma.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
+        graph_exp_2sigma.GetYaxis().SetTitle("#sigma#timesBR(X#rightarrowjj)#timesA [pb]")
+        graph_exp_2sigma.GetYaxis().SetRangeUser(1e-03,1e+02)
+        #graph_exp_2sigma.GetXaxis().SetNdivisions(1005)
+
+        graph_exp_2sigma.Draw("AF")
+        graph_exp_1sigma.Draw("F")
+        graph_exp.Draw("L")
+        graph_obs.Draw("LP")
+
+        legend.AddEntry(graph_obs,"Observed","lp")
+        legend.AddEntry(graph_exp,"Expected","lp")
+        legend.AddEntry(graph_exp_1sigma,"#pm 1#sigma","F")
+        legend.AddEntry(graph_exp_2sigma,"#pm 2#sigma","F")
+    else:
+        graph_obs.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
+        graph_obs.GetYaxis().SetTitle("#sigma#timesBR(X#rightarrowjj)#timesA [pb]")
+        graph_obs.GetYaxis().SetRangeUser(1e-03,1e+02)
+        #graph_obs.GetXaxis().SetNdivisions(1005)
+
+        graph_obs.Draw("ALP")
+
+        legend.AddEntry(graph_obs,"Observed","lp")
+
+
     legend.Draw()
 
     # draw the lumi text on the canvas
@@ -261,7 +286,7 @@ def main():
     gPad.RedrawAxis()
 
     c.SetLogy()
-    fileName = 'xs_limit_%s.%s'%(args.final_state + ( ('_' + args.postfix) if args.postfix != '' else '' ), args.fileFormat.lower())
+    fileName = 'xs_limit_%s_%s.%s'%(args.method,args.final_state + ( ('_' + args.postfix) if args.postfix != '' else '' ), args.fileFormat.lower())
     c.SaveAs(fileName)
     print "Plot saved to '%s'"%(fileName)
 

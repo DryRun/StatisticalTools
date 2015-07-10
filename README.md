@@ -107,9 +107,9 @@ For more command line options, run
 To produce the final limit plots, run:
 
 ```
-./scripts/plotLimits.py -l logs -f gg --massrange 1300 7000 100
-./scripts/plotLimits.py -l logs -f qg --massrange 1300 7000 100
-./scripts/plotLimits.py -l logs -f qq --massrange 1300 7000 100
+./scripts/plotLimits.py -M Asymptotic -l logs -f gg --massrange 1300 7000 100
+./scripts/plotLimits.py -M Asymptotic -l logs -f qg --massrange 1300 7000 100
+./scripts/plotLimits.py -M Asymptotic -l logs -f qq --massrange 1300 7000 100
 ```
 
 For more command line options, run
@@ -121,7 +121,7 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotLimits.py -r results/limits_qq_Run2_13TeV_MC.py -f qq --massrange 1300 7000 100
+./scripts/plotLimits.py -M Asymptotic -r results/limits_Asymptotic_qq_Run2_13TeV_Phys14Spring15Mix_MC.py -f qq --massrange 1300 7000 100
 ```
 
 ### Significance calculation
@@ -151,5 +151,5 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotSignificance.py -r results/significance_qq_Run2_13TeV_MC.py -f qq --massrange 1300 6000 100
+./scripts/plotSignificance.py -r results/significance_ProfileLikelihood_qq_Run2_13TeV_Phys14Spring15Mix_MC.py -f qq --massrange 1300 6000 100
 ```
