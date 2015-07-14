@@ -39,6 +39,22 @@ git clone git://github.com/CMSDIJET/StatisticalTools.git StatisticalTools
 
 All of the above steps need to be done only once.
 
+**UPDATE:** Starting from July 14, 2015 only the private instance of the `StatisticalTools` repository hosted by CERN GitLab is being updated. Here are the steps you should follow to get the latest updates:
+
+```
+cd StatisticalTools
+git remote add cms-internal ssh://git@gitlab.cern.ch:7999/CMSDIJET/StatisticalTools.git
+git fetch cms-internal
+git pull cms-internal master
+cd ../
+```
+
+Alternatively, you can start by directly cloning the private repository
+
+```
+git clone ssh://git@gitlab.cern.ch:7999/CMSDIJET/StatisticalTools.git StatisticalTools
+```
+
 ## Limit and significance calculation
 
 ### Resonance shapes
