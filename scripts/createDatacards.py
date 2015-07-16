@@ -137,9 +137,9 @@ def main():
         hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
 
         # calculate acceptance of the dijet mass cut
-        sigAcc = hSig.Integral(hSig.GetXaxis().FindBin(args.massMin),hSig.GetXaxis().FindBin(args.massMax))/hSig.Integral(1,hSig.GetXaxis().FindBin(args.massMax))
+        sigAcc = hSig.Integral(hSig.GetXaxis().FindBin(float(args.massMin)),hSig.GetXaxis().FindBin(float(args.massMax)))/hSig.Integral(1,hSig.GetXaxis().FindBin(float(args.massMax)))
 
-        mjj = RooRealVar('mjj','mjj',args.massMin,args.massMax)
+        mjj = RooRealVar('mjj','mjj',float(args.massMin),float(args.massMax))
 
         rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
         rooSigHist.Print()
@@ -149,7 +149,7 @@ def main():
         if args.fitBonly: signal_norm.setConstant()
         signal_norm.Print()
 
-        p1 = RooRealVar('p1','p1',args.p1,0.,100.)
+        p1 = RooRealVar('p1','p1',args.p1,-100.,100.)
         p2 = RooRealVar('p2','p2',args.p2,0.,60.)
         p3 = RooRealVar('p3','p3',args.p3,-10.,10.)
 
