@@ -39,7 +39,7 @@ git clone git://github.com/CMSDIJET/StatisticalTools.git StatisticalTools
 
 All of the above steps need to be done only once.
 
-**UPDATE:** Starting from July 14, 2015 only the private instance of the `StatisticalTools` repository hosted by CERN GitLab is being updated. Here are the steps you should follow to get the latest updates:
+**UPDATE:** As of July 16, 2015 only a private instance of the `StatisticalTools` repository hosted by CERN GitLab is being updated. Here are the steps you should follow to get the latest updates:
 
 ```
 cd StatisticalTools
@@ -59,7 +59,7 @@ git clone ssh://git@gitlab.cern.ch:7999/CMSDIJET/StatisticalTools.git Statistica
 
 ### Resonance shapes
 
-Before we can compute limits or significances, we need signal resonance shapes. Since we'll be using finely binned resonance shapes required by `combine` and RooFit and given the number of signal mass points, the ROOT files storing resonance shapes will be several MB in size. So in order not to bloat our repositories with many MBs of binary ROOT files, the resonance shapes will not be stored in the `DijetShapeInterpolator` or `StatisticalTools` repositories but will instead be produced using scripts and information stored in the `DijetShapeInterpolator` repository. Nevertheless, it is hard to completely avoid storing binary ROOT files in the repository so in some cases we will still do it (e.g. data dijet spectrum). Generally, this practice should be limited to ROOT file that are small (not more than a few hundred kB) and/or are not expected to change frequently.
+Before we can compute limits or significances, we need signal resonance shapes. Since we'll be using finely binned resonance shapes required by `combine` and RooFit and given the number of signal mass points, the ROOT files storing resonance shapes will be several MB in size. So in order not to bloat our repositories with many MBs of binary ROOT files, the resonance shapes will not be stored in the `DijetShapeInterpolator` or `StatisticalTools` repositories but will instead be produced using scripts and information stored in the `DijetShapeInterpolator` repository. Nevertheless, it is hard to completely avoid storing binary ROOT files in the repository so in some cases we will still do it (e.g. data dijet spectrum). Generally, this practice should be limited to ROOT files that are small (not more than a few hundred kB) and/or are not expected to change frequently.
 
 To produce the resonance shapes, go to the `DijetShapeInterpolator` package
 
