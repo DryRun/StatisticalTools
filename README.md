@@ -34,7 +34,6 @@ cd ../test
 
 git clone git://github.com/CMSDIJET/DijetShapeInterpolator.git DijetShapeInterpolator
 git clone git://github.com/CMSDIJET/StatisticalTools.git StatisticalTools
-
 ```
 
 All of the above steps need to be done only once.
