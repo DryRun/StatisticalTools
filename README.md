@@ -71,7 +71,9 @@ and run the following commands:
 
 ```
 ./getResonanceShapes.py -i inputs/input_shapes_gg_13TeV_PU30_Spring15.py -f gg --fineBinning --massrange 500 9000 100 -o ResonanceShapes_gg_13TeV_PU30_Spring15.root
+
 ./getResonanceShapes.py -i inputs/input_shapes_qg_13TeV_PU30_Spring15.py -f qg --fineBinning --massrange 500 9000 100 -o ResonanceShapes_qg_13TeV_PU30_Spring15.root
+
 ./getResonanceShapes.py -i inputs/input_shapes_qq_13TeV_Phys14Spring15Mix.py -f qq --fineBinning --massrange 500 9000 100 -o ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root
 ```
 
@@ -93,9 +95,11 @@ cd ../StatisticalTools
 Another essential ingredient for the statistical analysis are datacards and corresponding RooFit workspaces. Here again, we don't necessarily want to store all of these files in the repository since they can be easily remade using scripts available in the repository. Run the following commands to produce datacards for gg, qg, and qq resonances:
 
 ```
-./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards -l 1000 --massrange 1300 7000 100 --runFit
-./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards -l 1000 --massrange 1300 7000 100 --runFit
-./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root -f qq -o datacards -l 1000 --massrange 1300 7000 100 --runFit
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_16_07_15_21_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards -l 21 --massrange 1300 5500 100 --runFit --massMax 7589
+
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_16_07_15_21_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards -l 21 --massrange 1300 5500 100 --runFit --massMax 7589
+
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_16_07_15_21_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root -f qq -o datacards -l 21 --massrange 1300 5500 100 --runFit --massMax 7589
 ```
 
 For more command line options, run
@@ -109,9 +113,11 @@ For more command line options, run
 We can now run `combine` to compute the limits. In the following examples the Asymptotic CL<sub>S</sub> method is used:
 
 ```
-./scripts/runCombine.py -M Asymptotic -d datacards -f gg --massrange 1300 7000 100
-./scripts/runCombine.py -M Asymptotic -d datacards -f qg --massrange 1300 7000 100
-./scripts/runCombine.py -M Asymptotic -d datacards -f qq --massrange 1300 7000 100
+./scripts/runCombine.py -M Asymptotic -d datacards -f gg --massrange 1300 5500 100
+
+./scripts/runCombine.py -M Asymptotic -d datacards -f qg --massrange 1300 5500 100
+
+./scripts/runCombine.py -M Asymptotic -d datacards -f qq --massrange 1300 5500 100
 ```
 
 For more command line options, run
@@ -123,9 +129,14 @@ For more command line options, run
 To produce the final limit plots, run:
 
 ```
-./scripts/plotLimits.py -M Asymptotic -l logs -f gg --massrange 1300 7000 100
-./scripts/plotLimits.py -M Asymptotic -l logs -f qg --massrange 1300 7000 100
-./scripts/plotLimits.py -M Asymptotic -l logs -f qq --massrange 1300 7000 100
+./scripts/plotLimits.py -M Asymptotic -l logs -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat pdf
+./scripts/plotLimits.py -M Asymptotic -l logs -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat png
+
+./scripts/plotLimits.py -M Asymptotic -l logs -f qg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat pdf
+./scripts/plotLimits.py -M Asymptotic -l logs -f qg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat png
+
+./scripts/plotLimits.py -M Asymptotic -l logs -f qq --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat pdf
+./scripts/plotLimits.py -M Asymptotic -l logs -f qq --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat png
 ```
 
 For more command line options, run
@@ -137,7 +148,7 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotLimits.py -M Asymptotic -r results/limits_Asymptotic_qq_Run2_13TeV_Phys14Spring15Mix_MC.py -f qq --massrange 1300 7000 100
+./scripts/plotLimits.py -M Asymptotic -r results/limits_Asymptotic_gg_Run2_13TeV_DATA_21_invpb.py -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat pdf
 ```
 
 ### Significance calculation
@@ -145,17 +156,24 @@ If you are only interested in producing or modifying plots using already compute
 For the significance calculation we again use the `runCombine.py` script as in the following examples (note the `--signif` option):
 
 ```
-./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f gg --massrange 1300 6000 100
-./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qg --massrange 1300 6000 100
-./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qq --massrange 1300 6000 100
+./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f gg --massrange 1300 5500 100
+
+./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qg --massrange 1300 5500 100
+
+./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qq --massrange 1300 5500 100
 ```
 
 To produce the final significance plots, run:
 
 ```
-./scripts/plotSignificance.py -l logs -f gg --massrange 1300 6000 100
-./scripts/plotSignificance.py -l logs -f qg --massrange 1300 6000 100
-./scripts/plotSignificance.py -l logs -f qq --massrange 1300 6000 100
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat pdf
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat png
+
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f qg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat pdf
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f qg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat png
+
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f qq --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat pdf
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f qq --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat png
 ```
 
 For more command line options, run
@@ -167,5 +185,5 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotSignificance.py -r results/significance_ProfileLikelihood_qq_Run2_13TeV_Phys14Spring15Mix_MC.py -f qq --massrange 1300 6000 100
+./scripts/plotSignificance.py -M ProfileLikelihood -r results/significance_ProfileLikelihood_gg_Run2_13TeV_DATA_21_invpb.py -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="21 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_21_invpb --fileFormat pdf
 ```
