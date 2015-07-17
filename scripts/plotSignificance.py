@@ -15,7 +15,7 @@ def main():
     parser = ArgumentParser(description='Script that plots significance for specified mass points',epilog=usage)
 
     parser.add_argument("-M", "--method", dest="method",
-                        choices=['ProfileLikelihood'],
+                        choices=['ProfileLikelihood', 'HybridNew'],
                         default='ProfileLikelihood',
                         help="Method to calculate upper limits",
                         metavar="METHOD")
@@ -136,11 +136,6 @@ def main():
     from ROOT import kTRUE, kFALSE, gROOT, gStyle, gPad, TGraph, TCanvas, TLegend
     from ROOT import kGreen, kYellow, kWhite, kRed, kBlue
 
-    CMS_lumi.extraText = args.extraText
-    CMS_lumi.lumi_sqrtS = args.lumi_sqrtS # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
-    iPos = 11
-    iPeriod = 0
-
     gROOT.SetBatch(kTRUE);
     gStyle.SetOptStat(0)
     gStyle.SetOptTitle(0)
@@ -174,6 +169,11 @@ def main():
     graph_sig.Draw("ALP")
 
     # draw the lumi text on the canvas
+    CMS_lumi.extraText = args.extraText
+    CMS_lumi.lumi_sqrtS = args.lumi_sqrtS # used with iPeriod = 0 (free form)
+    iPos = 11
+    iPeriod = 0
+
     CMS_lumi.CMS_lumi(c, iPeriod, iPos)
 
     gPad.RedrawAxis()

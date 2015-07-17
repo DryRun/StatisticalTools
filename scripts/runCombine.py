@@ -12,7 +12,7 @@ def main():
     parser = ArgumentParser(description='Script that runs limit calculation for specified mass points',epilog=usage)
 
     parser.add_argument("-M", "--method", dest="method", required=True,
-                        choices=['ProfileLikelihood', 'Asymptotic', 'MarkovChainMC'],
+                        choices=['ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC'],
                         help="Method to calculate upper limits",
                         metavar="METHOD")
 
@@ -31,10 +31,12 @@ def main():
 
     parser.add_argument("--rMax", dest="rMax", type=float, help="Maximum value for signal strength")
 
+    parser.add_argument("--toysH", dest="toysH", type=int, help="Number of Toy MC extractions for HybridNew")
+
     parser.add_argument("--tries", dest="tries", type=int, default=10, help="Number of times to run the MCMC (default: %(default)i)")
 
     parser.add_argument("--noSyst", dest="noSyst", default=False, action="store_true", help="Run without systematic uncertainties")
-    
+
     parser.add_argument("--noHint", dest="noHint", default=False, action="store_true", help="Do not run the hint method")
 
     parser.add_argument("--signif", dest="signif", default=False, action="store_true", help="Calculate significance instead of limits")
@@ -86,7 +88,7 @@ def main():
 
     method = args.method
 
-    if method != 'ProfileLikelihood' and args.signif:
+    if args.signif and method != 'ProfileLikelihood' and method != 'HybridNew':
         print "** ERROR: ** For significance calculation the ProfileLikelihood method has to be used. Aborting."
         sys.exit(1)
 
@@ -95,8 +97,10 @@ def main():
         options = options + ' --signif'
     if args.noSyst:
         options = options + ' --systematics 0'
-    if method != 'ProfileLikelihood' and not args.rMax != None and not args.noHint:
+    if method != 'ProfileLikelihood' and args.rMax == None and not args.noHint and not args.signif:
         options = options + ' --hintMethod ProfileLikelihood'
+    if method == 'HybridNew' and args.toysH != None:
+        options = options + ' --toysH %i'%(args.toysH)
     if args.rMax != None:
         options = options + ' --rMin 0 --rMax %f'%(args.rMax)
     if method == 'MarkovChainMC':
