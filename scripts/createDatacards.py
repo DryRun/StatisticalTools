@@ -61,6 +61,8 @@ def main():
                         help="Fit function p3 parameter (default: %(default)e)",
                         metavar="P3")
 
+    parser.add_argument("--fixP3", dest="fixP3", default=False, action="store_true", help="Fix the fit function p3 parameter")
+
     parser.add_argument("--runFit", dest="runFit", default=False, action="store_true", help="Run the fit")
 
     parser.add_argument("--fitBonly", dest="fitBonly", default=False, action="store_true", help="Run B-only fit")
@@ -152,6 +154,7 @@ def main():
         p1 = RooRealVar('p1','p1',args.p1,-100.,100.)
         p2 = RooRealVar('p2','p2',args.p2,0.,60.)
         p3 = RooRealVar('p3','p3',args.p3,-10.,10.)
+        if args.fixP3: p3.setConstant()
 
         background = RooGenericPdf('background','(pow(1-@0/%.1f,@1)/pow(@0/%.1f,@2+@3*log(@0/%.1f)))'%(sqrtS,sqrtS,sqrtS),RooArgList(mjj,p1,p2,p3))
         background.Print()
@@ -205,7 +208,7 @@ def main():
         datacard.write('background_norm  flatParam\n')
         datacard.write('p1  flatParam\n')
         datacard.write('p2  flatParam\n')
-        datacard.write('p3  flatParam\n')
+        if not args.fixP3: datacard.write('p3  flatParam\n')
         datacard.close()
 
     print '>> Datacards and workspaces created and stored in %s/.'%( os.path.join(os.getcwd(),args.output_path) )
