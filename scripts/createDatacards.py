@@ -37,12 +37,12 @@ def main():
                         metavar="LUMI")
 
     parser.add_argument("--massMin", dest="massMin",
-                        default=1118,
+                        default=1118, type=int,
                         help="Lower bound of the mass range used for fitting (default: %(default)s)",
                         metavar="MASS_MIN")
 
     parser.add_argument("--massMax", dest="massMax",
-                        default=9067,
+                        default=9067, type=int,
                         help="Upper bound of the mass range used for fitting (default: %(default)s)",
                         metavar="MASS_MAX")
 
@@ -70,6 +70,8 @@ def main():
     parser.add_argument("--fitStrategy", dest="fitStrategy", type=int, default=0, help="Fit strategy (default: %(default).1f)")
 
     parser.add_argument("--sqrtS", dest="sqrtS", type=float, default=13000., help="Collision center-of-mass energy (default: %(default).1f)")
+
+    parser.add_argument("--theta", dest="theta", default=False, action="store_true", help="Produce histograms for the theta limit setting framework")
 
     parser.add_argument("--debug", dest="debug", default=False, action="store_true", help="Debug printout")
 
@@ -139,7 +141,7 @@ def main():
         hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
 
         # calculate acceptance of the dijet mass cut
-        sigAcc = hSig.Integral(hSig.GetXaxis().FindBin(float(args.massMin)),hSig.GetXaxis().FindBin(float(args.massMax)))/hSig.Integral(1,hSig.GetXaxis().FindBin(float(args.massMax)))
+        sigAcc = hSig.Integral(hSig.GetXaxis().FindBin(float(args.massMin)+0.5),hSig.GetXaxis().FindBin(float(args.massMax)-0.5))/hSig.Integral(1,hSig.GetXaxis().FindBin(float(args.massMax)-0.5)) # assuming 1-GeV bins
 
         mjj = RooRealVar('mjj','mjj',float(args.massMin),float(args.massMax))
 
@@ -158,7 +160,7 @@ def main():
 
         background = RooGenericPdf('background','(pow(1-@0/%.1f,@1)/pow(@0/%.1f,@2+@3*log(@0/%.1f)))'%(sqrtS,sqrtS,sqrtS),RooArgList(mjj,p1,p2,p3))
         background.Print()
-        dataInt = hData.Integral(hData.GetXaxis().FindBin(args.massMin),hData.GetXaxis().FindBin(args.massMax))
+        dataInt = hData.Integral(hData.GetXaxis().FindBin(float(args.massMin)),hData.GetXaxis().FindBin(float(args.massMax)))
         background_norm = RooRealVar('background_norm','background_norm',dataInt,0.,1e+07)
         background_norm.Print()
 
@@ -210,6 +212,27 @@ def main():
         datacard.write('p2  flatParam\n')
         if not args.fixP3: datacard.write('p3  flatParam\n')
         datacard.close()
+
+        if args.theta:
+            thetaName = 'theta_' + args.final_state + '_m' + str(mass) + '.root'
+
+            thetaFile = TFile(os.path.join(args.output_path,thetaName), 'RECREATE')
+
+            thetaData = rooDataHist.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
+            thetaData.SetName('dijet__DATA')
+            thetaData.Write()
+
+            thetaSignal = rooSigHist.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
+            thetaSignal.Scale(expectedSignalRate)
+            thetaSignal.SetName('dijet__signal')
+            thetaSignal.Write()
+
+            thetaBkg = background.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
+            thetaBkg.Scale(background_norm.getVal())
+            thetaBkg.SetName('dijet__background')
+            thetaBkg.Write()
+
+            thetaFile.Close()
 
     print '>> Datacards and workspaces created and stored in %s/.'%( os.path.join(os.getcwd(),args.output_path) )
 
