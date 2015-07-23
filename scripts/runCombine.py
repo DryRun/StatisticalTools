@@ -1,7 +1,48 @@
 #!/usr/bin/env python
 
-import sys, os
+import sys, os, re
 from argparse import ArgumentParser
+
+jdl_template = """universe = vanilla
+Notification = never
+Executable = condor/run_DUMMY_JOB.sh
+Should_Transfer_Files = YES
+WhenToTransferOutput = ON_EXIT
+Transfer_Input_Files = DUMMY_FILES
+Output = DUMMY_OUTPUTDIR/condor/condor_DUMMY_JOB_$(Cluster)_$(Process).stdout
+Error = DUMMY_OUTPUTDIR/condor/condor_DUMMY_JOB_$(Cluster)_$(Process).stderr
+Log = DUMMY_OUTPUTDIR/condor/condor_DUMMY_JOB_$(Cluster)_$(Process).log
+Arguments = DUMMY_OUTPUTDIR
+#+LENGTH="SHORT"
+Queue 1
+"""
+
+bash_template = """#!/bin/bash
+
+OUTPUTDIR=$1
+
+START_TIME=`/bin/date`
+echo "Started at $START_TIME"
+echo ""
+
+export SCRAM_ARCH=slc6_amd64_gcc481
+source /cvmfs/cms.cern.ch/cmsset_default.sh
+
+cd $OUTPUTDIR
+eval `scramv1 runtime -sh`
+
+# change to Condor scratch directory
+cd ${_CONDOR_SCRATCH_DIR}
+
+echo "Running: DUMMY_CMD"
+DUMMY_CMD
+exitcode=$?
+
+echo ""
+END_TIME=`/bin/date`
+echo "Finished at $END_TIME"
+exit $exitcode
+"""
 
 
 def main():
@@ -12,7 +53,7 @@ def main():
     parser = ArgumentParser(description='Script that runs limit calculation for specified mass points',epilog=usage)
 
     parser.add_argument("-M", "--method", dest="method", required=True,
-                        choices=['ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC'],
+                        choices=['MaxLikelihoodFit', 'ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC'],
                         help="Method to calculate upper limits",
                         metavar="METHOD")
 
@@ -41,6 +82,8 @@ def main():
 
     parser.add_argument("--signif", dest="signif", default=False, action="store_true", help="Calculate significance instead of limits")
 
+    parser.add_argument("--condor", dest="condor", default=False, action="store_true", help="Batch process using Condor")
+
     mass_group = parser.add_mutually_exclusive_group(required=True)
     mass_group.add_argument("--mass",
                             type=int,
@@ -61,9 +104,9 @@ def main():
     args = parser.parse_args()
 
     # check if the output directory exists
-    if not os.path.isdir( os.path.join(os.getcwd(),args.output_path) ):
-        os.mkdir( os.path.join(os.getcwd(),args.output_path) )
-
+    if not os.path.isdir( os.path.join(os.getcwd(), args.output_path) ):
+        os.mkdir( os.path.join(os.getcwd(), args.output_path) )
+    print os.getcwd()
     # mass points for which resonance shapes will be produced
     masses = []
 
@@ -81,15 +124,10 @@ def main():
     # sort masses
     masses.sort()
 
-    logs_path = os.path.join(os.getcwd(),args.output_path)
-
-    # change directory to where datacards are stored
-    os.chdir(args.datacards_path)
-
     method = args.method
 
     if args.signif and method != 'ProfileLikelihood' and method != 'HybridNew':
-        print "** ERROR: ** For significance calculation the ProfileLikelihood method has to be used. Aborting."
+        print "** ERROR: ** For significance calculation the ProfileLikelihood or HybridNew method has to be used. Aborting."
         sys.exit(1)
 
     options = ''
@@ -97,7 +135,7 @@ def main():
         options = options + ' --signif'
     if args.noSyst:
         options = options + ' --systematics 0'
-    if method != 'ProfileLikelihood' and args.rMax == None and not args.noHint and not args.signif:
+    if method != 'ProfileLikelihood' and method != 'MaxLikelihoodFit' and args.rMax == None and not args.noHint and not args.signif:
         options = options + ' --hintMethod ProfileLikelihood'
     if method == 'HybridNew' and args.toysH != None:
         options = options + ' --toysH %i'%(args.toysH)
@@ -106,18 +144,67 @@ def main():
     if method == 'MarkovChainMC':
         options = options + ' --tries %i --proposal fit'%(args.tries)
 
+    prefix = 'limits'
+    if args.signif:
+        prefix = 'significance'
+    elif method == 'MaxLikelihoodFit':
+        prefix = 'signal_xs'
+
+    datacards_path = os.path.join(os.getcwd(), args.datacards_path)
+    output_path = os.path.join(os.getcwd(), args.output_path)
+    condor_path = os.path.join(output_path, 'condor')
+
+    # change to the appropriate directory
+    if args.condor:
+        os.chdir(output_path)
+    else:
+        os.chdir(datacards_path)
+
     for mass in masses:
 
-        print ">> Calculating %s for %s resonance with m = %i GeV..."%(('significance' if args.signif else 'limits'), args.final_state, int(mass))
-
-        logName = '%s_%s_%s_m%i.log'%(('significance' if args.signif else 'limits'), method, args.final_state, int(mass))
+        logName = '%s_%s_%s_m%i.log'%(prefix, method, args.final_state, int(mass))
 
         run_options = options + ' --name _%s_m%i --mass %i'%(args.final_state,int(mass),int(mass))
 
-        cmd = "combine -M %s %s datacard_%s_m%i.txt | tee %s"%(method,run_options,args.final_state,int(mass),os.path.join(logs_path,logName))
-        print "---------------------------------------------------------------------------"
-        print "Running: " + cmd +"\n"
-        os.system(cmd)
+        cmd = "combine -M %s %s datacard_%s_m%i.txt | tee %s"%(method,run_options,args.final_state,int(mass),os.path.join(('' if args.condor else output_path),logName))
+
+        # if using Condor
+        if args.condor:
+            # check if the Condor directory exists
+            if not os.path.isdir( condor_path ):
+                os.mkdir( condor_path )
+
+            # create the jdl file
+            jdl_content = jdl_template
+            jdl_content = re.sub('DUMMY_JOB','%s_%s_m%i'%(method,args.final_state,int(mass)),jdl_content)
+            jdl_content = re.sub('DUMMY_OUTPUTDIR',os.getcwd(),jdl_content)
+            files_to_transfer = []
+            files_to_transfer.append( os.path.join(datacards_path, 'datacard_%s_m%i.txt'%(args.final_state,int(mass))) )
+            files_to_transfer.append( os.path.join(datacards_path, 'workspace_%s_m%i.root'%(args.final_state,int(mass))) )
+            jdl_content = re.sub('DUMMY_FILES',', '.join(files_to_transfer),jdl_content)
+
+            jdl_file = open(os.path.join(condor_path,'run_%s_%s_m%i.jdl'%(method,args.final_state,int(mass))),'w')
+            jdl_file.write(jdl_content)
+            jdl_file.close()
+
+            # create the Bash script
+            bash_content = bash_template
+            bash_content = re.sub('DUMMY_CMD',cmd,bash_content)
+
+            bash_script = open(os.path.join(condor_path,'run_%s_%s_m%i.sh'%(method,args.final_state,int(mass))),'w')
+            bash_script.write(bash_content)
+            bash_script.close()
+
+            print ">> Submitting job for %s resonance with m = %i GeV..."%(args.final_state, int(mass))
+            print "---------------------------------------------------------------------------"
+            condor_cmd = 'condor_submit condor/run_%s_%s_m%i.jdl'%(method,args.final_state,int(mass))
+            print "Running: " + condor_cmd + "\n"
+            os.system(condor_cmd)
+        else:
+            print ">> Running combine for %s resonance with m = %i GeV..."%(args.final_state, int(mass))
+            print "---------------------------------------------------------------------------"
+            print "Running: " + cmd + "\n"
+            os.system(cmd)
 
 
 if __name__ == '__main__':
