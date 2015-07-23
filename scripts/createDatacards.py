@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os
+import sys, os, copy
 from argparse import ArgumentParser
 
 
@@ -47,19 +47,39 @@ def main():
                         metavar="MASS_MAX")
 
     parser.add_argument("--p1", dest="p1",
-                        default=7.7666e+00, type=float,
+                        default=1.0003e+01, type=float,
                         help="Fit function p1 parameter (default: %(default)e)",
                         metavar="P1")
 
     parser.add_argument("--p2", dest="p2",
-                        default=5.3748e+00, type=float,
+                        default=5.2648e+00, type=float,
                         help="Fit function p2 parameter (default: %(default)e)",
                         metavar="P2")
 
     parser.add_argument("--p3", dest="p3",
-                        default=5.6385e-03, type=float,
+                        default=0.0000e+00, type=float,
                         help="Fit function p3 parameter (default: %(default)e)",
                         metavar="P3")
+
+    parser.add_argument("--lumiUnc", dest="lumiUnc",
+                        required=True, type=float,
+                        help="Relative uncertainty in the integrated luminosity",
+                        metavar="LUMI_UNC")
+
+    parser.add_argument("--jesUnc", dest="jesUnc",
+                        type=float,
+                        help="Relative uncertainty in the jet energy scale",
+                        metavar="JES_UNC")
+
+    parser.add_argument("--jerUnc", dest="jerUnc",
+                        type=float,
+                        help="Relative uncertainty in the jet energy resolution",
+                        metavar="JER_UNC")
+
+    parser.add_argument("--sqrtS", dest="sqrtS",
+                        default=13000., type=float,
+                        help="Collision center-of-mass energy (default: %(default).1f)",
+                        metavar="SQRTS")
 
     parser.add_argument("--fixP3", dest="fixP3", default=False, action="store_true", help="Fix the fit function p3 parameter")
 
@@ -68,8 +88,6 @@ def main():
     parser.add_argument("--fitBonly", dest="fitBonly", default=False, action="store_true", help="Run B-only fit")
 
     parser.add_argument("--fitStrategy", dest="fitStrategy", type=int, default=0, help="Fit strategy (default: %(default).1f)")
-
-    parser.add_argument("--sqrtS", dest="sqrtS", type=float, default=13000., help="Collision center-of-mass energy (default: %(default).1f)")
 
     parser.add_argument("--theta", dest="theta", default=False, action="store_true", help="Produce histograms for the theta limit setting framework")
 
@@ -116,7 +134,7 @@ def main():
     masses.sort()
 
     # import ROOT stuff
-    from ROOT import TFile, TH1F, TH1D, kTRUE, kFALSE
+    from ROOT import TFile, TH1F, TH1D, TGraph, kTRUE, kFALSE
     from ROOT import RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf
 
     if not args.debug:
@@ -134,16 +152,21 @@ def main():
 
     sqrtS = args.sqrtS
 
+    # mass variable
+    mjj = RooRealVar('mjj','mjj',float(args.massMin),float(args.massMax))
+
+    # integrated luminosity and signal cross section
+    lumi = args.lumi
+    signalCrossSection = 1. # set to 1. so that the limit on r can be interpreted as a limit on the signal cross section
+
     for mass in masses:
 
         print ">> Creating datacard and workspace for %s resonance with m = %i GeV..."%(args.final_state, int(mass))
 
+        # get signal shape
         hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
-
-        # calculate acceptance of the dijet mass cut
-        sigAcc = hSig.Integral(hSig.GetXaxis().FindBin(float(args.massMin)+0.5),hSig.GetXaxis().FindBin(float(args.massMax)-0.5))/hSig.Integral(1,hSig.GetXaxis().FindBin(float(args.massMax)-0.5)) # assuming 1-GeV bins
-
-        mjj = RooRealVar('mjj','mjj',float(args.massMin),float(args.massMax))
+        # normalize signal shape to the expected event yield (input shapes already normalized to unity)
+        hSig.Scale(signalCrossSection*lumi)
 
         rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
         rooSigHist.Print()
@@ -153,7 +176,7 @@ def main():
         if args.fitBonly: signal_norm.setConstant()
         signal_norm.Print()
 
-        p1 = RooRealVar('p1','p1',args.p1,-100.,100.)
+        p1 = RooRealVar('p1','p1',args.p1,0.,100.)
         p2 = RooRealVar('p2','p2',args.p2,0.,60.)
         p3 = RooRealVar('p3','p3',args.p3,-10.,10.)
         if args.fixP3: p3.setConstant()
@@ -174,29 +197,95 @@ def main():
             res = model.fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Strategy(args.fitStrategy))
             res.Print()
 
+        # -----------------------------------------
+        # dictionaries holding systematic variations of the signal shape
+        hSig_Syst = {}
+        hSig_Syst_DataHist = {}
+        sigCDF = TGraph(hSig.GetNbinsX()+1)
+
+        # JES and JER uncertainties
+        if args.jesUnc != None or args.jerUnc != None:
+
+            sigCDF.SetPoint(0,0.,0.)
+            integral = 0.
+            for i in range(1, hSig.GetNbinsX()+1):
+                x = hSig.GetXaxis().GetBinLowEdge(i+1)
+                integral = integral + hSig.GetBinContent(i)
+                sigCDF.SetPoint(i,x,integral)
+
+        if args.jesUnc != None:
+            hSig_Syst['JESUp'] = copy.deepcopy(hSig)
+            hSig_Syst['JESDown'] = copy.deepcopy(hSig)
+
+        if args.jerUnc != None:
+            hSig_Syst['JERUp'] = copy.deepcopy(hSig)
+            hSig_Syst['JERDown'] = copy.deepcopy(hSig)
+
+        # reset signal histograms
+        for key in hSig_Syst.keys():
+            hSig_Syst[key].Reset()
+            hSig_Syst[key].SetName(hSig_Syst[key].GetName() + '_' + key)
+
+        # produce JES signal shapes
+        if args.jesUnc != None:
+            for i in range(1, hSig.GetNbinsX()+1):
+                xLow = hSig.GetXaxis().GetBinLowEdge(i)
+                xUp = hSig.GetXaxis().GetBinLowEdge(i+1)
+                jes = 1. - args.jesUnc
+                xLowPrime = jes*xLow
+                xUpPrime = jes*xUp
+                hSig_Syst['JESUp'].SetBinContent(i, sigCDF.Eval(xUpPrime) - sigCDF.Eval(xLowPrime))
+                jes = 1. + args.jesUnc
+                xLowPrime = jes*xLow
+                xUpPrime = jes*xUp
+                hSig_Syst['JESDown'].SetBinContent(i, sigCDF.Eval(xUpPrime) - sigCDF.Eval(xLowPrime))
+            hSig_Syst_DataHist['JESUp'] = RooDataHist('hSig_JESUp','hSig_JESUp',RooArgList(mjj),hSig_Syst['JESUp'])
+            hSig_Syst_DataHist['JESDown'] = RooDataHist('hSig_JESDown','hSig_JESDown',RooArgList(mjj),hSig_Syst['JESDown'])
+
+        # produce JER signal shapes
+        if args.jesUnc != None:
+            for i in range(1, hSig.GetNbinsX()+1):
+                xLow = hSig.GetXaxis().GetBinLowEdge(i)
+                xUp = hSig.GetXaxis().GetBinLowEdge(i+1)
+                jer = 1. - args.jerUnc
+                xLowPrime = jer*(xLow-float(mass))+float(mass)
+                xUpPrime = jer*(xUp-float(mass))+float(mass)
+                hSig_Syst['JERUp'].SetBinContent(i, sigCDF.Eval(xUpPrime) - sigCDF.Eval(xLowPrime))
+                jer = 1. + args.jerUnc
+                xLowPrime = jer*(xLow-float(mass))+float(mass)
+                xUpPrime = jer*(xUp-float(mass))+float(mass)
+                hSig_Syst['JERDown'].SetBinContent(i, sigCDF.Eval(xUpPrime) - sigCDF.Eval(xLowPrime))
+            hSig_Syst_DataHist['JERUp'] = RooDataHist('hSig_JERUp','hSig_JERUp',RooArgList(mjj),hSig_Syst['JERUp'])
+            hSig_Syst_DataHist['JERDown'] = RooDataHist('hSig_JERDown','hSig_JERDown',RooArgList(mjj),hSig_Syst['JERDown'])
+
+        # -----------------------------------------
+        # create a datacard and corresponding workspace
         dcName = 'datacard_' + args.final_state + '_m' + str(mass) + '.txt'
         wsName = 'workspace_' + args.final_state + '_m' + str(mass) + '.root'
 
         w = RooWorkspace('w','workspace')
-        getattr(w,'import')(signal)
+        getattr(w,'import')(rooSigHist,RooFit.Rename("signal"))
+        if args.jesUnc != None:
+            getattr(w,'import')(hSig_Syst_DataHist['JESUp'],RooFit.Rename("signal__JESUp"))
+            getattr(w,'import')(hSig_Syst_DataHist['JESDown'],RooFit.Rename("signal__JESDown"))
+        if args.jerUnc != None:
+            getattr(w,'import')(hSig_Syst_DataHist['JERUp'],RooFit.Rename("signal__JERUp"))
+            getattr(w,'import')(hSig_Syst_DataHist['JERDown'],RooFit.Rename("signal__JERDown"))
         getattr(w,'import')(background)
         getattr(w,'import')(background_norm)
         getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
         w.Print()
         w.writeToFile(os.path.join(args.output_path,wsName))
 
-        # -----------------------------------------
-        # write a datacard
-        lumi = args.lumi
-        signalCrossSection = 1. # set to 1. so that the limit on r can be interpreted as a limit on the signal cross section
-        expectedSignalRate = signalCrossSection*lumi*sigAcc
-
         datacard = open(os.path.join(args.output_path,dcName),'w')
         datacard.write('imax 1\n')
         datacard.write('jmax 1\n')
         datacard.write('kmax *\n')
         datacard.write('---------------\n')
-        datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
+        if args.jesUnc != None or args.jerUnc != None:
+            datacard.write('shapes * * '+wsName+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
+        else:
+            datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
         datacard.write('---------------\n')
         datacard.write('bin 1\n')
         datacard.write('observation -1\n')
@@ -204,15 +293,22 @@ def main():
         datacard.write('bin          1          1\n')
         datacard.write('process      signal     background\n')
         datacard.write('process      0          1\n')
-        datacard.write('rate         '+str(expectedSignalRate)+'      1\n')
+        datacard.write('rate         -1         1\n')
         datacard.write('------------------------------\n')
-        #flat parameters --- flat prior
+        datacard.write('lumi  lnN    %f         -\n'%(1.+args.lumiUnc))
+        if args.jesUnc != None:
+            datacard.write('JES  shape   1          -\n')
+        if args.jerUnc != None:
+            datacard.write('JER  shape   1          -\n')
+        # flat parameters --- flat prior
         datacard.write('background_norm  flatParam\n')
         datacard.write('p1  flatParam\n')
         datacard.write('p2  flatParam\n')
         if not args.fixP3: datacard.write('p3  flatParam\n')
         datacard.close()
 
+        # -----------------------------------------
+        # create input histograms for the theta limit setting framework
         if args.theta:
             thetaName = 'theta_' + args.final_state + '_m' + str(mass) + '.root'
 
@@ -222,15 +318,32 @@ def main():
             thetaData.SetName('dijet__DATA')
             thetaData.Write()
 
-            thetaSignal = rooSigHist.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
-            thetaSignal.Scale(expectedSignalRate)
-            thetaSignal.SetName('dijet__signal')
-            thetaSignal.Write()
-
             thetaBkg = background.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
             thetaBkg.Scale(background_norm.getVal())
             thetaBkg.SetName('dijet__background')
             thetaBkg.Write()
+
+            thetaSignal = rooSigHist.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
+            thetaSignal.SetName('dijet__signal')
+            thetaSignal.Write()
+
+            if args.jesUnc != None:
+                thetaSignal_JESUp = hSig_Syst_DataHist['JESUp'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
+                thetaSignal_JESUp.SetName('dijet__signal__JES__up')
+                thetaSignal_JESUp.Write()
+
+                thetaSignal_JESDown = hSig_Syst_DataHist['JESDown'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
+                thetaSignal_JESDown.SetName('dijet__signal__JES__down')
+                thetaSignal_JESDown.Write()
+
+            if args.jerUnc != None:
+                thetaSignal_JERUp = hSig_Syst_DataHist['JERUp'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
+                thetaSignal_JERUp.SetName('dijet__signal__JER__up')
+                thetaSignal_JERUp.Write()
+
+                thetaSignal_JERDown = hSig_Syst_DataHist['JERDown'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
+                thetaSignal_JERDown.SetName('dijet__signal__JER__down')
+                thetaSignal_JERDown.Write()
 
             thetaFile.Close()
 

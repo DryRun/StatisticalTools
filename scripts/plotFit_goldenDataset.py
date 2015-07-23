@@ -60,11 +60,11 @@ integral = list.find("shapeBkg_background_bin1__norm")
 
 p1_val = p1.getVal()
 p2_val = p2.getVal()
-p3_val = p3.getVal()
+p3_val = 0. #p3.getVal()
 integral_val = integral.getVal()
 p1_error = p1.getError()
 p2_error = p2.getError()
-p3_error = p3.getError()
+p3_error = 0. #p3.getError()
 integral_error = integral.getError()
 
 
