@@ -44,7 +44,7 @@ All of the above steps need to be done only once.
 cd StatisticalTools
 git remote add cms-internal ssh://git@gitlab.cern.ch:7999/CMSDIJET/StatisticalTools.git
 git fetch cms-internal
-git pull cms-internal master
+git pull --ff-only cms-internal master
 cd ../
 ```
 
