@@ -15,7 +15,7 @@ def main():
     parser = ArgumentParser(description='Script that plots limits for specified mass points',epilog=usage)
 
     parser.add_argument("-M", "--method", dest="method", required=True,
-                        choices=['ProfileLikelihood', 'Asymptotic', 'MarkovChainMC'],
+                        choices=['ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC'],
                         help="Method to calculate upper limits",
                         metavar="METHOD")
 
@@ -101,6 +101,8 @@ def main():
 
             log_file = open(os.path.join(logs_path,logName),'r')
 
+            foundMethod = False
+
             # read the log file
             for line in log_file:
                 if args.method == 'Asymptotic':
@@ -117,8 +119,11 @@ def main():
                     if re.search("^Expected 97.5%: r", line):
                         xs_exp_limits_2sigma_up.append(float(line.split()[-1]))
                 else:
-                    if re.search("^Limit: r", line):
+                    if re.search(' -- ' + args.method, line):
+                       foundMethod = True
+                    if re.search("^Limit: r", line) and foundMethod:
                         xs_obs_limits.append(float(line.split()[3]))
+
 
             if len(masses) != len(xs_obs_limits):
                 print "** ERROR: ** Could not find observed limit for m =", int(mass), "GeV. Aborting."
