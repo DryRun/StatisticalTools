@@ -10,6 +10,7 @@ Code to perform fits, bias studies, compute limits and significances
    * [Datacards](#datacards)
    * [Limit calculation](#limit-calculation)
    * [Significance calculation](#significance-calculation)
+   * [Best-fit signal cross section](#best-fit-signal-cross-section)
 
 
 ## Software setup
@@ -24,7 +25,8 @@ cmsenv
 
 git clone -b v5.0.1 git://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 
-scram b
+scram b clean
+scram b -rj8
 ```
 
 Next, we will also need some dijet specific code and we will put it in the `test/` subdirectory of our CMSSW working area:
