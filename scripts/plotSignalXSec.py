@@ -181,7 +181,7 @@ def main():
     gROOT.ForceStyle()
 
     graph_sig = TGraphAsymmErrors(len(masses),masses,sig_pos,sig_exl,sig_exh,sig_eyl,sig_eyh)
-    graph_sig.GetXaxis().SetTitle("gg resonance mass [GeV]")
+    graph_sig.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
     graph_sig.GetYaxis().SetTitle("Signal cross section [pb]")
     graph_sig.GetYaxis().SetRangeUser(1e-4,2e2)
     graph_sig.SetMarkerStyle(20)
