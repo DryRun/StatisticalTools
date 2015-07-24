@@ -70,7 +70,9 @@ def main():
                         help="Output path where log files will be stored (default: %(default)s)",
                         metavar="OUTPUT_PATH")
 
-    parser.add_argument("--rMax", dest="rMax", type=float, help="Maximum value for signal strength")
+    parser.add_argument("--rMin", dest="rMin", type=float, help="Minimum value for the signal strength")
+
+    parser.add_argument("--rMax", dest="rMax", type=float, help="Maximum value for the signal strength")
 
     parser.add_argument("--toysH", dest="toysH", type=int, help="Number of Toy MC extractions for HybridNew")
 
@@ -139,8 +141,10 @@ def main():
         options = options + ' --hintMethod ProfileLikelihood'
     if method == 'HybridNew' and args.toysH != None:
         options = options + ' --toysH %i'%(args.toysH)
+    if args.rMin != None:
+        options = options + ' --rMin %f'%(args.rMin)
     if args.rMax != None:
-        options = options + ' --rMin 0 --rMax %f'%(args.rMax)
+        options = options + ' --rMax %f'%(args.rMax)
     if method == 'MarkovChainMC':
         options = options + ' --tries %i --proposal fit'%(args.tries)
 
