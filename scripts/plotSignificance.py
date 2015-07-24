@@ -32,6 +32,8 @@ def main():
                         help="Final state (e.g. qq, qg, gg)",
                         metavar="FINAL_STATE")
 
+    parser.add_argument("--sigRange", dest="sigRange", type=float, default=2.5, help="Significance range to plot (default: %(default)f)")
+
     parser.add_argument("--postfix", dest="postfix", default='', help="Postfix for the output plot name (default: %(default)s)")
 
     parser.add_argument("--fileFormat", dest="fileFormat", default='pdf', help="Format of the output plot (default: %(default)s)")
@@ -157,6 +159,7 @@ def main():
     graph_sig = TGraph(len(masses),masses,significances)
     graph_sig.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
     graph_sig.GetYaxis().SetTitle("Significance")
+    graph_sig.GetYaxis().SetRangeUser(0.,args.sigRange)
     graph_sig.SetLineWidth(2)
     graph_sig.SetLineColor(kRed)
     graph_sig.SetMarkerStyle(21)
@@ -178,6 +181,8 @@ def main():
 
     gPad.RedrawAxis()
 
+    c.SetGridx()
+    c.SetGridy()
     fileName = 'significance_%s_%s.%s'%(args.method,args.final_state + ( ('_' + args.postfix) if args.postfix != '' else '' ), args.fileFormat.lower())
     c.SaveAs(fileName)
     print "Plot saved to '%s'"%(fileName)
