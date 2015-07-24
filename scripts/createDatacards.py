@@ -1,7 +1,27 @@
 #!/usr/bin/env python
 
-import sys, os, copy
+import sys, os, copy, re
 from argparse import ArgumentParser
+
+theta_template = """files = ['theta_DUMMY_JOB.root']
+
+model = build_model_from_rootfile(files)
+model.set_signal_processes('signal')
+model.add_lognormal_uncertainty('overall_signal', math.log(1.1), 'signal')
+model_summary(model)
+
+res = mle(model, 'data' , 1)
+print res
+
+zvalue = zvalue_approx(model, 'data' , 1)
+print zvalue
+
+observed_limits = bayesian_quantiles(model, 'data', 10)
+print observed_limits
+
+plot_observed = limit_band_plot(observed_limits, False)
+plot_observed.write_txt('theta_DUMMY_JOB_observed_limit.txt')
+"""
 
 
 def main():
@@ -90,6 +110,8 @@ def main():
     parser.add_argument("--fitStrategy", dest="fitStrategy", type=int, default=0, help="Fit strategy (default: %(default).1f)")
 
     parser.add_argument("--theta", dest="theta", default=False, action="store_true", help="Produce histograms for the theta limit setting framework")
+
+    parser.add_argument("--thetaNoSyst", dest="thetaNoSyst", default=False, action="store_true", help="Also produce files for theta without systematic uncertainties")
 
     parser.add_argument("--debug", dest="debug", default=False, action="store_true", help="Debug printout")
 
@@ -313,6 +335,7 @@ def main():
             thetaName = 'theta_' + args.final_state + '_m' + str(mass) + '.root'
 
             thetaFile = TFile(os.path.join(args.output_path,thetaName), 'RECREATE')
+            thetaFile.cd()
 
             thetaData = rooDataHist.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
             thetaData.SetName('dijet__DATA')
@@ -326,6 +349,26 @@ def main():
             thetaSignal = rooSigHist.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
             thetaSignal.SetName('dijet__signal')
             thetaSignal.Write()
+
+            if args.thetaNoSyst:
+                thetaFile_NoSyst = TFile(os.path.join(args.output_path,thetaName.replace('.root','_NoSyst.root')), 'RECREATE')
+
+                thetaFile_NoSyst.cd()
+                thetaData.Write()
+                thetaBkg.Write()
+                thetaSignal.Write()
+
+                thetaFile_NoSyst.Close()
+                thetaFile.cd()
+
+                # create theta analysis file
+                theta_content = theta_template
+                theta_content = re.sub('DUMMY_JOB',args.final_state + '_m' + str(mass) + '_NoSyst',theta_content)
+                theta_content = re.sub('model.add_lognormal_uncertainty','#model.add_lognormal_uncertainty',theta_content)
+
+                theta_file = open(os.path.join(args.output_path,thetaName.replace('.root','_NoSyst.py')),'w')
+                theta_file.write(theta_content)
+                theta_file.close()
 
             if args.jesUnc != None:
                 thetaSignal_JESUp = hSig_Syst_DataHist['JESUp'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
@@ -346,6 +389,14 @@ def main():
                 thetaSignal_JERDown.Write()
 
             thetaFile.Close()
+
+            # create theta analysis file
+            theta_content = theta_template
+            theta_content = re.sub('DUMMY_JOB',args.final_state + '_m' + str(mass),theta_content)
+
+            theta_file = open(os.path.join(args.output_path,thetaName.replace('.root','.py')),'w')
+            theta_file.write(theta_content)
+            theta_file.close()
 
     print '>> Datacards and workspaces created and stored in %s/.'%( os.path.join(os.getcwd(),args.output_path) )
 
