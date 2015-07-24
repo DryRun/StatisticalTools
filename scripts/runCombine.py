@@ -84,6 +84,8 @@ def main():
 
     parser.add_argument("--signif", dest="signif", default=False, action="store_true", help="Calculate significance instead of limits")
 
+    parser.add_argument("--fitStrategy", dest="fitStrategy", type=int, help="Fit strategy (default: %(default).1f)")
+
     parser.add_argument("--condor", dest="condor", default=False, action="store_true", help="Batch process using Condor")
 
     mass_group = parser.add_mutually_exclusive_group(required=True)
@@ -135,6 +137,8 @@ def main():
     options = ''
     if args.signif:
         options = options + ' --signif'
+    if args.fitStrategy:
+        options = options + ' --minimizerStrategy %i'%(args.fitStrategy)
     if args.noSyst:
         options = options + ' --systematics 0'
     if method != 'ProfileLikelihood' and method != 'MaxLikelihoodFit' and args.rMax == None and not args.noHint and not args.signif:
