@@ -15,7 +15,7 @@ def main():
     parser = ArgumentParser(description='Script that plots significance for specified mass points',epilog=usage)
 
     parser.add_argument("-M", "--method", dest="method",
-                        choices=['ProfileLikelihood', 'HybridNew'],
+                        choices=['ProfileLikelihood', 'HybridNew', 'theta'],
                         default='ProfileLikelihood',
                         help="Method to calculate upper limits",
                         metavar="METHOD")
@@ -95,12 +95,18 @@ def main():
 
             logName = 'significance_%s_%s_m%i.log'%(args.method,args.final_state,int(mass))
 
+            if args.method == 'theta': logName = logName.replace('significance_','')
+
             log_file = open(os.path.join(logs_path,logName),'r')
 
             # read the log file
             for line in log_file:
-                if re.search("^Significance:", line):
-                  significances.append(float(line.split()[-1]))
+                if args.method == 'theta':
+                    if re.search("^{'signal': {'Z':", line):
+                        significances.append(float(line.split()[-1].lstrip('[').rstrip('}').rstrip(']')))
+                else:
+                    if re.search("^Significance:", line):
+                        significances.append(float(line.split()[-1]))
 
             if len(masses) != len(significances):
                 print "** ERROR: ** Could not find significance for m =", int(mass), "GeV. Aborting."

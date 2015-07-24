@@ -15,7 +15,7 @@ def main():
     parser = ArgumentParser(description='Script that plots limits for specified mass points',epilog=usage)
 
     parser.add_argument("-M", "--method", dest="method", required=True,
-                        choices=['ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC'],
+                        choices=['ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC', 'theta'],
                         help="Method to calculate upper limits",
                         metavar="METHOD")
 
@@ -99,6 +99,8 @@ def main():
 
             logName = 'limits_%s_%s_m%i.log'%(args.method,args.final_state,int(mass))
 
+            if args.method == 'theta': logName = logName.replace('limits_','')
+
             log_file = open(os.path.join(logs_path,logName),'r')
 
             foundMethod = False
@@ -118,9 +120,14 @@ def main():
                         xs_exp_limits_2sigma.append(float(line.split()[-1]))
                     if re.search("^Expected 97.5%: r", line):
                         xs_exp_limits_2sigma_up.append(float(line.split()[-1]))
+                elif args.method == 'theta':
+                    if re.search('^# x; y; yerror', line):
+                        foundMethod = True
+                    if line.split()[0] == '0' and foundMethod:
+                        xs_obs_limits.append(float(line.split()[1]))
                 else:
                     if re.search(' -- ' + args.method, line):
-                       foundMethod = True
+                        foundMethod = True
                     if re.search("^Limit: r", line) and foundMethod:
                         xs_obs_limits.append(float(line.split()[3]))
 
