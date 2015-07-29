@@ -78,7 +78,12 @@ RooMsgService.instance().setStreamStatus(1,ROOT.kFALSE)
 ##QCD MC
 #filenameBkg = PATH+'../scripts/histo_bkg_mjj.root'
 
-inputHistNameDat = 'hist_mass_1GeV'
+minX_mass = 1118.
+maxX_mass = 3416.
+#maxX_mass = 6099.
+
+#inputHistNameDat = 'hist_mass_1GeV'
+inputHistNameDat = 'h_dat'
 inputHistName = 'hist_allCutsQCD'
 infBkg = TFile.Open(filenameBkg)
 hBkg = infBkg.Get(inputHistName)
@@ -86,6 +91,7 @@ hBkg.Print()
 
 infDat = TFile.Open(filenameDat)
 hDat   = infDat.Get(inputHistNameDat)
+hDat.Print()
 #hDat.Rebin(20)
 
 ##test for significance
@@ -119,8 +125,7 @@ hSig.Draw()
 # define observable
 #test -- restrict mjj range
 #x = RooRealVar('mjj','mjj',1500,6000)
-#x = RooRealVar('mjj','mjj',1118,6099)
-x = RooRealVar('mjj','mjj',1118,9067)
+x = RooRealVar('mjj','mjj',minX_mass,maxX_mass)
 
 dataHist_data=RooDataHist("RooDataHist","RooDataHist",RooArgList(x),hDat)
 
@@ -157,7 +162,7 @@ if fitSig:
     signal.plotOn(frame)
     signal.plotOn(frame,RooFit.Components('bkg'),RooFit.LineColor(ROOT.kRed),RooFit.LineWidth(2),RooFit.LineStyle(ROOT.kDashed))
     #frame.GetXaxis().SetRangeUser(1118,6099)
-    frame.GetXaxis().SetRangeUser(1500,6000)
+    frame.GetXaxis().SetRangeUser(minX_mass,maxX_mass)
     frame.GetXaxis().SetTitle('m_{jj} (GeV)')
     frame.Draw()
 
@@ -182,13 +187,12 @@ if histpdfSig:
     signal.plotOn(frame,RooFit.Binning(166),RooFit.LineColor(ROOT.kRed),RooFit.LineWidth(2),RooFit.LineStyle(ROOT.kDashed))
 
     #frame.GetXaxis().SetRangeUser(1118,6099)
-    frame.GetXaxis().SetRangeUser(1500,6000)
+    frame.GetXaxis().SetRangeUser(minX_mass,maxX_mass)
     frame.GetXaxis().SetTitle('m_{jj} (GeV)')
     frame.Draw()
 
 #    parsSig = signal.getParameters(roohistSig)
 #    parsSig.setAttribAll('Constant', True)
-
 
 
 
@@ -199,14 +203,14 @@ if fitDat:
     # function 0 (standard parametrization)
     NBINS = 166
     #if fitModel==0:
-    p1 = RooRealVar('p1','p1',6.21862535247,0.,100)
-    p2 = RooRealVar('p2','p2',6.48308946408,0,60)
-    p3 = RooRealVar('p3','p3',0.217160577769,-10,10)
+
+    p1 = RooRealVar('p1','p1',28,0,50)
+    p2 = RooRealVar('p2','p2',2.8,1,10)
+    p3 = RooRealVar('p3','p3',0.,0.001,1.)
+    p3.setConstant(ROOT.kTRUE)
 
     background = RooGenericPdf('background','(pow(1-@0/13000,@1)/pow(@0/13000,@2+@3*log(@0/13000)))',RooArgList(x,p1,p2,p3))
-    background_norm = RooRealVar('background_norm','background_norm',434176,0,10000000)
-    
-    ebkg = RooExtendPdf("ebkg","extended background p.d.f",background,background_norm)
+    background_norm = RooRealVar('background_norm','background_norm',1,0,10)
     
     roohistSig = RooDataHist('roohist','roohist',RooArgList(x),hSig)
     signal = RooHistPdf('signal','signal',RooArgSet(x),roohistSig)
@@ -289,7 +293,7 @@ if histpdfBkg:
 
     #frame.GetXaxis().SetRangeUser(1118,6099)
     #frame.GetXaxis().SetRangeUser(1500,6000)
-    frame.GetXaxis().SetRangeUser(1100,4000)
+    frame.GetXaxis().SetRangeUser(minX_mass,maxX_mass)
     frame.GetXaxis().SetTitle('m_{jj} (GeV)')
     frame.Draw()
 

@@ -11,15 +11,18 @@ print usage
 
 parser = argparse.ArgumentParser(description='Process options.')
 
-parser.add_argument("--inputiFileData", type=str, dest="inputFileData", default="/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_DiJet/src/CMSDIJET/DijetRootTreeAnalyzer/test_fit/dijetFitResults_FuncType0_nParFit4_MC_1fb-1_Dinko.root",
+parser.add_argument("--inputFileData", type=str, dest="inputFileData", default="/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_DiJet/src/CMSDIJET/DijetRootTreeAnalyzer/test_fit/dijetFitResults_FuncType0_nParFit4_MC_1fb-1_Dinko.root",
     help="the input file with the spectrum to fit"
     )
-parser.add_argument("--inputiFileRes", type=str, dest="inputFileRes", default="mlfitgoldenDataset.root",
+parser.add_argument("--inputFileRes", type=str, dest="inputFileRes", default="mlfitgoldenDataset.root",
     help="the input file with results of the fit"
     )
 parser.add_argument("-o", "--output", type=str, dest="output", default="./",
     help="the directory OUTDIR contains the output of the program",
     metavar="OUTDIR"
+    )
+parser.add_argument("--lumi", type=str, dest="lumi", default="1",
+    help="luminosity",
     )
     
 
@@ -33,7 +36,8 @@ gROOT.ForceStyle()
 gROOT.SetStyle('tdrStyle')
 
 minX_mass = 1118
-maxX_mass = 6099 
+maxX_mass = 3416 
+#maxX_mass = 6099 
 
 massBins_list = [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8152, 8447, 8752, 9067, 9391, 9726, 10072, 10430, 10798, 11179, 11571, 11977, 12395, 12827, 13272, 13732, 14000]
 
@@ -44,16 +48,24 @@ inputFileData = TFile(args.inputFileData)
 #inputFitRes = TFile("mlfitgoldenDataset.root")
 inputFitRes = TFile(args.inputFileRes)
 
-hist_mass = inputFileData.Get("hist_mass")
-hist_binned = inputFileData.Get("hist_binned")
-tree_fit_b = inputFitRes.Get("tree_fit_b")
 
-#Set error to 1.8 in empty bins
-for i in range(1,hist_mass.GetNbinsX()+1):
+hist_mass_1GeV = inputFileData.Get("h_dat")
+#hist_binned = inputFileData.Get("hist_binned")
+hist_binned = hist_mass_1GeV.Rebin(len(massBins_list)-1,"hist_binned",massBins)
+hist_mass = TH1F("hist_mass","",len(massBins_list)-1,massBins)
+for i in range(1,len(massBins_list)):
+  hist_mass.SetBinContent(i,hist_binned.GetBinContent(i)/hist_binned.GetBinWidth(i))
+  #Set error to 1.8 in empty bins
   if (hist_mass.GetBinContent(i) == 0):
     hist_mass.SetBinError(i,1.8/hist_mass.GetBinWidth(i))
+  else:
+    hist_mass.SetBinError(i,hist_binned.GetBinError(i)/hist_binned.GetBinWidth(i))
+  print "bin = %d  content = %f" % (i,hist_mass.GetBinContent(i))
 
-c = TCanvas("c", "",339,117,695,841)
+tree_fit_b = inputFitRes.Get("tree_fit_b")
+
+
+c = TCanvas("c", "",600,600)
 tree_fit_b.GetEntry(0)
 #p1_val = tree_fit_b.p1
 #p2_val = tree_fit_b.p2
@@ -69,12 +81,16 @@ integral = list.find("shapeBkg_background_bin1__norm")
 
 p1_val = p1.getVal()
 p2_val = p2.getVal()
-p3_val = p3.getVal()
-integral_val = integral.getVal() #* hist_binned.Integral(hist_binned.FindBin(minX_mass),hist_binned.FindBin(maxX_mass))
+#p3_val = p3.getVal()
+integral_val = integral.getVal() * hist_binned.Integral(hist_binned.FindBin(minX_mass),hist_binned.FindBin(maxX_mass))
 p1_error = p1.getError()
 p2_error = p2.getError()
-p3_error = p3.getError()
-integral_error = integral.getError() #* hist_binned.Integral(hist_binned.FindBin(minX_mass),hist_binned.FindBin(maxX_mass))
+#p3_error = p3.getError()
+integral_error = integral.getError() * hist_binned.Integral(hist_binned.FindBin(minX_mass),hist_binned.FindBin(maxX_mass))
+
+####TO BE CHANGED
+p3_val = 0
+p3_error = 0
 
 
 print str(p1_val)+"  "+str(p2_val)+"  "+str(p3_val)+"  "+str(integral_val)
@@ -148,7 +164,7 @@ p11_1.SetRightMargin(0.05)
 p11_1.SetTopMargin(0.05) 
 
 #Pave text for fit results
-pave_fit1 = TPaveText(0.56,0.55,0.9,0.85,"NDC") 
+pave_fit1 = TPaveText(0.5553767,0.5718609,0.8950205,0.8728834,"NDC") 
 pave_fit1.AddText("#chi^{2} / ndf = %.2f / %d" % (chi2_VarBin,ndf_VarBin)) 
 pave_fit1.AddText("p0 =  %.2e #pm %.2e" % (p0_val,p0_error))
 pave_fit1.AddText("p1 =  %.2e #pm %.2e" % (p1_val,p1_error))
@@ -162,7 +178,7 @@ pave_fit1.SetTextSize(0.03)
 pave_fit1.SetTextAlign(12)  
 
 #Pave text
-pave_fit = TPaveText(0.18,0.15,0.40,0.27,"NDC") 
+pave_fit = TPaveText(0.2260699,0.1759509,0.4461,0.2953783,"NDC") 
 pave_fit.AddText(" #sqrt{s} = 13 TeV") 
 pave_fit.AddText("|#eta| < 2.5, |#Delta#eta| < 1.3") 
 pave_fit.AddText("M_{jj} > 1100 GeV") 
@@ -176,7 +192,7 @@ pave_fit.SetTextSize(0.03)
 pave_fit.SetTextAlign(12)  
 
 
-pt1 =  TPaveText(0.1284756,0.9602144,0.3887139,0.9902251,"brNDC") 
+pt1 =  TPaveText(0.1802918,0.961227,0.4416699,0.9906748,"brNDC") 
 pt1.SetBorderSize(0) 
 pt1.SetFillColor(0) 
 pt1.SetFillStyle(0) 
@@ -194,14 +210,14 @@ pt2.SetTextAlign(12)
 pt2.SetTextSize(0.035) 
 text2 = pt2.AddText("#sqrt{s} = 13 TeV") 
 
-pt3 = TPaveText(0.7687988,0.9602144,0.9297357,0.9902251,"brNDC") 
+pt3 = TPaveText(0.7640118,0.9623568,0.9041298,0.9918167,"brNDC") 
 pt3.SetBorderSize(0) 
 pt3.SetFillColor(0) 
 pt3.SetFillStyle(0) 
 pt3.SetLineColor(0) 
 pt3.SetTextAlign(12) 
 pt3.SetTextSize(0.035) 
-text3 = pt3.AddText("L= 1 fb^{-1}") 
+text3 = pt3.AddText("L= "+args.lumi+" pb^{-1}") 
 #text3 = pt3.AddText("L= 10 fb^{-1}") 
 
 vFrame = p11_1.DrawFrame(minX_mass,0.000000001,maxX_mass,10.0) 
@@ -209,7 +225,6 @@ vFrame = p11_1.DrawFrame(minX_mass,0.000000001,maxX_mass,10.0)
 vFrame.SetTitle("") 
 vFrame.SetXTitle("Dijet Mass (GeV)") 
 vFrame.GetXaxis().SetTitleSize(0.06) 
-vFrame.SetYTitle("events / bin width") 
 
 vFrame.GetYaxis().SetTitleSize(0.12) 
 vFrame.GetYaxis().SetLabelSize(0.07) 
@@ -217,15 +232,17 @@ vFrame.GetYaxis().SetTitleOffset(0.50)
 vFrame.GetXaxis().SetTitleOffset(0.90) 
 vFrame.GetXaxis().SetTitleSize(0.18) 
 vFrame.GetXaxis().SetLabelSize(0.1) 
+vFrame.SetYTitle("Events / bin width") 
 
+hist_mass.SetLabelSize(0.035)
 hist_mass.GetXaxis().SetRangeUser(minX_mass,maxX_mass) 
-hist_mass.SetTitle("") 
+hist_mass.GetYaxis().SetTitle("Events / bin width") 
 hist_mass.SetLineColor(1) 
 hist_mass.SetFillColor(1) 
 hist_mass.SetLineColor(1) 
 hist_mass.SetMarkerColor(1) 
 hist_mass.SetMarkerStyle(20) 
-hist_mass.SetMinimum(0.001) 
+hist_mass.SetMinimum(0.002) 
 
 hist_mass.Draw("HIST P0E0") 
 background.SetLineWidth(2) 
@@ -240,8 +257,8 @@ leg.SetLineStyle(1)
 leg.SetLineWidth(1) 
 leg.SetFillColor(0) 
 leg.SetMargin(0.35) 
-leg.AddEntry(hist_mass,"pseudo data" ,"PL") 
-leg.AddEntry(background,"fit to pseudodata","L") 
+leg.AddEntry(hist_mass,"data" ,"PL") 
+leg.AddEntry(background,"fit to data","L") 
 leg.Draw("same") 
 
 pt1.Draw("same")  
@@ -260,7 +277,7 @@ pave_fit1.Draw("same")
 
 c.cd(2) 
 p11_2 = c.GetPad(2) 
-p11_2.SetPad(0.01,0.02,0.99,0.24) 
+p11_2.SetPad(0.01,0.01104294,0.99,0.2306748) 
 p11_2.SetBottomMargin(0.35) 
 p11_2.SetRightMargin(0.05) 
 p11_2.SetGridx() 
@@ -271,12 +288,11 @@ vFrame2 = p11_2.DrawFrame(p11_1.GetUxmin(), -4.5, p11_1.GetUxmax(), 4.5)
 
 vFrame2.SetTitle("") 
 vFrame2.SetXTitle("Dijet Mass (GeV)") 
-vFrame2.GetXaxis().SetTitleSize(0.06) 
-vFrame2.SetYTitle("(pseudoData-Fit)/#sigma") 
-vFrame2.GetYaxis().SetTitleSize(0.12) 
-vFrame2.GetYaxis().SetLabelSize(0.07) 
+vFrame2.GetXaxis().SetTitleSize(0.08) 
+vFrame2.SetYTitle("(Data - Fit)/#sigma") 
+vFrame2.GetYaxis().SetTitleSize(0.15) 
+vFrame2.GetYaxis().SetLabelSize(0.09) 
 vFrame2.GetYaxis().SetTitleOffset(0.50) 
-vFrame2.GetXaxis().SetTitleOffset(0.90) 
 vFrame2.GetXaxis().SetTitleSize(0.18) 
 vFrame2.GetXaxis().SetLabelSize(0.1) 
 
@@ -291,9 +307,9 @@ line =  TLine(minX_mass,0,maxX_mass,0)
 line.Draw("") 
 #c.Close() 
 
-c.SaveAs(args.output+"/fit_goldenDataset.C")
-c.SaveAs(args.output+"/fit_goldenDataset.png")
-c.SaveAs(args.output+"/fit_goldenDataset.pdf")
+c.SaveAs(args.output+"/fit_data.C")
+c.SaveAs(args.output+"/fit_data.png")
+c.SaveAs(args.output+"/fit_data.pdf")
 c.Clear()
 
 
