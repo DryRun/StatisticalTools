@@ -11,6 +11,7 @@ Code to perform fits, bias studies, compute limits and significances
    * [Limit calculation](#limit-calculation)
    * [Significance calculation](#significance-calculation)
    * [Best-fit signal cross section](#best-fit-signal-cross-section)
+   * [Limit and significance calculation using `theta` (experimental)](#limit-and-significance-calculation-theta)
 
 
 ## Software setup
@@ -37,6 +38,18 @@ cd ../test
 git clone git://github.com/CMSDIJET/DijetShapeInterpolator.git DijetShapeInterpolator
 git clone git://github.com/CMSDIJET/StatisticalTools.git StatisticalTools
 ```
+
+If you are also interested in computing limits using `theta` (http://theta-framework.org/), you will also need to check out its code and compile it:
+
+```
+svn co https://ekptrac.physik.uni-karlsruhe.de/public/theta/tags/testing theta
+cd theta/
+make
+cd ..
+```
+
+Note that this feature is still **experimental**.
+
 
 All of the above steps need to be done only once.
 
@@ -127,7 +140,7 @@ For more command line options, run
 ./scripts/runCombine.py -h
 ```
 
-To produce the final limit plots, run:
+To produce the final limit plots, run
 
 ```
 ./scripts/plotLimits.py -M Asymptotic -l logs -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="37 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_37_invpb --fileFormat eps --printResults
@@ -161,7 +174,7 @@ For the significance calculation we again use the `runCombine.py` script as in t
 ./scripts/runCombine.py -M ProfileLikelihood --signif -d datacards -f qq --massrange 1300 5500 100
 ```
 
-To produce the final significance plots, run:
+To produce the final significance plots, run
 
 ```
 ./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f gg --massrange 1300 5500 100 --sigRange 3 --extraText Preliminary --lumi_sqrtS="37 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_37_invpb --fileFormat eps --printResults
@@ -195,7 +208,7 @@ The `runCombine.py` script can also be used to extract the best-fit signal cross
 ./scripts/runCombine.py -M MaxLikelihoodFit -d datacards -f qq --rMin -50 --rMax 50 --massrange 1300 5500 100
 ```
 
-To produce the final cross section plots, run:
+To produce the final cross section plots, run
 
 ```
 ./scripts/plotSignalXSec.py -l logs -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="37 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_37_invpb --fileFormat eps --printResults
@@ -217,3 +230,18 @@ If you are only interested in producing or modifying plots using already compute
 ./scripts/plotSignalXSec.py -r results/signal_xs_MaxLikelihoodFit_gg_Run2_13TeV_DATA_37_invpb.py -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="37 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_37_invpb --fileFormat eps
 ```
 
+### Limit and significance calculation using `theta` (experimental)
+
+As an additional cross-check, Bayesian limits can also be produced using `theta`. Since `theta` requires histograms as input, you first need to produce them. This can be accomplished by simply adding the `--theta` option to the above commands for making datacards. Note that in addition to the input histograms, the corresponding Python analysis files will be created as well that define the statistical model, quantities to be computed, etc. To compute the limits, run
+
+```
+./scripts/runTheta.py -d datacards -f gg --massrange 1300 5500 100
+```
+
+To produce the final limit and significance plots, run
+
+```
+./scripts/plotLimits.py -M theta -l logs -f gg --massrange 1300 5500 100 --extraText Preliminary --lumi_sqrtS="37 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_37_invpb --fileFormat eps --printResults
+
+./scripts/plotSignificance.py -M theta -l logs -f gg --massrange 1300 5500 100 --sigRange 5 --extraText Preliminary --lumi_sqrtS="37 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_37_invpb --fileFormat eps --printResults
+```
