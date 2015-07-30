@@ -107,6 +107,8 @@ def main():
 
     parser.add_argument("--fitBonly", dest="fitBonly", default=False, action="store_true", help="Run B-only fit")
 
+    parser.add_argument("--fixBkg", dest="fixBkg", default=False, action="store_true", help="Fix all background parameters")
+
     parser.add_argument("--fitStrategy", dest="fitStrategy", type=int, default=0, help="Fit strategy (default: %(default).1f)")
 
     parser.add_argument("--theta", dest="theta", default=False, action="store_true", help="Produce histograms for the theta limit setting framework")
@@ -219,6 +221,11 @@ def main():
             res = model.fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Strategy(args.fitStrategy))
             res.Print()
 
+        if args.fixBkg:
+          background_norm.setConstant()
+          p1.setConstant()
+          p2.setConstant()
+          p3.setConstant()
         # -----------------------------------------
         # dictionaries holding systematic variations of the signal shape
         hSig_Syst = {}
