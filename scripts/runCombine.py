@@ -78,6 +78,8 @@ def main():
 
     parser.add_argument("--tries", dest="tries", type=int, default=10, help="Number of times to run the MCMC (default: %(default)i)")
 
+    parser.add_argument("--proposal", dest="proposal", default='ortho', help="Proposal function for MCMC (default: %(default)s)")
+
     parser.add_argument("--noSyst", dest="noSyst", default=False, action="store_true", help="Run without systematic uncertainties")
 
     parser.add_argument("--noHint", dest="noHint", default=False, action="store_true", help="Do not run the hint method")
@@ -150,7 +152,7 @@ def main():
     if args.rMax != None:
         options = options + ' --rMax %f'%(args.rMax)
     if method == 'MarkovChainMC':
-        options = options + ' --tries %i --proposal fit'%(args.tries)
+        options = options + ' --tries %i --proposal %s'%(args.tries, args.proposal)
 
     prefix = 'limits'
     if args.signif:
