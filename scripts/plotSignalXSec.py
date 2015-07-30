@@ -108,8 +108,10 @@ def main():
             sig_ex.append(0.)
 
             if len(masses) != len(sig):
-                print "** ERROR: ** Could not find fitted signal cross section for m =", int(mass), "GeV. Aborting."
-                sys.exit(1)
+                print "** WARNING: ** Fit failed for m =", int(mass), "GeV. Setting signal cross section to 0."
+                sig.append(0.)
+                sig_eyl.append(0.)
+                sig_eyh.append(0.)
     else:
         print ">> Importing results..."
 
@@ -183,6 +185,7 @@ def main():
     graph_sig = TGraphAsymmErrors(len(masses),masses,sig_pos,sig_exl,sig_exh,sig_eyl,sig_eyh)
     graph_sig.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
     graph_sig.GetYaxis().SetTitle("Signal cross section [pb]")
+    graph_sig.GetYaxis().SetTitleOffset(1.2)
     graph_sig.GetYaxis().SetRangeUser(1e-4,2e2)
     graph_sig.SetMarkerStyle(20)
     graph_sig.SetMarkerColor(1)
