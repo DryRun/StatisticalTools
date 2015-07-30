@@ -317,7 +317,8 @@ def main():
 
     if len(xs_exp_limits_2sigma) > 0:
         graph_exp_2sigma.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
-        graph_exp_2sigma.GetYaxis().SetTitle("#sigma#timesBR(X#rightarrowjj)#timesA [pb]")
+        graph_exp_2sigma.GetYaxis().SetTitle("#sigma #times #it{B} #times #it{A} [pb]")
+        graph_exp_2sigma.GetYaxis().SetTitleOffset(1.1)
         graph_exp_2sigma.GetYaxis().SetRangeUser(1e-02,1e+03)
         #graph_exp_2sigma.GetXaxis().SetNdivisions(1005)
 
@@ -332,7 +333,8 @@ def main():
         legend.AddEntry(graph_exp_2sigma,"#pm 2#sigma","F")
     else:
         graph_obs.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
-        graph_obs.GetYaxis().SetTitle("#sigma#timesBR(X#rightarrowjj)#timesA [pb]")
+        graph_obs.GetYaxis().SetTitle("#sigma #times #it{B} #times #it{A} [pb]")
+        graph_obs.GetYaxis().SetTitleOffset(1.1)
         graph_obs.GetYaxis().SetRangeUser(1e-02,1e+03)
         #graph_obs.GetXaxis().SetNdivisions(1005)
 
