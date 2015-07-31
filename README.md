@@ -190,7 +190,7 @@ To repeat the same procedure for Bayesian limits (only observed limits for now),
 ./scripts/plotLimits.py -M MarkovChainMC -l logs -f qq --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
 ```
 
-### Limit calculation using `theta` (experimental)
+#### Limit calculation using `theta` (experimental)
 
 As an additional cross-check, Bayesian limits can also be produced using `theta`. Since `theta` requires histograms as input, you first need to produce them. This can be accomplished by simply adding the `--theta` option to the above commands for making datacards. Note that in addition to the input histograms, the corresponding Python analysis files will be created as well that define the statistical model, quantities to be computed, etc. To compute the limits, run
 
