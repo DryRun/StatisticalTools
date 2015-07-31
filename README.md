@@ -121,10 +121,10 @@ For more command line options, run
 ./scripts/createDatacards.py -h
 ```
 
-For Bayesian limits it is important to fix the fitted background parameters so to get correct Bayesian limits, a separate set of datacards needs to be produced where the fitted background function is fixed
+For Bayesian limits it is important to fix the fitted background function. So to get the correct Bayesian limits, a separate set of datacards needs to be produced where the fitted background parameters are set constant (note the `--fixBkg` option)
 
 ```
-./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards_fixedBkg -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430 --theta --thetaNoSyst
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards_fixedBkg -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430
 
 ./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards_fixedBkg -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430
 
