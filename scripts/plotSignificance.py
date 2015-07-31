@@ -164,7 +164,7 @@ def main():
 
     graph_sig = TGraph(len(masses),masses,significances)
     graph_sig.GetXaxis().SetTitle("%s resonance mass [GeV]"%(args.final_state))
-    graph_sig.GetYaxis().SetTitle("Significance")
+    graph_sig.GetYaxis().SetTitle("Significance (local)")
     graph_sig.GetYaxis().SetTitleOffset(1.2)
     graph_sig.GetYaxis().SetRangeUser(0.,args.sigRange)
     graph_sig.SetLineWidth(2)
