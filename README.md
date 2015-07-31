@@ -269,5 +269,5 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotSignalXSec.py -r results/signal_xs_MaxLikelihoodFit_gg_Run2_13TeV_DATA_37_invpb.py -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps
+./scripts/plotSignalXSec.py -r results/signal_xs_MaxLikelihoodFit_gg_Run2_13TeV_DATA_40p2_invpb.py -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps
 ```
