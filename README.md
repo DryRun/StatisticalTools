@@ -108,11 +108,11 @@ cd ../StatisticalTools
 Another essential ingredient for the statistical analysis are datacards and corresponding RooFit workspaces. Here again, we don't necessarily want to store all of these files in the repository since they can be easily remade using scripts available in the repository. Run the following commands to produce datacards for gg, qg, and qq resonances:
 
 ```
-./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --massMax 10430
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_L2L3Residuals_41p8_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards -l 41.8 --lumiUnc 0.12 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --massMax 10430
 
-./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --massMax 10430
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_L2L3Residuals_41p8_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards -l 41.8 --lumiUnc 0.12 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --massMax 10430
 
-./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root -f qq -o datacards -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --massMax 10430
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_L2L3Residuals_41p8_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root -f qq -o datacards -l 41.8 --lumiUnc 0.12 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --massMax 10430
 ```
 
 For more command line options, run
@@ -124,11 +124,11 @@ For more command line options, run
 For Bayesian limits it is important to fix the fitted background function. So to get correct Bayesian limits, a separate set of datacards needs to be produced where the fitted background parameters are set constant (note the `--fixBkg` option)
 
 ```
-./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards_fixedBkg -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_L2L3Residuals_41p8_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_gg_13TeV_PU30_Spring15.root -f gg -o datacards_fixedBkg -l 41.8 --lumiUnc 0.12 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430
 
-./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards_fixedBkg -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_L2L3Residuals_41p8_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards_fixedBkg -l 41.8 --lumiUnc 0.12 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430
 
-./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_40p2_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root -f qq -o datacards_fixedBkg -l 40.2 --lumiUnc 0.1 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430
+./scripts/createDatacards.py --inputData inputs/histo_data_mjj_fromTree_finalJSON_25_07_15_JEC_Summer15_50nsV2_L2L3Residuals_41p8_invpb.root --dataHistname h_dat --inputSig inputs/ResonanceShapes_qq_13TeV_Phys14Spring15Mix.root -f qq -o datacards_fixedBkg -l 41.8 --lumiUnc 0.12 --jesUnc 0.05 --jerUnc 0.1 --massrange 1300 7000 100 --runFit --fixP3 --p3 0 --fixBkg --massMax 10430
 ```
 
 ### Limit calculation
@@ -154,11 +154,11 @@ In particular, note the `--condor` option which allows you to process all mass p
 To produce the final limit plots, run
 
 ```
-./scripts/plotLimits.py -M Asymptotic -l logs -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotLimits.py -M Asymptotic -l logs -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 
-./scripts/plotLimits.py -M Asymptotic -l logs -f qg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotLimits.py -M Asymptotic -l logs -f qg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 
-./scripts/plotLimits.py -M Asymptotic -l logs -f qq --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotLimits.py -M Asymptotic -l logs -f qq --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 ```
 
 For more command line options, run
@@ -170,7 +170,7 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotLimits.py -M Asymptotic -r results/limits_Asymptotic_gg_Run2_13TeV_DATA_40p2_invpb.py -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps
+./scripts/plotLimits.py -M Asymptotic -r results/limits_Asymptotic_gg_Run2_13TeV_DATA_41p8_invpb.py -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps
 ```
 
 To repeat the same procedure for Bayesian limits (only observed limits for now), run the following set of commands
@@ -183,11 +183,11 @@ To repeat the same procedure for Bayesian limits (only observed limits for now),
 ./scripts/runCombine.py -M MarkovChainMC -d datacards_fixedBkg -f qq --massrange 1300 7000 100
 
 
-./scripts/plotLimits.py -M MarkovChainMC -l logs -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotLimits.py -M MarkovChainMC -l logs -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 
-./scripts/plotLimits.py -M MarkovChainMC -l logs -f qg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotLimits.py -M MarkovChainMC -l logs -f qg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 
-./scripts/plotLimits.py -M MarkovChainMC -l logs -f qq --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotLimits.py -M MarkovChainMC -l logs -f qq --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 ```
 
 #### Limit calculation using `theta` (experimental)
@@ -201,7 +201,7 @@ As an additional cross-check, Bayesian limits can also be produced using `theta`
 To produce the final limit plot, run
 
 ```
-./scripts/plotLimits.py -M theta -l logs -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotLimits.py -M theta -l logs -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 ```
 
 ### Significance calculation
@@ -219,11 +219,11 @@ For the significance calculation we again use the `runCombine.py` script as in t
 To produce the final significance plots, run
 
 ```
-./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f gg --massrange 1300 7000 100 --sigRange 2.5 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f gg --massrange 1300 7000 100 --sigRange 2.5 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 
-./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f qg --massrange 1300 7000 100 --sigRange 2.5 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f qg --massrange 1300 7000 100 --sigRange 2.5 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 
-./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f qq --massrange 1300 7000 100 --sigRange 2.5 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotSignificance.py -M ProfileLikelihood -l logs -f qq --massrange 1300 7000 100 --sigRange 2.5 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 ```
 
 For more command line options, run
@@ -235,7 +235,7 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotSignificance.py -M ProfileLikelihood -r results/significance_ProfileLikelihood_gg_Run2_13TeV_DATA_40p2_invpb.py -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps
+./scripts/plotSignificance.py -M ProfileLikelihood -r results/significance_ProfileLikelihood_gg_Run2_13TeV_DATA_41p8_invpb.py -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps
 ```
 
 ### Best-fit signal cross section
@@ -253,11 +253,11 @@ The `runCombine.py` script can also be used to extract the best-fit signal cross
 To produce the final cross section plots, run
 
 ```
-./scripts/plotSignalXSec.py -l logs -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotSignalXSec.py -l logs -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 
-./scripts/plotSignalXSec.py -l logs -f qg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotSignalXSec.py -l logs -f qg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 
-./scripts/plotSignalXSec.py -l logs -f qq --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps --printResults
+./scripts/plotSignalXSec.py -l logs -f qq --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps --printResults
 ```
 
 For more command line options, run
@@ -269,5 +269,5 @@ For more command line options, run
 If you are only interested in producing or modifying plots using already computed results, you can use the `-r` (`--results_file`) instead of the `-l` (`--logs_path`) option as in the following example:
 
 ```
-./scripts/plotSignalXSec.py -r results/signal_xs_MaxLikelihoodFit_gg_Run2_13TeV_DATA_40p2_invpb.py -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="40.2 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_40p2_invpb --fileFormat eps
+./scripts/plotSignalXSec.py -r results/signal_xs_MaxLikelihoodFit_gg_Run2_13TeV_DATA_41p8_invpb.py -f gg --massrange 1300 7000 100 --extraText Preliminary --lumi_sqrtS="41.8 pb^{-1} (13 TeV)" --postfix Run2_13TeV_DATA_41p8_invpb --fileFormat eps
 ```
