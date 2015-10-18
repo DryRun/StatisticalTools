@@ -78,9 +78,10 @@ RooMsgService.instance().setStreamStatus(1,ROOT.kFALSE)
 ##QCD MC
 #filenameBkg = PATH+'../scripts/histo_bkg_mjj.root'
 
-minX_mass = 1118.
-maxX_mass = 3416.
-#maxX_mass = 6099.
+minX_mass = 1181.
+#maxX_mass = 3416.
+maxX_mass = 6564.
+#maxX_mass = 7589 
 
 #inputHistNameDat = 'hist_mass_1GeV'
 inputHistNameDat = 'h_dat'
@@ -109,11 +110,12 @@ hDat.Print()
 
 
 infSig = TFile.Open(filenameSig)
-hSig = infSig.Get('h_qq_'+str(int(mass)))
+#hSig = infSig.Get('h_qg_'+str(int(mass)))
 
-#tree_sig = infSig.Get("rootTupleTree/tree")
-#hSig = TH1F("hist_mass_1GeV","",13999,1,14000)
-#tree_sig.Project("hist_mass_1GeV","mjj","deltaETAjj<1.3")
+tree_sig = infSig.Get("rootTupleTree/tree")
+hSig = TH1F("hist_mass_1GeV","",13999,1,14000)
+tree_sig.Project("hist_mass_1GeV","mjj","mjj>1181 && deltaETAjj<1.3")
+#tree_sig.Project("hist_mass_1GeV","Dijet_MassAK4","Dijet_MassAK4 > 1181 && deltaETAjj<1.3")
 hSig.Print()
 hSig.Draw()
 
@@ -204,17 +206,25 @@ if fitDat:
     NBINS = 166
     #if fitModel==0:
 
-    p1 = RooRealVar('p1','p1',28,0,50)
-    p2 = RooRealVar('p2','p2',2.8,1,10)
-    p3 = RooRealVar('p3','p3',0.,0.001,1.)
-    p3.setConstant(ROOT.kTRUE)
+    #p1 = RooRealVar('p1','p1',12,-100,100)
+    #p2 = RooRealVar('p2','p2',2.,-60,60.)
+    #p3 = RooRealVar('p3','p3',-0.5,-10,10)
+    p1 = RooRealVar('p1','p1',12,0.,100)
+    p2 = RooRealVar('p2','p2',2.,0.,60.)
+    p3 = RooRealVar('p3','p3',-0.5,-10,10)
+    #p1 = RooRealVar('p1','p1',12,0.,100)
+    #p2 = RooRealVar('p2','p2',2.,1.,10.)
+    #p3 = RooRealVar('p3','p3',-0.5,-1,1)
+    #p3.setConstant(ROOT.kTRUE)
 
     background = RooGenericPdf('background','(pow(1-@0/13000,@1)/pow(@0/13000,@2+@3*log(@0/13000)))',RooArgList(x,p1,p2,p3))
-    background_norm = RooRealVar('background_norm','background_norm',1,0,10)
-    
+    background_norm = RooRealVar('background_norm','background_norm',1,0,10000000000)
+    ebkg = RooExtendPdf("ebkg","extended background p.d.f",background,background_norm)
+
     roohistSig = RooDataHist('roohist','roohist',RooArgList(x),hSig)
     signal = RooHistPdf('signal','signal',RooArgSet(x),roohistSig)
     signal_norm = RooRealVar('signal_norm','signal_norm',0,-1000,1000)
+    #signal_norm.setConstant(ROOT.kTRUE)
     
     model = RooAddPdf("model","s+b",RooArgList(background,signal),RooArgList(background_norm,signal_norm))
 
@@ -356,7 +366,7 @@ datacard.write('------------------------------\n')
 datacard.write('bin          1          1\n')          
 datacard.write('process      signal     background\n')
 datacard.write('process      0          1\n')          
-datacard.write('rate         '+str(ExpectedSignalRate)+'      1\n')
+datacard.write('rate         -1         1\n')
 datacard.write('------------------------------\n')      
 #nuisance parameters --- gaussian prior
 if bkgNuisance:
