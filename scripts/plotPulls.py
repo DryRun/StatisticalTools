@@ -79,8 +79,8 @@ for line in  ins:
   mass.append(int(mass_string))
  
  #extract mu limit 2 sigma band 
-  filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_combine/src/CMSDIJET/StatisticalTools/dijet_limits_interpolated_pseudodatasetDinko//higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
-
+  #filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_combine/src/CMSDIJET/StatisticalTools/dijet_limits_interpolated_pseudodatasetDinko//higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
+  filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_1_5/src/StatisticalTools/scripts/output_limits_dataRunD_830pb-1/higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
   inf = TFile.Open(filename)
   tr = inf.Get('limit')
   y = []
@@ -117,30 +117,31 @@ for line in  ins:
   print("WARNING : using muHiErr for both low and high band")
 
   for event in tree_fit_sb:
-    if tree_fit_sb.mu > mu:
-      #err_mu = tree_fit_sb.muLoErr
-      err_mu = tree_fit_sb.muHiErr
-    else:
-      err_mu = tree_fit_sb.muHiErr
+    if tree_fit_sb.fit_status==0:
+      if tree_fit_sb.mu > mu:
+        #err_mu = tree_fit_sb.muLoErr
+        err_mu = tree_fit_sb.muHiErr
+      else:
+        err_mu = tree_fit_sb.muHiErr
   
-    if err_mu ==0:
-      pull_mu = 0
-    else:  
-      pull_mu = (tree_fit_sb.mu - mu)/err_mu
-    
-    if(abs(pull_mu)>10 ):
-      print "mu = " + str(mu) 
-      print "mu_fit - mu_exp  = "+str(tree_fit_sb.mu - mu )
-      print "err_mu = "+str(err_mu)
-      print "pull_mu = "+str(pull_mu)
-    if(abs(pull_mu) < 0.01):
-      print "mu = " + str(mu) 
-      print "mu_fit - mu_exp  = "+str(tree_fit_sb.mu - mu )
-      print "err_mu = "+str(err_mu)
-      print "pull_mu = "+str(pull_mu)
-       
+      if err_mu ==0:
+        pull_mu = 0
+      else:  
+        pull_mu = (tree_fit_sb.mu - mu)/err_mu
+      
+      if(abs(pull_mu)>10 ):
+        print "mu = " + str(mu) 
+        print "mu_fit - mu_exp  = "+str(tree_fit_sb.mu - mu )
+        print "err_mu = "+str(err_mu)
+        print "pull_mu = "+str(pull_mu)
+      if(abs(pull_mu) < 0.01):
+        print "mu = " + str(mu) 
+        print "mu_fit - mu_exp  = "+str(tree_fit_sb.mu - mu )
+        print "err_mu = "+str(err_mu)
+        print "pull_mu = "+str(pull_mu)
+         
 
-    h_pull_mu.Fill( pull_mu )
+      h_pull_mu.Fill( pull_mu )
   
   h_pull_mu.Print() 
 

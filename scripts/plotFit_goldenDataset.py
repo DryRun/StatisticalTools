@@ -11,10 +11,10 @@ print usage
 
 parser = argparse.ArgumentParser(description='Process options.')
 
-parser.add_argument("--inputiFileData", type=str, dest="inputFileData", default="/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_DiJet/src/CMSDIJET/DijetRootTreeAnalyzer/test_fit/dijetFitResults_FuncType0_nParFit4_MC_1fb-1_Dinko.root",
+parser.add_argument("--inputFileData", type=str, dest="inputFileData", default="/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_DiJet/src/CMSDIJET/DijetRootTreeAnalyzer/test_fit/dijetFitResults_FuncType0_nParFit4_MC_1fb-1_Dinko.root",
     help="the input file with the spectrum to fit"
     )
-parser.add_argument("--inputiFileRes", type=str, dest="inputFileRes", default="mlfitgoldenDataset.root",
+parser.add_argument("--inputFileRes", type=str, dest="inputFileRes", default="mlfitgoldenDataset.root",
     help="the input file with results of the fit"
     )
 parser.add_argument("-o", "--output", type=str, dest="output", default="./",
@@ -32,8 +32,8 @@ setTDRStyle()
 gROOT.ForceStyle()
 gROOT.SetStyle('tdrStyle')
 
-minX_mass = 1118
-maxX_mass = 6099 
+minX_mass = 1181
+maxX_mass = 6564 
 
 massBins_list = [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8152, 8447, 8752, 9067, 9391, 9726, 10072, 10430, 10798, 11179, 11571, 11977, 12395, 12827, 13272, 13732, 14000]
 
@@ -44,8 +44,14 @@ inputFileData = TFile(args.inputFileData)
 #inputFitRes = TFile("mlfitgoldenDataset.root")
 inputFitRes = TFile(args.inputFileRes)
 
-hist_mass = inputFileData.Get("hist_mass")
-hist_binned = inputFileData.Get("hist_binned")
+hist_1GeV = inputFileData.Get("h_dat")
+#hist_binned = inputFileData.Get("hist_binned")
+hist_binned = hist_1GeV.Rebin(len(massBins),"hist_binned",massBins)
+hist_mass = TH1F("hist_mass","",len(massBins),massBins) 
+for i in range(1,len(massBins)+1):
+  hist_mass.SetBinContent(i,hist_binned.GetBinContent(i)/hist_binned.GetBinWidth(i))
+  hist_mass.SetBinError(i,hist_binned.GetBinError(i)/hist_binned.GetBinWidth(i))
+
 tree_fit_b = inputFitRes.Get("tree_fit_b")
 
 #Set error to 1.8 in empty bins
@@ -85,9 +91,13 @@ background_noNorm.SetParameter(0,p1_val)
 background_noNorm.SetParameter(1,p2_val)
 background_noNorm.SetParameter(2,p3_val)
 norm = background_noNorm.Integral(minX_mass,maxX_mass)
+data_integral = hist_binned.Integral(1,len(massBins))
+print "data : "+str(data_integral)
 print "norm : "+str(norm)  
-p0_val = integral_val/norm
-p0_error = integral_error/norm
+p0_val = data_integral * (integral_val / norm)
+p0_error = data_integral * (integral_error / norm)
+#p0_val = integral_val
+#p0_error = integral_error
 print ("p0 : %.2e  +/- %.2e" %(p0_val,p0_error))  
 
 background = TF1("background","( [0]*TMath::Power(1-x/13000,[1]) ) / ( TMath::Power(x/13000,[2]+[3]*log(x/13000)) )",minX_mass,maxX_mass)
@@ -204,7 +214,7 @@ pt3.SetTextSize(0.035)
 text3 = pt3.AddText("L= 1 fb^{-1}") 
 #text3 = pt3.AddText("L= 10 fb^{-1}") 
 
-vFrame = p11_1.DrawFrame(minX_mass,0.000000001,maxX_mass,10.0) 
+vFrame = p11_1.DrawFrame(minX_mass,0.0001,maxX_mass,100000.0) 
 
 vFrame.SetTitle("") 
 vFrame.SetXTitle("Dijet Mass (GeV)") 

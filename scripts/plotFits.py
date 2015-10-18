@@ -36,7 +36,9 @@ parser.add_argument("-t", "--toys", type=int, dest="toys", default=1,
     metavar="TOYS"
     )
 
-   
+  
+lumi=1000.
+#lumi=830.
 
 args = parser.parse_args()
 print args
@@ -47,7 +49,7 @@ setTDRStyle()
 gROOT.ForceStyle()
 gROOT.SetStyle('tdrStyle')
 
-gStyle.SetOptStat(1111)
+gStyle.SetOptStat(0)
 
 ins = open(args.inputList,"r")
   #giulia debug for significance experiment
@@ -56,10 +58,12 @@ ins = open(args.inputList,"r")
 #inputToys = TFile("higgsCombineQstar5000_MLfit_mu_limit.MaxLikelihoodFit.mH120.123456.root")
 
 
-#massBins_list = [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8152, 8447, 8752, 9067, 9391, 9726, 10072, 10430, 10798, 11179, 11571, 11977, 12395, 12827, 13272, 13732, 14000]
-massBins_list = [ 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099]
+massBins_list = [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8152, 8447, 8752, 9067, 9391, 9726, 10072, 10430, 10798, 11179, 11571, 11977, 12395, 12827, 13272, 13732, 14000]
+#massBins_list = [ 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099]
+massBins_list_limited = [ 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564]
 
 massBins = array("d",massBins_list)
+massBins_limited = array("d",massBins_list_limited)
 
 
 
@@ -70,7 +74,7 @@ dict = {
     #4000:1.08433599999999991e-01,
     #5000:1.11493200000000008e-02,
     #6000:1.86000000000000011e-03
-    1200.0:  0.1721E+03,
+    #1200.0:  0.1721E+03,
     1300.0:  0.1157E+03,
     1400.0:  0.7934E+02,
     1500.0:  0.5540E+02,
@@ -142,7 +146,7 @@ for line in  ins:
   mass = int(mass_string)
   #print mass_string
   #print line
-  input_workspace = TFile(dir +"/"+ sample +"_workspace_1.root")
+  input_workspace = TFile(dir +"/"+ sample +"_workspace_toFit.root")
   print input_workspace
   workspace = input_workspace.Get("w")
   workspace.Print()
@@ -150,10 +154,12 @@ for line in  ins:
   datahist_sig = signal.dataHist()
   set_sig=datahist_sig.get()
   mjj_sig=set_sig.find("mjj")
-  h_sig= signal.createHistogram("h_sig",mjj_sig)
-  h_sig.Rebin(100)
-  datahist_sig_rebin=RooDataHist("datahist_sig_rebin","datahist_signal_rebin",RooArgList(mjj_sig),h_sig)
-  signal_rebin = RooHistPdf("signal_rebin","signal_rebin",RooArgSet(mjj_sig),datahist_sig_rebin)
+  h_sig_1GeV= signal.createHistogram("h_sig_1GeV",mjj_sig)
+  h_sig_1GeV.Print()
+
+  #h_sig.Rebin(100)
+  #datahist_sig_rebin=RooDataHist("datahist_sig_rebin","datahist_signal_rebin",RooArgList(mjj_sig),h_sig)
+  #signal_rebin = RooHistPdf("signal_rebin","signal_rebin",RooArgSet(mjj_sig),datahist_sig_rebin)
 
   if not (args.mu == -999): 
     inputToys = TFile(args.inputToys+"/higgsCombine"+sample+args.tag+"_MLfit_mu"+str(int(args.mu))+".GenerateOnly.mH120.123456.root") 
@@ -200,39 +206,52 @@ for line in  ins:
     minX_mass=x.getMin() 
     maxX_mass =x.getMax() 
 
-    ###backgrond only
-   # tree_fit_sb.GetEntry(j-1)
-   # p1_val = tree_fit_sb.p1
-   # p2_val = tree_fit_sb.p2
-   # p3_val = tree_fit_sb.p3
-   # mu_val = tree_fit_sb.mu
+    ###
+    tree_fit_sb.GetEntry(j-1)
+    p1_val = tree_fit_sb.p1
+    p2_val = tree_fit_sb.p2
+    p3_val = tree_fit_sb.p3
+    mu_val = tree_fit_sb.mu
+    integral_val = tree_fit_sb.n_exp_binbin1_proc_background  
     tree_fit_b.GetEntry(j-1)
-    p1_val = tree_fit_b.p1
-    p2_val = tree_fit_b.p2
-    p3_val = tree_fit_b.p3
-    mu_val = tree_fit_b.mu
-    integral_val = tree_fit_b.n_exp_final_binbin1_proc_background  
-    ##integral_val = tree_fit_sb.n_exp_binbin1_proc_background  
+    p1_val_b = tree_fit_b.p1
+    p2_val_b = tree_fit_b.p2
+    p3_val_b = tree_fit_b.p3
+    mu_val_b = tree_fit_b.mu
+    integral_val_b = tree_fit_b.n_exp_final_binbin1_proc_background  
     background_noNorm = TF1("background","( TMath::Power(1-x/13000,[0]) ) / ( TMath::Power(x/13000,[1]+[2]*log(x/13000)) )",minX_mass,maxX_mass)
-    background_noNorm.SetParameter(0,p1_val)
-    background_noNorm.SetParameter(1,p2_val)
-    background_noNorm.SetParameter(2,p3_val)
-    norm = background_noNorm.Integral(minX_mass,maxX_mass)
-    print "integral_val: "+str(integral_val)+"   norm : "+str(norm)  
+    background_noNorm.SetParameter(0,p1_val_b)
+    background_noNorm.SetParameter(1,p2_val_b)
+    background_noNorm.SetParameter(2,p3_val_b)
+    norm_b = background_noNorm.Integral(minX_mass,maxX_mass)
+    p0_val_b = integral_val_b/norm_b
+    print "integral_val: "+str(integral_val_b)+"   norm : "+str(norm_b)  
+    
+    background_noNorm_SplusB = TF1("background_SplusB","( TMath::Power(1-x/13000,[0]) ) / ( TMath::Power(x/13000,[1]+[2]*log(x/13000)) )",minX_mass,maxX_mass)
+    background_noNorm_SplusB.SetParameter(0,p1_val)
+    background_noNorm_SplusB.SetParameter(1,p2_val)
+    background_noNorm_SplusB.SetParameter(2,p3_val)
+    norm = background_noNorm_SplusB.Integral(minX_mass,maxX_mass)
     p0_val = integral_val/norm
+    
+    h_sig_1GeV.Scale(dict[mass]*mu_val*lumi/h_sig_1GeV.Integral())
+    h_sig_rebin=h_sig_1GeV.Rebin(len(massBins)-1,"h_sig_rebin",massBins)
+    h_sig=TH1F("h_sig","",len(massBins)-1,massBins)
+    for i in range(1,len(massBins)):
+      h_sig.SetBinContent(i, h_sig_rebin.GetBinContent(i)/h_sig_rebin.GetBinWidth(i))
  
     
     Nobs_val = toy.sumEntries()
-    rateSig_val = 1000*dict[mass]
+    rateSig_val = lumi*dict[mass]
     print str(p0_val)+"   "+ str(p1_val)+"  "+str(p2_val)+"  "+str(p3_val)+"  "+str(mu_val)
     print "rateSig_val = "+str(Nobs_val)+" * "+str(dict[mass])+" =  "+str(rateSig_val) 
 
-    p1 = RooRealVar('p1','p1',p1_val,0.,100.)
-    p2 = RooRealVar('p2','p2',p2_val,0.,60.)
-    p3 = RooRealVar('p3','p3',p3_val,0.,10)
-    r = RooRealVar('r','r',mu_val,-2000,2000)
+    p1 = RooRealVar('p1','p1',p1_val,-1000,1000.)
+    p2 = RooRealVar('p2','p2',p2_val,-1000.,1000.)
+    p3 = RooRealVar('p3','p3',p3_val,-1000.,1000)
+    r = RooRealVar('r','r',mu_val,-2,100)
     Nobs = RooRealVar('Nobs','Nobs',Nobs_val,0,10000000)
-    rateSig = RooRealVar('rateSig','rateSig',rateSig_val,0,10000000)
+    rateSig = RooRealVar('rateSig','rateSig',rateSig_val,-100000,10000000)
     p1.Print()
     p2.Print()
     p3.Print()
@@ -327,17 +346,35 @@ for line in  ins:
 
     ## background ##
     background = TF1("background","( [0]*TMath::Power(1-x/13000,[1]) ) / ( TMath::Power(x/13000,[2]+[3]*log(x/13000)) )",minX_mass,maxX_mass)
-    background.SetParameter(0,p0_val)
-    background.SetParameter(1,p1_val)
-    background.SetParameter(2,p2_val)
-    background.SetParameter(3,p3_val)
+    background.SetParameter(0,p0_val_b)
+    background.SetParameter(1,p1_val_b)
+    background.SetParameter(2,p2_val_b)
+    background.SetParameter(3,p3_val_b)
     background.SetLineColor(kRed)
+    ##background component of S+B
+    background_SplusB = TF1("background_SplusB","( [0]*TMath::Power(1-x/13000,[1]) ) / ( TMath::Power(x/13000,[2]+[3]*log(x/13000)) )",minX_mass,maxX_mass)
+    background_SplusB.SetParameter(0,p0_val)
+    background_SplusB.SetParameter(1,p1_val)
+    background_SplusB.SetParameter(2,p2_val)
+    background_SplusB.SetParameter(3,p3_val)
+ 
+    ## signal plus background ##
+    h_s_plus_b = TH1F("h_s_plus_b","",len(massBins_limited)-1,massBins_limited) 
+    for ibin in range(1,len(massBins_limited)):
+      h_s_plus_b.SetBinContent(ibin, 0)
+      bin_center=h_s_plus_b.GetBinCenter(ibin)
+      if(h_s_plus_b.GetBinCenter(ibin) > minX_mass and h_s_plus_b.GetBinCenter(ibin) < maxX_mass):
+        print "b = "+str(background_SplusB.Eval(bin_center))+"   s = "+str(h_sig.GetBinContent( h_sig.FindBin(bin_center)))+"   s+b = "+str(background_SplusB.Eval(bin_center) + h_sig.GetBinContent( h_sig.FindBin(bin_center)))
+        h_s_plus_b.SetBinContent(ibin, background_SplusB.Eval(h_s_plus_b.GetBinCenter(ibin)) + h_sig.GetBinContent( h_sig.FindBin(bin_center)))
 
-  
+    h_s_plus_b.Print()
+
+
     ###########################################
     # fit residuals and chi2 variable binning
     ###########################################
     hist_fit_residual_vsMass = TH1D("hist_fit_residual_vsMass","hist_fit_residual_vsMass",len(massBins)-1,massBins)
+    hist_fit_residual_vsMass_bkg = TH1D("hist_fit_residual_vsMass_bkg","hist_fit_residual_vsMass_bkg",len(massBins)-1,massBins)
     NumberOfObservations_VarBin = 0
     chi2_VarBin = 0.
     
@@ -350,17 +387,20 @@ for line in  ins:
         if( data == 0 ):
           err_data = 1.8 / h_toy.GetBinWidth(bin)
           print "err_data %f" % err_data
-        fit = background.Integral(h_toy.GetXaxis().GetBinLowEdge(bin), h_toy.GetXaxis().GetBinUpEdge(bin) ) 
-        fit = fit / ( h_toy.GetBinWidth(bin) )
+        #background only
+	fit_B = background.Integral(h_toy.GetXaxis().GetBinLowEdge(bin), h_toy.GetXaxis().GetBinUpEdge(bin) ) 
+        fit_B = fit_B / ( h_toy.GetBinWidth(bin) )
+        #S+B
+	fit = h_s_plus_b.GetBinContent(h_s_plus_b.FindBin(h_toy.GetBinCenter(bin) )) 
         err_tot = err_data	  
         fit_residual = (data - fit) / err_tot
-        err_fit_residual = 1
+        fit_residual_B = (data - fit_B) / err_tot
     	    	  
         chi2_VarBin += pow( (data - fit) , 2 ) / pow( err_data , 2 )
         print "data, err_data, fit: "+str( data)+", "+str(err_data) +", " +str(fit)
         print "bin, fit residual : " + str(bin) + ", " +str(fit_residual)	  
         hist_fit_residual_vsMass.SetBinContent(bin,fit_residual)
-        hist_fit_residual_vsMass.SetBinError(bin,err_fit_residual)
+        hist_fit_residual_vsMass_bkg.SetBinContent(bin,fit_residual_B)
        
     ##END OF LOOP over bins
     
@@ -392,13 +432,14 @@ for line in  ins:
 
     #Pave text for fit results
     ndf = 50 
-    pave_fit1 = TPaveText(0.56,0.55,0.9,0.85,"NDC") 
+    pave_fit1 = TPaveText(0.56,0.60,0.9,0.9,"NDC") 
     #pave_fit1.AddText("#chi^{2} / ndf = %.2f" % (frame.chiSquare())) 
-    pave_fit1.AddText("#chi^{2} / ndf = %.2f / %.2f" % (chi2_VarBin, ndf_VarBin)) 
+    pave_fit1.AddText("#chi^{2} / ndf = %.2f / %d" % (chi2_VarBin, ndf_VarBin)) 
     pave_fit1.AddText("p0 =  %.2e " % (p0_val))
     pave_fit1.AddText("p1 =  %.2e " % (p1_val))
     pave_fit1.AddText("p2 =  %.2e " % (p2_val))
     pave_fit1.AddText("p3 =  %.2e " % (p3_val))
+    pave_fit1.AddText("mu =  %.2e " % (mu_val))
     pave_fit1.SetFillColor(0) 
     pave_fit1.SetFillStyle(0) 
     pave_fit1.SetBorderSize(1) 
@@ -407,10 +448,10 @@ for line in  ins:
     pave_fit1.SetTextAlign(12)  
     
     #Pave text
-    pave_fit = TPaveText(0.18,0.15,0.40,0.27,"NDC") 
-    pave_fit.AddText(" #sqrt{s} = 13 TeV") 
+    pave_fit = TPaveText(0.23,0.15,0.45,0.27,"NDC") 
+    #pave_fit.AddText(" #sqrt{s} = 13 TeV") 
     pave_fit.AddText("|#eta| < 2.5, |#Delta#eta| < 1.3") 
-    pave_fit.AddText("M_{jj} > 1100 GeV") 
+    pave_fit.AddText("M_{jj} > 1.1 TeV") 
     pave_fit.AddText("Wide Jets") 
     pave_fit.SetFillColor(0) 
     pave_fit.SetLineColor(0) 
@@ -449,12 +490,12 @@ for line in  ins:
     text3 = pt3.AddText("L= 1 fb^{-1}") 
     #text3 = pt3.AddText("L= 10 fb^{-1}") 
 
-    vFrame = p11_1.DrawFrame(minX_mass,0.001,maxX_mass,20000.0) 
+    vFrame = p11_1.DrawFrame(minX_mass,0.0001,maxX_mass,20000.0) 
     
     vFrame.SetTitle("") 
-    vFrame.SetXTitle("Dijet Mass (GeV)") 
+    vFrame.SetXTitle("Dijet Mass [GeV]") 
     vFrame.GetXaxis().SetTitleSize(0.06) 
-    vFrame.SetYTitle("events / bin width") 
+    vFrame.SetYTitle("Events / bin width") 
     
     vFrame.GetYaxis().SetTitleSize(0.12) 
     vFrame.GetYaxis().SetLabelSize(0.07) 
@@ -463,15 +504,16 @@ for line in  ins:
     vFrame.GetXaxis().SetTitleSize(0.18) 
     vFrame.GetXaxis().SetLabelSize(0.1) 
   
-    leg = TLegend(0.5564991,0.4,0.8903575,0.53) 
+    leg = TLegend(0.5564991,0.45,0.8903575,0.58) 
     leg.SetTextSize(0.03146853) 
-    leg.SetLineColor(1) 
+    leg.SetLineColor(0) 
     leg.SetLineStyle(1) 
-    leg.SetLineWidth(1) 
-    leg.SetFillColor(0) 
+    leg.SetLineWidth(0) 
+    leg.SetFillStyle(0) 
     leg.SetMargin(0.35) 
-    leg.AddEntry(h_toy,"pseudo data" ,"PL") 
-    leg.AddEntry(background,"fit bkg only","L") 
+    leg.AddEntry(h_toy,"Data" ,"PL") 
+    leg.AddEntry(background,"B Fit","L") 
+    leg.AddEntry(h_s_plus_b,"S+B Fit","L") 
 
     #frame.Draw()
     h_toy.GetXaxis().SetRangeUser(minX_mass,maxX_mass) 
@@ -487,7 +529,11 @@ for line in  ins:
     background.SetLineStyle(2) 
     background.SetLineColor(2) 
     background.Draw("")
-    h_toy.Draw("P0E0 SAME")
+    h_s_plus_b.SetLineWidth(2) 
+    h_s_plus_b.SetLineStyle(1) 
+    h_s_plus_b.SetLineColor(kBlue) 
+    h_s_plus_b.Draw("c same")
+    h_toy.Draw("pe same")
     pt1.Draw("same")  
     pt2.Draw("same") 
     pt3.Draw("same") 
@@ -510,9 +556,9 @@ for line in  ins:
     vFrame2 = p11_2.DrawFrame(p11_1.GetUxmin(), -4.5, p11_1.GetUxmax(), 4.5) 
     
     vFrame2.SetTitle("") 
-    vFrame2.SetXTitle("Dijet Mass (GeV)") 
+    vFrame2.SetXTitle("Dijet Mass [GeV]") 
     vFrame2.GetXaxis().SetTitleSize(0.06) 
-    vFrame2.SetYTitle("(pseudoData-Fit)/#sigma") 
+    vFrame2.SetYTitle("(Data-Fit)/#sigma_{Data}") 
     vFrame2.GetYaxis().SetTitleSize(0.12) 
     vFrame2.GetYaxis().SetLabelSize(0.07) 
     vFrame2.GetYaxis().SetTitleOffset(0.50) 
@@ -523,43 +569,52 @@ for line in  ins:
     hist_fit_residual_vsMass.GetXaxis().SetRangeUser(minX_mass,maxX_mass) 
     hist_fit_residual_vsMass.GetYaxis().SetRangeUser(-4.,4.) 
     hist_fit_residual_vsMass.SetLineWidth(0) 
-    hist_fit_residual_vsMass.SetFillColor(2) 
+    hist_fit_residual_vsMass.SetFillColor(kBlue) 
     hist_fit_residual_vsMass.SetLineColor(1) 
-    hist_fit_residual_vsMass.Draw("SAMEHIST")
+    hist_fit_residual_vsMass.Draw("hist same")
+    hist_fit_residual_vsMass_bkg.SetLineWidth(2) 
+    hist_fit_residual_vsMass_bkg.SetLineColor(2) 
+    hist_fit_residual_vsMass_bkg.SetLineStyle(2) 
+    hist_fit_residual_vsMass_bkg.Draw("hist same")
 
     line =  TLine(minX_mass,0,maxX_mass,0) 
     line.Draw("") 
 
     if j<20:
-      c2.SaveAs(args.output+"/fitAndResiduals_Bonly_"+sample+"_"+name_toy+".png")
-      c2.SaveAs(args.output+"/fitAndResiduals_Bonly_"+sample+"_"+name_toy+".pdf")
+      c2.SaveAs(args.output+"/fitAndResiduals_SplusB_"+sample+"_"+name_toy+".png")
+      c2.SaveAs(args.output+"/fitAndResiduals_SplusB_"+sample+"_"+name_toy+".pdf")
 
     j+=1
   ## END OF LOOP OVER TOYS
   
   
   
-  canvas_chi2= TCanvas("chi2_VarBin","#chi^{2} distribution of bkg fit",600,600)
-  canvas_chi2.cd()
-  #gStyle.SetOptStat("nemr")
-  ##chi2 nominal function 
-  chi2= TF1("chi2","ROOT::Math::chisquared_pdf(x,35,0)",0,100)
-  chi2.SetLineWidth(2)
-  chi2.SetLineColor(2)
-  h_chi2.SetStats(1)
-  h_chi2.DrawNormalized("hist")
-  chi2.Draw("same")
+#  canvas_chi2= TCanvas("chi2_VarBin","#chi^{2} distribution of bkg fit",600,600)
+#  canvas_chi2.cd()
+#  #gStyle.SetOptStat("nemr")
+#  ##chi2 nominal function 
+#  chi2= TF1("chi2","ROOT::Math::chisquared_pdf(x,35,0)",0,100)
+#  chi2.SetLineWidth(2)
+#  chi2.SetLineColor(2)
+#  h_chi2.SetStats(1)
+#  h_chi2.DrawNormalized("hist")
+#  chi2.Draw("same")
+#
+#  leg_chi2 = TLegend(0.6,0.6,0.86,0.75)
+#  leg_chi2.SetFillColor(0)
+#  leg_chi2.AddEntry(h_chi2,"toy distribution","l")
+#  leg_chi2.AddEntry(chi2,"#chi^{2} function for 35 ndf","l")
+#  leg_chi2.Draw("")
+#
+#  canvas_chi2.SaveAs("chi2_VarBin.png")
+#  canvas_chi2.SaveAs("chi2_VarBin.pdf")
 
-  leg_chi2 = TLegend(0.6,0.6,0.86,0.75)
-  leg_chi2.SetFillColor(0)
-  leg_chi2.AddEntry(h_chi2,"toy distribution","l")
-  leg_chi2.AddEntry(chi2,"#chi^{2} function for 35 ndf","l")
-  leg_chi2.Draw("")
+#  c_test=TCanvas("test","",600,600)
+#  c_test.cd()
+#  h_s_plus_b.Draw("c")
+#  c_test.SaveAs("test_sig.png")
 
-  canvas_chi2.SaveAs("chi2_VarBin_bkgFit.png")
-  canvas_chi2.SaveAs("chi2_VarBin_bkgFit.pdf")
-  
   k+=1
-## END OF LOOP OVER MASSES
+# END OF LOOP OVER MASSES
 
 
