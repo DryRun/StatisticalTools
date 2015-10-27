@@ -48,7 +48,7 @@ for line in  ins:
   #if not(os.path.isdir("args.output")):
   #  os.system("mkdir "+args.output)
 
-  command = "combine -M Asymptotic -n "+sample+"_limit   "+line
+  command = "combine -M Asymptotic -n "+sample+"_limit --rMax 100  "+line
   print "submit "+command
   print ""
 

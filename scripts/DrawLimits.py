@@ -28,7 +28,7 @@ gROOT.SetStyle('tdrStyle')
 #acceptance = [0.5887, 0.6160, 0.6161, 0.6126, 0.6117]
 
 sigXStimesA = {
-    1200.0:  0.1721E+03,
+    #1200.0:  0.1721E+03,
     1300.0:  0.1157E+03,
     1400.0:  0.7934E+02,
     1500.0:  0.5540E+02,
@@ -114,8 +114,9 @@ for i in range(0,len(masses_list)):
 k = 0
 
 #for im in mass:
-for im in range(1200,6100,100):
-  filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_combine/src/CMSDIJET/StatisticalTools/dijet_limits_interpolated_pseudodatasetDinko//higgsCombineQstar'+str(int(im))+'_limit.Asymptotic.mH120.root' 
+for im in range(1300,6100,100):
+  #filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_combine/src/CMSDIJET/StatisticalTools/dijet_limits_interpolated_pseudodatasetDinko//higgsCombineQstar'+str(int(im))+'_limit.Asymptotic.mH120.root' 
+  filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_1_5/src/StatisticalTools/scripts/output_limits_dataRunD_830pb-1/higgsCombineQstar'+str(int(im))+'_limit.Asymptotic.mH120.root' 
   print filename
   inf = TFile.Open(filename)
   tr = inf.Get('limit')
@@ -125,17 +126,18 @@ for im in range(1200,6100,100):
     tr.GetEntry(i)
     y.append(tr.limit)
   
-  x.append(im*0.001)
-  exl.append(0.0)
-  exh.append(0.0)
 #  y1.append(y[2]*xsection[k]*acceptance[k])
 #  y2.append(y[2]*xsection[k]*acceptance[k])
 #  yExp.append(y[2]*xsection[k]*acceptance[k])
 #  yObs.append(y[5]*xsection[k]*acceptance[k])
-  y1.append(y[2]*sigXStimesA[im])
-  y2.append(y[2]*sigXStimesA[im])
-  yExp.append(y[2]*sigXStimesA[im])
-  yObs.append(y[5]*sigXStimesA[im])
+  if N>1:
+    x.append(im*0.001)
+    exl.append(0.0)
+    exh.append(0.0)
+    y1.append(y[2]*sigXStimesA[im])
+    y2.append(y[2]*sigXStimesA[im])
+    yExp.append(y[2]*sigXStimesA[im])
+    yObs.append(y[5]*sigXStimesA[im])
 
 
 
@@ -143,17 +145,18 @@ for im in range(1200,6100,100):
 #  ey2l.append((y[2]-y[0])*xsection[k]*acceptance[k])
 #  ey1h.append((y[3]-y[2])*xsection[k]*acceptance[k])
 #  ey2h.append((y[4]-y[2])*xsection[k]*acceptance[k])
-  ey1l.append((y[2]-y[1])*sigXStimesA[im])
-  ey2l.append((y[2]-y[0])*sigXStimesA[im])
-  ey1h.append((y[3]-y[2])*sigXStimesA[im])
-  ey2h.append((y[4]-y[2])*sigXStimesA[im])
+  if N>1:
+    ey1l.append((y[2]-y[1])*sigXStimesA[im])
+    ey2l.append((y[2]-y[0])*sigXStimesA[im])
+    ey1h.append((y[3]-y[2])*sigXStimesA[im])
+    ey2h.append((y[4]-y[2])*sigXStimesA[im])
 
-  xs.append(sigXStimesA[im])
+    xs.append(sigXStimesA[im])
 
-  print "mu lim hi band : "+str(y[4])  
-  print "exp limit hi band 2sigma:  m="+str(im)+"   "+str(yExp[k]+ey2h[k])
+    print "mu lim hi band : "+str(y[4])  
+    print "exp limit hi band 2sigma:  m="+str(im)+"   "+str(yExp[k]+ey2h[k])
 
-  k+=1
+    k+=1
  
 
 #xsecTimesAcc = []
