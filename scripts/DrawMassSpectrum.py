@@ -13,28 +13,29 @@ import CMS_lumi, setTDRStyle
 
 #inputFileWorkspace = TFile("../datacards/workspace_gg_m1400.root")    
 #inputFileFit = TFile("../datacards/mlfit_gg_m1400.root")
-inputFileWorkspace = TFile("../datacards/workspace_gg_m3200.root")    
-inputFileFit = TFile("../datacards/mlfit_gg_m3200.root")
+inputFileWorkspace = TFile("../datacards/workspace_qg_m4000.root")    
+inputFileFit = TFile("../datacards/mlfit_qg_m4000.root")
 
 #==================
 # Options
 #==================
 
 showCrossSection = 1 #1=cross section [pb] , 0=number of events/GeV 
-lumiValue = 41.8 #[pb]        #---> take it from the workspace FIXME
+drawSignalShapeAlsoAlone = 0
+lumiValue = 1769 #[pb]        #---> take it from the workspace FIXME
 fixedRange = 1 #1=YES , 0=NO  (the option works only if showCrossSection=1; otherwise=0)
-minY = 0.000001
+minY = 0.0000001
 maxY = 20
 if showCrossSection==1:
     lumi = lumiValue 
 else:
     lumi = 1 
 
-minX_mass_plot = 1118.
-maxX_mass_plot = 5663.
+minX_mass_plot = 1181
+maxX_mass_plot = 7589
 range_residual = 3
 MinNumEvents = 10.
-nParFit = 3
+nParFit = 4
 xaxisTitle = "Dijet Mass [GeV]"
 if showCrossSection==1:
     yaxisTitle_main = "Cross section [pb]"
@@ -126,7 +127,7 @@ def main():
             minX_mass_plot = bin_boundary
             firstBin=1
             #print "FIRST BIN is "+str(minX_mass_plot)
-        if (bin_boundary>maxX_mass_plot and lastBin==-1 ):
+        if (bin_boundary>(maxX_mass_plot+0.0000000001) and lastBin==-1 ):
             maxX_mass_plot = massBins_list[index_bin_boundary-1]
             lastBin=1
             #print "LAST BIN is "+str(maxX_mass_plot)
@@ -171,7 +172,7 @@ def main():
         data_obs_TGraph_Events.SetPointEYhigh(i, (U-N));
         data_obs_TGraph_Events.SetPoint(i, data_obs_TGraph.GetX()[i], N)
 
-        data_obs_TGraph.SetPointEYlow(i, (N-L)/(binWidth*lumi)); #FIXME
+        data_obs_TGraph.SetPointEYlow(i, (N-L)/(binWidth*lumi));
         data_obs_TGraph.SetPointEYhigh(i, (U-N)/(binWidth*lumi));
         data_obs_TGraph.SetPoint(i, data_obs_TGraph.GetX()[i], N/(binWidth*lumi))
 
@@ -190,16 +191,18 @@ def main():
 
     p1_b = fitResults_BFit.floatParsFinal().find("p1") 
     p2_b = fitResults_BFit.floatParsFinal().find("p2") 
+    p3_b = fitResults_BFit.floatParsFinal().find("p3") 
     bkgNorm_b = fitResults_BFit.floatParsFinal().find("shapeBkg_background_bin1__norm") 
     #fitResults_BFit.floatParsFinal().Print("s")
     #print "p1_b = " , p1_b.getVal() , " +" , p1_b.getAsymErrorHi() , " -" , p1_b.getAsymErrorLo()
     #print "p2_b = " , p2_b.getVal() , " +" , p2_b.getAsymErrorHi() , " -" , p2_b.getAsymErrorLo()
+    #print "p3_b = " , p3_b.getVal() , " +" , p3_b.getAsymErrorHi() , " -" , p3_b.getAsymErrorLo()
     #print "bkgNorm_b = " , bkgNorm_b.getVal() , " +" , bkgNorm_b.getAsymErrorHi() , " -" , bkgNorm_b.getAsymErrorLo()
 
     background_noNorm = TF1("background_noNorm","( TMath::Power(1-x/13000,[0]) ) / ( TMath::Power(x/13000,[1]+[2]*log(x/13000)) )",minX_mass,maxX_mass)
     background_noNorm.SetParameter(0,p1_b.getVal())
     background_noNorm.SetParameter(1,p2_b.getVal())
-    background_noNorm.SetParameter(2,0)
+    background_noNorm.SetParameter(2,p3_b.getVal())
     norm = background_noNorm.Integral(minX_mass,maxX_mass)
     #print "norm : "+str(norm)  
     p0_b = bkgNorm_b.getVal()/(norm*lumi) #FIXME
@@ -208,7 +211,7 @@ def main():
     background.SetParameter(0,p0_b)
     background.SetParameter(1,p1_b.getVal())
     background.SetParameter(2,p2_b.getVal())
-    background.SetParameter(3,0)
+    background.SetParameter(3,p3_b.getVal())
     #print "norm (after scaling) : "+str(background.Integral(minX_mass,maxX_mass))
 
     ##-- End edit --##
@@ -227,12 +230,13 @@ def main():
 
     p1_b_SBFit = fitResults_SBFit.floatParsFinal().find("p1") 
     p2_b_SBFit = fitResults_SBFit.floatParsFinal().find("p2") 
+    p3_b_SBFit = fitResults_SBFit.floatParsFinal().find("p3") 
     bkgNorm_b_SBFit = fitResults_SBFit.floatParsFinal().find("shapeBkg_background_bin1__norm") 
 
     background_noNorm_SBFit = TF1("background_noNorm","( TMath::Power(1-x/13000,[0]) ) / ( TMath::Power(x/13000,[1]+[2]*log(x/13000)) )",minX_mass,maxX_mass)
     background_noNorm_SBFit.SetParameter(0,p1_b_SBFit.getVal())
     background_noNorm_SBFit.SetParameter(1,p2_b_SBFit.getVal())
-    background_noNorm_SBFit.SetParameter(2,0)
+    background_noNorm_SBFit.SetParameter(2,p3_b_SBFit.getVal())
     norm_SBFit = background_noNorm_SBFit.Integral(minX_mass,maxX_mass)
     #print "norm_SBFit : "+str(norm_SBFit)  
     p0_b_SBFit = bkgNorm_b_SBFit.getVal()/(norm_SBFit*lumi) #FIXME
@@ -241,23 +245,18 @@ def main():
     background_SBFit.SetParameter(0,p0_b_SBFit)
     background_SBFit.SetParameter(1,p1_b_SBFit.getVal())
     background_SBFit.SetParameter(2,p2_b_SBFit.getVal())
-    background_SBFit.SetParameter(3,0)
+    background_SBFit.SetParameter(3,p3_b_SBFit.getVal())
     #print "norm_SBFit (after scaling) : "+str(background_SBFit.Integral(minX_mass,maxX_mass))
 
     ##-- End edit --##
 
     #==================
-    # Signal shape
+    # Signal shape (get)
     #==================
     signal_shape = workspace.data(signalWsName)    
     signal_shape_TH1_fineBinning = signal_shape.createHistogram("signal_shape_TH1_fineBinning",mjj)
     signal_shape_TH1_fineBinning.Rebin(N_massBins,"signal_shape_TH1",massBins)    
     integral_signal_shape_TH1 = signal_shape_TH1.Integral()
-
-    for ii in range (0,N_massBins):        
-        value = signal_shape_TH1.GetBinContent(ii+1) / (signal_shape_TH1.GetBinWidth(ii+1)*lumi) #FIXME
-        signal_shape_TH1.SetBinContent(ii+1,value)
-        #print "%d %f" % (ii+1, value)
 
     #==================
     # Signal yield and errors
@@ -274,9 +273,23 @@ def main():
     eh_Nsig = POI.getAsymErrorHi() * integral_signal_shape_TH1
     el_Nsig = POI.getAsymErrorLo() * integral_signal_shape_TH1
     if el_Nsig==0:
-        el_Nsig = eh_Nsig
+        el_Nsig = -eh_Nsig
+    sigmaXaccSig = Nsig/lumiValue
+    eh_sigmaXaccSig = eh_Nsig/lumiValue
+    el_sigmaXaccSig = el_Nsig/lumiValue
     print ("Number of signal events : %f +%f %f" % (Nsig, eh_Nsig, el_Nsig) ) 
-    print ("Cross section : %f +%f %f pb" % (Nsig/lumi, eh_Nsig/lumi, el_Nsig/lumi) ) #FIXME
+    print ("Cross section: %f +%f %f pb" % (sigmaXaccSig, eh_sigmaXaccSig, el_sigmaXaccSig) )
+
+    #==================
+    # Signal shape (rescale)
+    #==================    
+    for ii in range (0,N_massBins):                        
+        if (showCrossSection == 1):#cross section
+            value = (signal_shape_TH1.GetBinContent(ii+1)/signal_shape_TH1.GetBinWidth(ii+1))*(sigmaXaccSig/integral_signal_shape_TH1) 
+        if (showCrossSection == 0):#numer of events
+            value = (signal_shape_TH1.GetBinContent(ii+1)/signal_shape_TH1.GetBinWidth(ii+1))*(Nsig/integral_signal_shape_TH1) 
+        signal_shape_TH1.SetBinContent(ii+1,value)
+        #print "%d %f" % (ii+1, value)
 
     #==================
     # Fit Residuals, Chi2, and Make Plots
@@ -409,12 +422,12 @@ def calculateChi2AndFillResiduals(data_obs_TGraph_,background_hist_,hist_fit_res
     chi2_ndf_PlotRangeNonZero = chi2_PlotRangeNonZero / ndf_PlotRangeNonZero
     chi2_ndf_PlotRangeMinNumEvents = chi2_PlotRangeMinNumEvents / ndf_PlotRangeMinNumEvents
 
-    print "chi2/ndf FullRangeAll : %.1f / %d = %.2f" % ( chi2_FullRangeAll , N_FullRangeAll , chi2_ndf_FullRangeAll ) 
-    print "chi2/ndf PlotRangeAll : %.1f / %d = %.2f" % ( chi2_PlotRangeAll , N_PlotRangeAll , chi2_ndf_PlotRangeAll ) 
-    print "chi2/ndf PlotRangeNonZero : %.1f / %d = %.2f" % ( chi2_PlotRangeNonZero , N_PlotRangeNonZero , chi2_ndf_PlotRangeNonZero ) 
-    print "chi2/ndf PlotRangeMinNumEvents : %.1f / %d = %.2f" % ( chi2_PlotRangeMinNumEvents , N_PlotRangeMinNumEvents , chi2_ndf_PlotRangeMinNumEvents ) 
+    print "chi2/ndf FullRangeAll : %.1f / %d = %.2f" % ( chi2_FullRangeAll , ndf_FullRangeAll , chi2_ndf_FullRangeAll ) 
+    print "chi2/ndf PlotRangeAll : %.1f / %d = %.2f" % ( chi2_PlotRangeAll , ndf_PlotRangeAll , chi2_ndf_PlotRangeAll ) 
+    print "chi2/ndf PlotRangeNonZero : %.1f / %d = %.2f" % ( chi2_PlotRangeNonZero , ndf_PlotRangeNonZero , chi2_ndf_PlotRangeNonZero ) 
+    print "chi2/ndf PlotRangeMinNumEvents : %.1f / %d = %.2f" % ( chi2_PlotRangeMinNumEvents , ndf_PlotRangeMinNumEvents , chi2_ndf_PlotRangeMinNumEvents ) 
 
-    return [chi2_FullRangeAll, N_FullRangeAll, chi2_PlotRangeAll, N_PlotRangeAll, chi2_PlotRangeNonZero, N_PlotRangeNonZero, chi2_PlotRangeMinNumEvents, N_PlotRangeMinNumEvents]
+    return [chi2_FullRangeAll, ndf_FullRangeAll, chi2_PlotRangeAll, ndf_PlotRangeAll, chi2_PlotRangeNonZero, ndf_PlotRangeNonZero, chi2_PlotRangeMinNumEvents, ndf_PlotRangeMinNumEvents]
 
 
 #==============================================================================
@@ -647,7 +660,8 @@ def drawAndSavePlot_signalPlusBackground(data_obs_TGraph_,background_TH1_SBFit_,
     data_obs_TGraph_.Draw("A P E0")
     signalPlusbackground_TH1_SBFit_.Draw("C SAME HIST")
     background_TH1_SBFit_.Draw("C SAME")
-    #signal_shape_TGraph_cut_.Draw("C SAME")
+    if (drawSignalShapeAlsoAlone==1):
+        signal_shape_TGraph_cut_.Draw("C SAME")
 
     #draw text
     pave_general = TPaveText(0.566772,0.794229,0.83557,0.940972,"NDC")    
