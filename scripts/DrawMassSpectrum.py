@@ -13,8 +13,9 @@ import CMS_lumi, setTDRStyle
 
 #inputFileWorkspace = TFile("../datacards/workspace_gg_m1400.root")    
 #inputFileFit = TFile("../datacards/mlfit_gg_m1400.root")
-inputFileWorkspace = TFile("../datacards/workspace_qg_m4000.root")    
-inputFileFit = TFile("../datacards/mlfit_qg_m4000.root")
+inputFileWorkspace = TFile("../datacards/workspace_qg_m3900.root")    
+inputFileFit = TFile("../datacards/mlfit_qg_m3900.root")
+#inputFileFit = TFile("../datacards/mlfit.root")
 
 #==================
 # Options
@@ -32,7 +33,7 @@ else:
     lumi = 1 
 
 minX_mass_plot = 1181
-maxX_mass_plot = 7589
+maxX_mass_plot = 7320
 range_residual = 3
 MinNumEvents = 10.
 nParFit = 4
@@ -42,7 +43,7 @@ if showCrossSection==1:
 else:
     yaxisTitle_main = "Number of events / GeV"
 yaxisTitle_secondary = "#frac{(Data-Fit)}{#sigma_{Data}}   "
-outputLabel = "canvas_dataPlot"
+outputLabel = "canvas_dataPlot_m3900"
 
 xVariableWsName = "mjj"
 dataWsName="data_obs"
