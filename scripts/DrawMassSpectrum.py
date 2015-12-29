@@ -23,9 +23,9 @@ inputFileFit = TFile("../datacards/mlfit_qg_m4000.root")
 
 showCrossSection = 1 #1=cross section [pb] , 0=number of events/GeV 
 drawSignalShapeAlsoAlone = 1
-lumiValue = 1769 #[pb]        #---> take it from the workspace FIXME
+lumiValue = 2445 #[pb]        #---> take it from the workspace FIXME
 fixedRange = 1 #1=YES , 0=NO  (the option works only if showCrossSection=1; otherwise=0)
-minY = 0.0000001
+minY = 0.00000003
 maxY = 20
 if showCrossSection==1:
     lumi = lumiValue 
@@ -33,8 +33,8 @@ else:
     lumi = 1 
 
 minX_mass_plot = 1181
-maxX_mass_plot = 7320
-range_residual = 3
+maxX_mass_plot = 6328
+range_residual = 3.5
 MinNumEvents = 10.
 nParFit = 4
 xaxisTitle = "Dijet Mass [GeV]"
@@ -53,7 +53,7 @@ parameterOfInterest="r"
 massBins_list = [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8152, 8447, 8752, 9067, 9391, 9726, 10072, 10430, 10798, 11179, 11571, 11977, 12395, 12827, 13272, 13732, 14000]
 
 for ibb,bb in enumerate(massBins_list):
-    newbin = int(bb + bb * 0.0) 
+    newbin = int(bb - bb * 0.0) 
     massBins_list[ibb] = newbin
 print massBins_list
 
@@ -63,7 +63,7 @@ print massBins_list
 
 #set tdr style
 setTDRStyle.setTDRStyle()
-tdrStyle.SetNdivisions(505, "XYZ")
+#tdrStyle.SetNdivisions(505, "XYZ")
 
 #change the CMS_lumi variables (see CMS_lumi.py)
 CMS_lumi.lumi_7TeV = "%1.f fb^{-1}" % lumiValue
@@ -572,6 +572,7 @@ def drawAndSavePlot_background(data_obs_TGraph_,background_TH1_,hist_fit_residua
     #style residuals
     hist_fit_residual_vsMass_.GetXaxis().SetRangeUser(minX_mass_plot,maxX_mass_plot)
     hist_fit_residual_vsMass_.GetYaxis().SetRangeUser(-range_residual,+range_residual)
+    hist_fit_residual_vsMass_.GetYaxis().SetNdivisions(206,kFALSE)
     hist_fit_residual_vsMass_.SetLineWidth(0)
     hist_fit_residual_vsMass_.SetFillColor(2)
     hist_fit_residual_vsMass_.SetLineColor(1)
