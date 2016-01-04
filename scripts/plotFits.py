@@ -3,8 +3,8 @@ import sys
 import argparse
 import math
 from ROOT import *
-from setTDRStyle import setTDRStyle
 from array import array
+import CMS_lumi, tdrstyle
 
 usage = "usage: python plotFits.py -i <inputList> -o <outputdir>"
 print usage
@@ -37,7 +37,7 @@ parser.add_argument("-t", "--toys", type=int, dest="toys", default=1,
     )
 
   
-lumi=1000.
+lumi=2000.
 #lumi=830.
 
 args = parser.parse_args()
@@ -45,11 +45,21 @@ print args
 ############
 ROOT.gStyle.SetOptFit(0000)
 gROOT.Reset()
-setTDRStyle()
-gROOT.ForceStyle()
-gROOT.SetStyle('tdrStyle')
+tdrstyle.setTDRStyle()
 
-gStyle.SetOptStat(0)
+#change the CMS_lumi variables (see CMS_lumi.py)
+CMS_lumi.lumi_7TeV = "4.8 fb^{-1}"
+CMS_lumi.lumi_8TeV = "18.3 fb^{-1}"
+CMS_lumi.lumi_13TeV = str(int(lumi))+" pb^{-1}"
+CMS_lumi.writeExtraText = 1
+CMS_lumi.extraText = ""
+CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
+
+iPos = 11
+if( iPos==0 ): CMS_lumi.relPosX = 0.12
+iPeriod = 4
+
+#gStyle.SetOptStat(0)
 
 ins = open(args.inputList,"r")
   #giulia debug for significance experiment
@@ -75,7 +85,7 @@ dict = {
     #5000:1.11493200000000008e-02,
     #6000:1.86000000000000011e-03
     #1200.0:  0.1721E+03,
-    1300.0:  0.1157E+03,
+    #1300.0:  0.1157E+03,
     1400.0:  0.7934E+02,
     1500.0:  0.5540E+02,
     1600.0:  0.3928E+02,
@@ -130,8 +140,8 @@ bins = 50
 k=0
 ##this loop is useless, to remove
 for line in  ins:
-  if not k==0:
-    continue
+  #if not k==0:
+  #  continue
   print "====================="
   print "    %d     " % k
   print "====================="
@@ -187,7 +197,7 @@ for line in  ins:
   chi2 = []
   h_chi2 = TH1F("h_chi2","",80,0,80 )
   #inputToys.cd()
-  c = TCanvas("c","", 1)
+  #c = TCanvas("c","", 1)
   c_pulls = TCanvas("c_pulls","",1)
   print "now loop on toys"
   for j in range(1,args.toys+1):
@@ -205,6 +215,8 @@ for line in  ins:
 
     minX_mass=x.getMin() 
     maxX_mass =x.getMax() 
+    minX_mass_plot=minX_mass 
+    maxX_mass_plot=maxX_mass 
 
     ###
     tree_fit_sb.GetEntry(j-1)
@@ -212,7 +224,7 @@ for line in  ins:
     p2_val = tree_fit_sb.p2
     p3_val = tree_fit_sb.p3
     mu_val = tree_fit_sb.mu
-    integral_val = tree_fit_sb.n_exp_binbin1_proc_background  
+    integral_val = tree_fit_sb.n_exp_final_binbin1_proc_background  
     tree_fit_b.GetEntry(j-1)
     p1_val_b = tree_fit_b.p1
     p2_val_b = tree_fit_b.p2
@@ -225,7 +237,7 @@ for line in  ins:
     background_noNorm.SetParameter(2,p3_val_b)
     norm_b = background_noNorm.Integral(minX_mass,maxX_mass)
     p0_val_b = integral_val_b/norm_b
-    print "integral_val: "+str(integral_val_b)+"   norm : "+str(norm_b)  
+    print "integral_val_b: "+str(integral_val_b)+"   norm_b : "+str(norm_b)  
     
     background_noNorm_SplusB = TF1("background_SplusB","( TMath::Power(1-x/13000,[0]) ) / ( TMath::Power(x/13000,[1]+[2]*log(x/13000)) )",minX_mass,maxX_mass)
     background_noNorm_SplusB.SetParameter(0,p1_val)
@@ -233,31 +245,33 @@ for line in  ins:
     background_noNorm_SplusB.SetParameter(2,p3_val)
     norm = background_noNorm_SplusB.Integral(minX_mass,maxX_mass)
     p0_val = integral_val/norm
+    print "integral_val: "+str(integral_val)+"   norm : "+str(norm)  
     
-    h_sig_1GeV.Scale(dict[mass]*mu_val*lumi/h_sig_1GeV.Integral())
+    h_sig_1GeV.Scale(mu_val/h_sig_1GeV.Integral())
+    #h_sig_1GeV.Scale(dict[mass]*mu_val*lumi/h_sig_1GeV.Integral())
     h_sig_rebin=h_sig_1GeV.Rebin(len(massBins)-1,"h_sig_rebin",massBins)
     h_sig=TH1F("h_sig","",len(massBins)-1,massBins)
     for i in range(1,len(massBins)):
-      h_sig.SetBinContent(i, h_sig_rebin.GetBinContent(i)/h_sig_rebin.GetBinWidth(i))
+      h_sig.SetBinContent(i, h_sig_rebin.GetBinContent(i)/h_sig_rebin.GetBinWidth(i)/lumi)
  
     
     Nobs_val = toy.sumEntries()
-    rateSig_val = lumi*dict[mass]
-    print str(p0_val)+"   "+ str(p1_val)+"  "+str(p2_val)+"  "+str(p3_val)+"  "+str(mu_val)
-    print "rateSig_val = "+str(Nobs_val)+" * "+str(dict[mass])+" =  "+str(rateSig_val) 
+    #rateSig_val = lumi*dict[mass]
+    #print str(p0_val)+"   "+ str(p1_val)+"  "+str(p2_val)+"  "+str(p3_val)+"  "+str(mu_val)
+    #print "rateSig_val = "+str(lumi)+" * "+str(dict[mass])+" =  "+str(rateSig_val) 
 
     p1 = RooRealVar('p1','p1',p1_val,-1000,1000.)
     p2 = RooRealVar('p2','p2',p2_val,-1000.,1000.)
     p3 = RooRealVar('p3','p3',p3_val,-1000.,1000)
-    r = RooRealVar('r','r',mu_val,-2,100)
+    r = RooRealVar('r','r',mu_val,-10000,10000)
     Nobs = RooRealVar('Nobs','Nobs',Nobs_val,0,10000000)
-    rateSig = RooRealVar('rateSig','rateSig',rateSig_val,-100000,10000000)
+    #rateSig = RooRealVar('rateSig','rateSig',rateSig_val,-100000,10000000)
     p1.Print()
     p2.Print()
     p3.Print()
     r.Print()
     Nobs.Print() 
-    rateSig.Print()
+    #rateSig.Print()
 
 #### Draw plots using Roofit ######
     #background = RooGenericPdf("background","background","(pow(1-@0/13000,@1)/pow(@0/13000,@2+@3*log(@0/13000)))",RooArgList(x,p1,p2,p3))
@@ -320,6 +334,52 @@ for line in  ins:
     #    h_toy_1GeV.SetBinError(jj,TMath.Sqrt(h_toy_1GeV.GetBinContent(jj)))
       
     h_toy_binned = h_toy_1GeV.Rebin(len(massBins)-1,"h_toy_binned",massBins)
+    
+    ######################################################
+    #data in TGraph format (hist binned)
+    alpha = 1 - 0.6827;
+    
+    x=[]
+    y=[]
+    exl=[]
+    exh=[]
+    eyl=[]
+    eyh=[]
+    x_mc=[]
+    y_mc=[]
+    
+    
+    for i in range(0,len(massBins)):
+      n    = h_toy_binned.GetBinContent(i+1)
+      dm   = h_toy_binned.GetBinWidth(i+1)
+      mass = h_toy_binned.GetBinCenter(i+1)
+      xl   = h_toy_binned.GetBinLowEdge(i+1)
+      xh   = xl+dm
+      x.append( (xl+xh)/2.)
+      exl.append( dm/2.)
+      exh.append( dm/2.)
+      y.append( n / (dm*lumi))
+      l = 0.5*TMath.ChisquareQuantile(alpha/2,2*n)
+      h = 0.5*TMath.ChisquareQuantile(1-alpha/2,2*(n+1))
+      eyl.append( (n-l)/(lumi*dm) )
+      eyh.append( (h-n)/(lumi*dm) )
+      #print "%f   %f    %f    %f    %f     %f" % (x[i],y[i],exl[i],exh[i],eyl[i],eyh[i])
+    
+    vx = array("f",x)
+    vy = array("f",y)
+    vexl = array("f",exl)
+    vexh = array("f",exh)
+    veyl = array("f",eyl)
+    veyh = array("f",eyh)
+    
+    #data in TGraph format
+    g = TGraphAsymmErrors(len(massBins)-1,vx,vy,vexl,vexh,veyl,veyh)
+    g.SetName("g_data")
+    g.Print()
+    ###########################
+    
+    
+    
     for ibin in range(1,len(massBins)):
       if (h_toy_binned.GetBinContent(ibin) == 0):
     	h_toy_binned.SetBinError(ibin, 1.8)
@@ -328,12 +388,12 @@ for line in  ins:
     
     h_toy = TH1F("h_toy","",len(massBins),massBins) 
     for ibin in range(1,len(massBins)):
-      h_toy.SetBinContent(ibin, h_toy_binned.GetBinContent(ibin)/h_toy_binned.GetBinWidth(ibin))
+      h_toy.SetBinContent(ibin, h_toy_binned.GetBinContent(ibin)/h_toy_binned.GetBinWidth(ibin)/lumi)
       if (h_toy.GetBinContent(ibin) == 0):
-	h_toy.SetBinError(ibin, 1.8/h_toy.GetBinWidth(ibin))
+	h_toy.SetBinError(ibin, 1.8/h_toy.GetBinWidth(ibin)/lumi)
       else:
 	h_toy.SetBinError(ibin, h_toy_binned.GetBinError(ibin)/h_toy_binned.GetBinWidth(ibin))
-      print "content %d: %.2f   error: %.2f" %(ibin,h_toy.GetBinContent(ibin),h_toy.GetBinError(ibin))
+      print "content %d: %.2f   error: %.2f" %(ibin,h_toy.GetBinContent(ibin),h_toy.GetBinError(ibin)/lumi)
 
     #print "min and max : %d  %d" % (minX_mass, maxX_mass)
     #print "debug: bin content  : %.2f  %.2f  %.2f" % (h_toy_1GeV.GetBinContent(50), h_toy_binned.GetBinContent(50), h_toy.GetBinContent(50))   
@@ -346,14 +406,14 @@ for line in  ins:
 
     ## background ##
     background = TF1("background","( [0]*TMath::Power(1-x/13000,[1]) ) / ( TMath::Power(x/13000,[2]+[3]*log(x/13000)) )",minX_mass,maxX_mass)
-    background.SetParameter(0,p0_val_b)
+    background.SetParameter(0,p0_val_b/lumi)
     background.SetParameter(1,p1_val_b)
     background.SetParameter(2,p2_val_b)
     background.SetParameter(3,p3_val_b)
     background.SetLineColor(kRed)
     ##background component of S+B
     background_SplusB = TF1("background_SplusB","( [0]*TMath::Power(1-x/13000,[1]) ) / ( TMath::Power(x/13000,[2]+[3]*log(x/13000)) )",minX_mass,maxX_mass)
-    background_SplusB.SetParameter(0,p0_val)
+    background_SplusB.SetParameter(0,p0_val/lumi)
     background_SplusB.SetParameter(1,p1_val)
     background_SplusB.SetParameter(2,p2_val)
     background_SplusB.SetParameter(3,p3_val)
@@ -369,220 +429,278 @@ for line in  ins:
 
     h_s_plus_b.Print()
 
-
     ###########################################
     # fit residuals and chi2 variable binning
     ###########################################
     hist_fit_residual_vsMass = TH1D("hist_fit_residual_vsMass","hist_fit_residual_vsMass",len(massBins)-1,massBins)
     hist_fit_residual_vsMass_bkg = TH1D("hist_fit_residual_vsMass_bkg","hist_fit_residual_vsMass_bkg",len(massBins)-1,massBins)
     NumberOfObservations_VarBin = 0
-    chi2_VarBin = 0.
+    chi2_VarBin_B = 0.
+    chi2_VarBin_SB = 0.
     
     for bin in range(1,len(massBins)):
-        
-      if( h_toy.GetXaxis().GetBinLowEdge(bin)>=minX_mass  and h_toy.GetXaxis().GetBinUpEdge(bin)<=maxX_mass ):
-        NumberOfObservations_VarBin+=1
-        data = h_toy.GetBinContent(bin)
-        err_data = h_toy.GetBinError(bin)
-        if( data == 0 ):
-          err_data = 1.8 / h_toy.GetBinWidth(bin)
-          print "err_data %f" % err_data
-        #background only
-	fit_B = background.Integral(h_toy.GetXaxis().GetBinLowEdge(bin), h_toy.GetXaxis().GetBinUpEdge(bin) ) 
-        fit_B = fit_B / ( h_toy.GetBinWidth(bin) )
-        #S+B
-	fit = h_s_plus_b.GetBinContent(h_s_plus_b.FindBin(h_toy.GetBinCenter(bin) )) 
-        err_tot = err_data	  
-        fit_residual = (data - fit) / err_tot
-        fit_residual_B = (data - fit_B) / err_tot
-    	    	  
-        chi2_VarBin += pow( (data - fit) , 2 ) / pow( err_data , 2 )
-        print "data, err_data, fit: "+str( data)+", "+str(err_data) +", " +str(fit)
-        print "bin, fit residual : " + str(bin) + ", " +str(fit_residual)	  
-        hist_fit_residual_vsMass.SetBinContent(bin,fit_residual)
-        hist_fit_residual_vsMass_bkg.SetBinContent(bin,fit_residual_B)
-       
-    ##END OF LOOP over bins
-    
-    ndf_VarBin = NumberOfObservations_VarBin - 4 
-    
-    h_chi2.Fill(chi2_VarBin,1)
-    if j < 10:
-      print "============================"
-      print "NumberOfObservations_VarBin: " + str(NumberOfObservations_VarBin)
-      print "ndf_VarBin: " + str(ndf_VarBin)
-      print "chi2_VarBin: " +str(chi2_VarBin)
-      print "============================"   
       
-   
-
-
-    ###### Draw note style
-    c2 = TCanvas("c2", "",339,117,695,841)
-    c2.GetWindowHeight() 
-    c2.GetWindowWidth() 
-    c2.SetLogy() 
-    c2.Divide(1,2,0,0,0) 
-    c2.cd(1) 
-    p11_1 = c2.GetPad(1) 
-    p11_1.SetPad(0.01,0.23,0.99,0.98) 
-    p11_1.SetLogy() 
-    p11_1.SetRightMargin(0.05) 
-    p11_1.SetTopMargin(0.05) 
-
-    #Pave text for fit results
-    ndf = 50 
-    pave_fit1 = TPaveText(0.56,0.60,0.9,0.9,"NDC") 
-    #pave_fit1.AddText("#chi^{2} / ndf = %.2f" % (frame.chiSquare())) 
-    pave_fit1.AddText("#chi^{2} / ndf = %.2f / %d" % (chi2_VarBin, ndf_VarBin)) 
-    pave_fit1.AddText("p0 =  %.2e " % (p0_val))
-    pave_fit1.AddText("p1 =  %.2e " % (p1_val))
-    pave_fit1.AddText("p2 =  %.2e " % (p2_val))
-    pave_fit1.AddText("p3 =  %.2e " % (p3_val))
-    pave_fit1.AddText("mu =  %.2e " % (mu_val))
-    pave_fit1.SetFillColor(0) 
-    pave_fit1.SetFillStyle(0) 
-    pave_fit1.SetBorderSize(1) 
-    pave_fit1.SetTextFont(42) 
-    pave_fit1.SetTextSize(0.03) 
-    pave_fit1.SetTextAlign(12)  
+      if( h_toy.GetXaxis().GetBinLowEdge(bin)>=minX_mass and h_toy.GetXaxis().GetBinUpEdge(bin)<=maxX_mass ):
+        NumberOfObservations_VarBin += 1
+        #print "bin content = " + str(h_toy.GetBinContent(bin)) + "   graph y = " + str(vy[bin-1]) + "  error y low = " + str(g.GetErrorYlow(bin-1))
+        data = h_toy.GetBinContent(bin)
+        err_data_low = g.GetErrorYlow(bin-1) 
+        err_data_high = g.GetErrorYhigh(bin-1)
+        
+        fit_SB =  h_s_plus_b.GetBinContent(h_s_plus_b.FindBin(h_toy.GetXaxis().GetBinLowEdge(bin)))
+        if(fit_SB > data): err_tot_SB = err_data_high
+        else: err_tot_SB = err_data_low
+        if err_tot_SB==0:
+          print "*** data = %f  fit = %f  err = 0 ***" %  (data, fit_SB)
+          fit_residual_SB = 0
+        else:  
+          fit_residual_SB = (data - fit_SB) / err_tot_SB
+        chi2_VarBin_SB += pow( fit_residual_SB,2 )
+        
+        #f4
+        fit_B = background.Integral(h_toy.GetXaxis().GetBinLowEdge(bin) , h_toy.GetXaxis().GetBinUpEdge(bin) )
+        #f6
+        #fit_B = background_f6.Integral(h_toy.GetXaxis().GetBinLowEdge(bin) , h_toy.GetXaxis().GetBinUpEdge(bin) )
+    
+        fit_B = fit_B / ( h_toy.GetBinWidth(bin) )
+        if(fit_B > data): err_tot_B = err_data_high
+        else: err_tot_B = err_data_low
+        if not err_tot_B==0: fit_residual_B = (data - fit_B) / err_tot_B
+        else: fit_residual_B=0
+        chi2_VarBin_B += pow( fit_residual_B , 2 )
+    
+        hist_fit_residual_vsMass.SetBinContent(bin,fit_residual_SB)
+        hist_fit_residual_vsMass_bkg.SetBinContent(bin,fit_residual_B)
+    
+    
+    ndf_VarBin = NumberOfObservations_VarBin #-1 
+    print "============ CHI2 ==============" 
+    print "NumberOfObservations_VarBin: %d" %  NumberOfObservations_VarBin
+    print "ndf_VarBin_SB: %d" % (NumberOfObservations_VarBin-5) 
+    print "chi2_VarBin_SB: %f" % chi2_VarBin_SB
+    print "ndf_VarBin_B: %d" % (NumberOfObservations_VarBin-4) 
+    print "chi2_VarBin_B: %f" % chi2_VarBin_B
+    print "============================"   
+      
+        
+    #  if( h_toy.GetXaxis().GetBinLowEdge(bin)>=minX_mass  and h_toy.GetXaxis().GetBinUpEdge(bin)<=maxX_mass ):
+    #    NumberOfObservations_VarBin+=1
+    #    data = h_toy.GetBinContent(bin)
+    #    err_data = h_toy.GetBinError(bin)
+    #    if( data == 0 ):
+    #      err_data = 1.8 / h_toy.GetBinWidth(bin)
+    #      print "err_data %f" % err_data
+    #    #background only
+    #    fit_B = background.Integral(h_toy.GetXaxis().GetBinLowEdge(bin), h_toy.GetXaxis().GetBinUpEdge(bin) ) 
+    #    fit_B = fit_B / ( h_toy.GetBinWidth(bin) )
+    #    #S+B
+    #    fit = h_s_plus_b.GetBinContent(h_s_plus_b.FindBin(h_toy.GetBinCenter(bin) )) 
+    #    err_tot = err_data	  
+    #    fit_residual = (data - fit) / err_tot
+    #    fit_residual_B = (data - fit_B) / err_tot
+    #	    	  
+    #    chi2_VarBin += pow( (data - fit) , 2 ) / pow( err_data , 2 )
+    #    print "data, err_data, fit: "+str( data)+", "+str(err_data) +", " +str(fit)
+    #    print "bin, fit residual : " + str(bin) + ", " +str(fit_residual)	  
+    #
+    #   
+    #
+    #ndf_VarBin = NumberOfObservations_VarBin - 4 
+    #
+    #print "============================"
+    #print "NumberOfObservations_VarBin: " + str(NumberOfObservations_VarBin)
+    #print "ndf_VarBin: " + str(ndf_VarBin)
+    #print "chi2_VarBin: " +str(chi2_VarBin)
+    #print "============================"   
+    
+    ###############################
+    #### Draw ##########
+    W = 600
+    H = 700
+    H_ref = 700 
+    W_ref = 600 
+    T = 0.08*H_ref
+    B = 0.12*H_ref
+    L = 0.12*W_ref
+    R = 0.04*W_ref
+    
+    c = TCanvas("c","DijetMass cross section with Fit and QCD MC",W,H)
+    #c.GetWindowHeight() 
+    #c.GetWindowWidth() 
+    c.SetLogy() 
+    c.Divide(1,2,0,0,0) 
+    c.cd(1) 
+    
+    
+    #------------ pad 1  ----------------
+    c.cd(1)
+    p11_1 = c.GetPad(1)
+    p11_1.SetPad(0.01,0.26,0.99,0.98)
+    p11_1.SetLogy()
+    p11_1.SetRightMargin(0.05)
+    p11_1.SetTopMargin(0.05)
+    p11_1.SetFillColor(0)
+    p11_1.SetBorderMode(0)
+    p11_1.SetFrameFillStyle(0)
+    p11_1.SetFrameBorderMode(0)
+    
+    ##Pave text for fit results
+    #pave_fit1 = TPaveText(0.56,0.55,0.9,0.85,"NDC") 
+    #pave_fit1.AddText("#chi^{2} / ndf = %.2f / %d" % (chi2_VarBin,ndf_VarBin)) 
+    #pave_fit1.AddText("p0 =  %.2e #pm %.2e" % (p0_val,p0_error))
+    #pave_fit1.AddText("p1 =  %.2e #pm %.2e" % (p1_val,p1_error))
+    #pave_fit1.AddText("p2 =  %.2e #pm %.2e" % (p2_val,p2_error))
+    #pave_fit1.AddText("p3 =  %.2e #pm %.2e" % (p3_val,p3_error))
+    #pave_fit1.SetFillColor(0) 
+    #pave_fit1.SetFillStyle(0) 
+    #pave_fit1.SetBorderSize(1) 
+    #pave_fit1.SetTextFont(42) 
+    #pave_fit1.SetTextSize(0.03) 
+    #pave_fit1.SetTextAlign(12)  
     
     #Pave text
-    pave_fit = TPaveText(0.23,0.15,0.45,0.27,"NDC") 
-    #pave_fit.AddText(" #sqrt{s} = 13 TeV") 
-    pave_fit.AddText("|#eta| < 2.5, |#Delta#eta| < 1.3") 
-    pave_fit.AddText("M_{jj} > 1.1 TeV") 
-    pave_fit.AddText("Wide Jets") 
-    pave_fit.SetFillColor(0) 
-    pave_fit.SetLineColor(0) 
-    pave_fit.SetFillStyle(0) 
-    pave_fit.SetBorderSize(0) 
-    pave_fit.SetTextFont(42) 
-    pave_fit.SetTextSize(0.03) 
-    pave_fit.SetTextAlign(12)  
+    pave_fit = TPaveText(0.2358691,0.04035043,0.5050171,0.1870085,"NDC")
+      
+    #pave_fit.AddText("AK4 Jets")
+    pave_fit.AddText("Wide Jets")
+    pave_fit.AddText("|#eta| < 2.5, |#Delta#eta_{jj}| < 1.3")
+    #pave_fit.AddText("|#eta| < 2.5, |#Delta#eta_{jj}| < 2.6")
+    #pave_fit.AddText("M_{jj} > 1.2 TeV")
+    pave_fit.SetFillColor(0)
+    pave_fit.SetLineColor(0)
+    pave_fit.SetFillStyle(0)
+    pave_fit.SetBorderSize(0)
+    pave_fit.SetTextFont(42)
+    pave_fit.SetTextSize(0.040)
+    pave_fit.SetTextAlign(12) 
     
+    vFrame = p11_1.DrawFrame(minX_mass_plot,0.0000005,maxX_mass_plot,15.0)
     
-    pt1 =  TPaveText(0.1284756,0.9602144,0.3887139,0.9902251,"brNDC") 
-    pt1.SetBorderSize(0) 
-    pt1.SetFillColor(0) 
-    pt1.SetFillStyle(0) 
-    pt1.SetLineColor(0) 
-    pt1.SetTextAlign(12) 
-    pt1.SetTextSize(0.035) 
-    text = pt1.AddText("CMS") 
+    vFrame.SetTitle("")
+    vFrame.SetXTitle("Dijet Mass [GeV]")
+    vFrame.SetYTitle("d#sigma / dm_{jj}   [pb / GeV]")
+    vFrame.GetXaxis().SetTitleSize(0.06)
+    vFrame.GetXaxis().SetTitleOffset(0.95)
+    vFrame.GetXaxis().SetLabelSize(0.05)
+    vFrame.GetYaxis().SetTitleSize(0.06)
+    #vFrame.GetYaxis().SetTitleOffset(1.0)
+    vFrame.GetYaxis().SetLabelSize(0.05)
     
-    pt2 =  TPaveText(0.45,0.96,0.65,0.99,"brNDC") 
-    pt2.SetBorderSize(0) 
-    pt2.SetFillColor(0) 
-    pt2.SetFillStyle(0) 
-    pt2.SetLineColor(0) 
-    pt2.SetTextAlign(12) 
-    pt2.SetTextSize(0.035) 
-    text2 = pt2.AddText("#sqrt{s} = 13 TeV") 
-    
-    pt3 = TPaveText(0.7687988,0.9602144,0.9297357,0.9902251,"brNDC") 
-    pt3.SetBorderSize(0) 
-    pt3.SetFillColor(0) 
-    pt3.SetFillStyle(0) 
-    pt3.SetLineColor(0) 
-    pt3.SetTextAlign(12) 
-    pt3.SetTextSize(0.035) 
-    text3 = pt3.AddText("L= 1 fb^{-1}") 
-    #text3 = pt3.AddText("L= 10 fb^{-1}") 
-
-    vFrame = p11_1.DrawFrame(minX_mass,0.0001,maxX_mass,20000.0) 
-    
-    vFrame.SetTitle("") 
-    vFrame.SetXTitle("Dijet Mass [GeV]") 
-    vFrame.GetXaxis().SetTitleSize(0.06) 
-    vFrame.SetYTitle("Events / bin width") 
-    
-    vFrame.GetYaxis().SetTitleSize(0.12) 
-    vFrame.GetYaxis().SetLabelSize(0.07) 
-    vFrame.GetYaxis().SetTitleOffset(0.50) 
-    vFrame.GetXaxis().SetTitleOffset(0.90) 
-    vFrame.GetXaxis().SetTitleSize(0.18) 
-    vFrame.GetXaxis().SetLabelSize(0.1) 
-  
-    leg = TLegend(0.5564991,0.45,0.8903575,0.58) 
-    leg.SetTextSize(0.03146853) 
-    leg.SetLineColor(0) 
-    leg.SetLineStyle(1) 
-    leg.SetLineWidth(0) 
-    leg.SetFillStyle(0) 
-    leg.SetMargin(0.35) 
-    leg.AddEntry(h_toy,"Data" ,"PL") 
-    leg.AddEntry(background,"B Fit","L") 
-    leg.AddEntry(h_s_plus_b,"S+B Fit","L") 
-
-    #frame.Draw()
-    h_toy.GetXaxis().SetRangeUser(minX_mass,maxX_mass) 
-    h_toy.SetTitle("") 
-    h_toy.SetLineColor(1) 
-    h_toy.SetFillColor(1) 
-    h_toy.SetLineColor(1) 
-    h_toy.SetMarkerColor(1) 
-    h_toy.SetMarkerStyle(20) 
-    h_toy.SetMinimum(0.001) 
-
+    #h_toy.GetXaxis().SetRangeUser(minX_mass,maxX_mass) 
+    #h_toy.SetTitle("") 
+    #h_toy.SetLineColor(1) 
+    #h_toy.SetFillColor(1) 
+    #h_toy.SetLineColor(1) 
+    #h_toy.SetMarkerColor(1) 
+    #h_toy.SetMarkerStyle(20) 
+    #h_toy.SetMinimum(0.001) 
+    #
+    #h_toy.Draw("HIST P0E0") 
+    g.GetXaxis().SetNdivisions(405)
+    g.SetMarkerSize(0.9)
+    g.SetMarkerStyle(20)
+    #g.Draw("pe0")
+    #background.SetLineWidth(2) 
+    #background.SetLineStyle(2) 
+    #background.SetLineColor(2) 
+    #background.Draw("same") 
+    #background_f6.SetLineWidth(2) 
+    #background_f6.SetLineStyle(2) 
+    #background_f6.SetLineColor(2) 
+    #background_f6.Draw("same") 
+    #background_f6_SplusB.SetLineWidth(2) 
+    #background_f6_SplusB.SetLineStyle(2) 
+    #background_f6_SplusB.SetLineColor(2) 
+    #background_f6_SplusB.Draw("same") 
     background.SetLineWidth(2) 
     background.SetLineStyle(2) 
     background.SetLineColor(2) 
-    background.Draw("")
+    background.Draw("same") 
+    
     h_s_plus_b.SetLineWidth(2) 
     h_s_plus_b.SetLineStyle(1) 
     h_s_plus_b.SetLineColor(kBlue) 
     h_s_plus_b.Draw("c same")
-    h_toy.Draw("pe same")
-    pt1.Draw("same")  
-    pt2.Draw("same") 
-    pt3.Draw("same") 
+    g.Draw("pe0 same")
+    
+    leg =  TLegend(0.4564991,0.62,0.9303575,0.90)
+    leg.SetTextSize(0.038)
+    leg.SetLineColor(0)
+    leg.SetLineStyle(1)
+    leg.SetLineWidth(0)
+    leg.SetFillColor(0)
+    leg.SetFillStyle(0)
+    leg.SetMargin(0.35)
+    leg.AddEntry(h_toy,"Pseudo-Data" ,"PL") 
+    leg.AddEntry(background,"B Fit","L") 
+    #leg.AddEntry(background_f6,"B Fit","L") 
+    #leg.AddEntry(background_f6_SplusB,"B component","L") 
+    leg.AddEntry(h_s_plus_b,"S+B Fit","L") 
+    
     pave_fit.Draw("same") 
-    pave_fit1.Draw("same") 
-    leg.Draw("same") 
-
- 
+    #pave_fit1.Draw("same") 
+    leg.Draw("same")
+    
+    #redraw axis
+    p11_1.RedrawAxis() 
+    p11_1.Update() 
+    #cout << "MIN: " << p11_1.GetUxmin() << endl 
+    #cout << "MAX: " << p11_1.GetUxmax() << endl 
+    #draw the lumi text on the canvas
+    CMS_lumi.CMS_lumi(p11_1, iPeriod, iPos)
+    
+    #
     #---- Next PAD
     
-    c2.cd(2) 
-    p11_2 = c2.GetPad(2) 
-    p11_2.SetPad(0.01,0.02,0.99,0.24) 
-    p11_2.SetBottomMargin(0.35) 
-    p11_2.SetRightMargin(0.05) 
-    p11_2.SetGridx() 
-    p11_2.SetGridy() 
-    #c3_2.SetTickx(50) 
+    c.cd(2) 
+    p11_2 = c.GetPad(2) 
+    p11_2.SetPad(0.01,0.02,0.99,0.27)
+    p11_2.SetBottomMargin(0.35)
+    p11_2.SetRightMargin(0.05)
+    p11_2.SetGridx()
+    p11_2.SetGridy()
     
-    vFrame2 = p11_2.DrawFrame(p11_1.GetUxmin(), -4.5, p11_1.GetUxmax(), 4.5) 
+    vFrame2 = p11_2.DrawFrame(p11_1.GetUxmin(), -3.5, p11_1.GetUxmax(), 3.5) 
     
-    vFrame2.SetTitle("") 
-    vFrame2.SetXTitle("Dijet Mass [GeV]") 
-    vFrame2.GetXaxis().SetTitleSize(0.06) 
-    vFrame2.SetYTitle("(Data-Fit)/#sigma_{Data}") 
-    vFrame2.GetYaxis().SetTitleSize(0.12) 
-    vFrame2.GetYaxis().SetLabelSize(0.07) 
-    vFrame2.GetYaxis().SetTitleOffset(0.50) 
-    vFrame2.GetXaxis().SetTitleOffset(0.90) 
-    vFrame2.GetXaxis().SetTitleSize(0.18) 
-    vFrame2.GetXaxis().SetLabelSize(0.1) 
-    #frame_pull.Draw()
-    hist_fit_residual_vsMass.GetXaxis().SetRangeUser(minX_mass,maxX_mass) 
-    hist_fit_residual_vsMass.GetYaxis().SetRangeUser(-4.,4.) 
+    vFrame2.SetTitle("")
+    vFrame2.SetXTitle("Dijet Mass [GeV]")
+    vFrame2.GetXaxis().SetTitleSize(0.06)
+    vFrame2.SetYTitle("#frac{Data-Fit}{#sigma_{Data}}")
+    vFrame2.GetYaxis().SetTitleSize(0.15)
+    vFrame2.GetYaxis().SetTitleOffset(0.40)
+    vFrame2.GetYaxis().SetLabelSize(0.09)
+    vFrame2.GetXaxis().SetTitleSize(0.18)
+    vFrame2.GetXaxis().SetTitleOffset(0.90)
+    vFrame2.GetXaxis().SetLabelSize(0.15)
+    
+    hist_fit_residual_vsMass.GetXaxis().SetNdivisions(405)
+    hist_fit_residual_vsMass.GetXaxis().SetRangeUser(minX_mass_plot,maxX_mass_plot) 
+    hist_fit_residual_vsMass.GetYaxis().SetRangeUser(-3.5,3.5) 
     hist_fit_residual_vsMass.SetLineWidth(0) 
     hist_fit_residual_vsMass.SetFillColor(kBlue) 
     hist_fit_residual_vsMass.SetLineColor(1) 
-    hist_fit_residual_vsMass.Draw("hist same")
+    hist_fit_residual_vsMass.Draw("samehist") 
     hist_fit_residual_vsMass_bkg.SetLineWidth(2) 
     hist_fit_residual_vsMass_bkg.SetLineColor(2) 
     hist_fit_residual_vsMass_bkg.SetLineStyle(2) 
-    hist_fit_residual_vsMass_bkg.Draw("hist same")
-
-    line =  TLine(minX_mass,0,maxX_mass,0) 
+    hist_fit_residual_vsMass_bkg.Draw("samehist")
+    
+    line =  TLine(minX_mass_plot,0,maxX_mass_plot,0) 
     line.Draw("") 
+    p11_2.RedrawAxis()
+    line2=TLine()
+    line2.DrawLine(p11_2.GetUxmin(), p11_2.GetUymax(), p11_2.GetUxmax(), p11_2.GetUymax())
+    line2.DrawLine(p11_2.GetUxmax(), p11_2.GetUymin(), p11_2.GetUxmax(), p11_2.GetUymax())
+    #c.Close() 
+    
+    ##c.SaveAs(args.output+"/fit_Data.C")
+    #c.SaveAs(args.output+"/fit_Data_"+args.suffix+".png")
+    #c.SaveAs(args.output+"/fit_Data_"+args.suffix+".pdf")
+    #c.Clear()
 
     if j<20:
-      c2.SaveAs(args.output+"/fitAndResiduals_SplusB_"+sample+"_"+name_toy+".png")
-      c2.SaveAs(args.output+"/fitAndResiduals_SplusB_"+sample+"_"+name_toy+".pdf")
+      c.SaveAs(args.output+"/fitAndResiduals_SplusB_"+sample+"_"+name_toy+".png")
+      c.SaveAs(args.output+"/fitAndResiduals_SplusB_"+sample+"_"+name_toy+".pdf")
 
     j+=1
   ## END OF LOOP OVER TOYS
@@ -617,4 +735,252 @@ for line in  ins:
   k+=1
 # END OF LOOP OVER MASSES
 
-
+##++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#    ###########################################
+#    # fit residuals and chi2 variable binning
+#    ###########################################
+#    hist_fit_residual_vsMass = TH1D("hist_fit_residual_vsMass","hist_fit_residual_vsMass",len(massBins)-1,massBins)
+#    hist_fit_residual_vsMass_bkg = TH1D("hist_fit_residual_vsMass_bkg","hist_fit_residual_vsMass_bkg",len(massBins)-1,massBins)
+#    NumberOfObservations_VarBin = 0
+#    chi2_VarBin = 0.
+#    
+#    for bin in range(1,len(massBins)):
+#        
+#      if( h_toy.GetXaxis().GetBinLowEdge(bin)>=minX_mass  and h_toy.GetXaxis().GetBinUpEdge(bin)<=maxX_mass ):
+#        NumberOfObservations_VarBin+=1
+#        data = h_toy.GetBinContent(bin)
+#        err_data = h_toy.GetBinError(bin)
+#        if( data == 0 ):
+#          err_data = 1.8 / h_toy.GetBinWidth(bin)
+#          print "err_data %f" % err_data
+#        #background only
+#	fit_B = background.Integral(h_toy.GetXaxis().GetBinLowEdge(bin), h_toy.GetXaxis().GetBinUpEdge(bin) ) 
+#        fit_B = fit_B / ( h_toy.GetBinWidth(bin) )
+#        #S+B
+#	fit = h_s_plus_b.GetBinContent(h_s_plus_b.FindBin(h_toy.GetBinCenter(bin) )) 
+#        err_tot = err_data	  
+#        fit_residual = (data - fit) / err_tot
+#        fit_residual_B = (data - fit_B) / err_tot
+#    	    	  
+#        chi2_VarBin += pow( (data - fit) , 2 ) / pow( err_data , 2 )
+#        print "data, err_data, fit: "+str( data)+", "+str(err_data) +", " +str(fit)
+#        print "bin, fit residual : " + str(bin) + ", " +str(fit_residual)	  
+#        hist_fit_residual_vsMass.SetBinContent(bin,fit_residual)
+#        hist_fit_residual_vsMass_bkg.SetBinContent(bin,fit_residual_B)
+#       
+#    ##END OF LOOP over bins
+#    
+#    ndf_VarBin = NumberOfObservations_VarBin - 4 
+#    
+#    h_chi2.Fill(chi2_VarBin,1)
+#    if j < 10:
+#      print "============================"
+#      print "NumberOfObservations_VarBin: " + str(NumberOfObservations_VarBin)
+#      print "ndf_VarBin: " + str(ndf_VarBin)
+#      print "chi2_VarBin: " +str(chi2_VarBin)
+#      print "============================"   
+#      
+#   
+#
+#
+#    ###### Draw note style
+#    c2 = TCanvas("c2", "",339,117,695,841)
+#    c2.GetWindowHeight() 
+#    c2.GetWindowWidth() 
+#    c2.SetLogy() 
+#    c2.Divide(1,2,0,0,0) 
+#    c2.cd(1) 
+#    p11_1 = c2.GetPad(1) 
+#    p11_1.SetPad(0.01,0.23,0.99,0.98) 
+#    p11_1.SetLogy() 
+#    p11_1.SetRightMargin(0.05) 
+#    p11_1.SetTopMargin(0.05) 
+#
+#    #Pave text for fit results
+#    ndf = 50 
+#    pave_fit1 = TPaveText(0.56,0.60,0.9,0.9,"NDC") 
+#    #pave_fit1.AddText("#chi^{2} / ndf = %.2f" % (frame.chiSquare())) 
+#    pave_fit1.AddText("#chi^{2} / ndf = %.2f / %d" % (chi2_VarBin, ndf_VarBin)) 
+#    pave_fit1.AddText("p0 =  %.2e " % (p0_val))
+#    pave_fit1.AddText("p1 =  %.2e " % (p1_val))
+#    pave_fit1.AddText("p2 =  %.2e " % (p2_val))
+#    pave_fit1.AddText("p3 =  %.2e " % (p3_val))
+#    pave_fit1.AddText("mu =  %.2e " % (mu_val))
+#    pave_fit1.SetFillColor(0) 
+#    pave_fit1.SetFillStyle(0) 
+#    pave_fit1.SetBorderSize(1) 
+#    pave_fit1.SetTextFont(42) 
+#    pave_fit1.SetTextSize(0.03) 
+#    pave_fit1.SetTextAlign(12)  
+#    
+#    #Pave text
+#    pave_fit = TPaveText(0.23,0.15,0.45,0.27,"NDC") 
+#    #pave_fit.AddText(" #sqrt{s} = 13 TeV") 
+#    pave_fit.AddText("|#eta| < 2.5, |#Delta#eta| < 1.3") 
+#    pave_fit.AddText("M_{jj} > 1.2 TeV") 
+#    pave_fit.AddText("Wide Jets") 
+#    pave_fit.SetFillColor(0) 
+#    pave_fit.SetLineColor(0) 
+#    pave_fit.SetFillStyle(0) 
+#    pave_fit.SetBorderSize(0) 
+#    pave_fit.SetTextFont(42) 
+#    pave_fit.SetTextSize(0.03) 
+#    pave_fit.SetTextAlign(12)  
+#    
+#    
+#    pt1 =  TPaveText(0.1284756,0.9602144,0.3887139,0.9902251,"brNDC") 
+#    pt1.SetBorderSize(0) 
+#    pt1.SetFillColor(0) 
+#    pt1.SetFillStyle(0) 
+#    pt1.SetLineColor(0) 
+#    pt1.SetTextAlign(12) 
+#    pt1.SetTextSize(0.035) 
+#    text = pt1.AddText("CMS") 
+#    
+#    pt2 =  TPaveText(0.45,0.96,0.65,0.99,"brNDC") 
+#    pt2.SetBorderSize(0) 
+#    pt2.SetFillColor(0) 
+#    pt2.SetFillStyle(0) 
+#    pt2.SetLineColor(0) 
+#    pt2.SetTextAlign(12) 
+#    pt2.SetTextSize(0.035) 
+#    text2 = pt2.AddText("#sqrt{s} = 13 TeV") 
+#    
+#    pt3 = TPaveText(0.7687988,0.9602144,0.9297357,0.9902251,"brNDC") 
+#    pt3.SetBorderSize(0) 
+#    pt3.SetFillColor(0) 
+#    pt3.SetFillStyle(0) 
+#    pt3.SetLineColor(0) 
+#    pt3.SetTextAlign(12) 
+#    pt3.SetTextSize(0.035) 
+#    text3 = pt3.AddText("L= 1 fb^{-1}") 
+#    #text3 = pt3.AddText("L= 10 fb^{-1}") 
+#
+#    vFrame = p11_1.DrawFrame(minX_mass,0.0001,maxX_mass,20000.0) 
+#    
+#    vFrame.SetTitle("") 
+#    vFrame.SetXTitle("Dijet Mass [GeV]") 
+#    vFrame.GetXaxis().SetTitleSize(0.06) 
+#    vFrame.SetYTitle("Events / bin width") 
+#    
+#    vFrame.GetYaxis().SetTitleSize(0.12) 
+#    vFrame.GetYaxis().SetLabelSize(0.07) 
+#    vFrame.GetYaxis().SetTitleOffset(0.50) 
+#    vFrame.GetXaxis().SetTitleOffset(0.90) 
+#    vFrame.GetXaxis().SetTitleSize(0.18) 
+#    vFrame.GetXaxis().SetLabelSize(0.1) 
+#  
+#    leg = TLegend(0.5564991,0.45,0.8903575,0.58) 
+#    leg.SetTextSize(0.03146853) 
+#    leg.SetLineColor(0) 
+#    leg.SetLineStyle(1) 
+#    leg.SetLineWidth(0) 
+#    leg.SetFillStyle(0) 
+#    leg.SetMargin(0.35) 
+#    leg.AddEntry(h_toy,"Data" ,"PL") 
+#    leg.AddEntry(background,"B Fit","L") 
+#    leg.AddEntry(h_s_plus_b,"S+B Fit","L") 
+#
+#    #frame.Draw()
+#    h_toy.GetXaxis().SetRangeUser(minX_mass,maxX_mass) 
+#    h_toy.SetTitle("") 
+#    h_toy.SetLineColor(1) 
+#    h_toy.SetFillColor(1) 
+#    h_toy.SetLineColor(1) 
+#    h_toy.SetMarkerColor(1) 
+#    h_toy.SetMarkerStyle(20) 
+#    h_toy.SetMinimum(0.001) 
+#
+#    background.SetLineWidth(2) 
+#    background.SetLineStyle(2) 
+#    background.SetLineColor(2) 
+#    background.Draw("")
+#    h_s_plus_b.SetLineWidth(2) 
+#    h_s_plus_b.SetLineStyle(1) 
+#    h_s_plus_b.SetLineColor(kBlue) 
+#    h_s_plus_b.Draw("c same")
+#    h_toy.Draw("pe same")
+#    pt1.Draw("same")  
+#    pt2.Draw("same") 
+#    pt3.Draw("same") 
+#    pave_fit.Draw("same") 
+#    pave_fit1.Draw("same") 
+#    leg.Draw("same") 
+#
+# 
+#    #---- Next PAD
+#    
+#    c2.cd(2) 
+#    p11_2 = c2.GetPad(2) 
+#    p11_2.SetPad(0.01,0.02,0.99,0.24) 
+#    p11_2.SetBottomMargin(0.35) 
+#    p11_2.SetRightMargin(0.05) 
+#    p11_2.SetGridx() 
+#    p11_2.SetGridy() 
+#    #c3_2.SetTickx(50) 
+#    
+#    vFrame2 = p11_2.DrawFrame(p11_1.GetUxmin(), -4.5, p11_1.GetUxmax(), 4.5) 
+#    
+#    vFrame2.SetTitle("") 
+#    vFrame2.SetXTitle("Dijet Mass [GeV]") 
+#    vFrame2.GetXaxis().SetTitleSize(0.06) 
+#    vFrame2.SetYTitle("(Data-Fit)/#sigma_{Data}") 
+#    vFrame2.GetYaxis().SetTitleSize(0.12) 
+#    vFrame2.GetYaxis().SetLabelSize(0.07) 
+#    vFrame2.GetYaxis().SetTitleOffset(0.50) 
+#    vFrame2.GetXaxis().SetTitleOffset(0.90) 
+#    vFrame2.GetXaxis().SetTitleSize(0.18) 
+#    vFrame2.GetXaxis().SetLabelSize(0.1) 
+#    #frame_pull.Draw()
+#    hist_fit_residual_vsMass.GetXaxis().SetRangeUser(minX_mass,maxX_mass) 
+#    hist_fit_residual_vsMass.GetYaxis().SetRangeUser(-4.,4.) 
+#    hist_fit_residual_vsMass.SetLineWidth(0) 
+#    hist_fit_residual_vsMass.SetFillColor(kBlue) 
+#    hist_fit_residual_vsMass.SetLineColor(1) 
+#    hist_fit_residual_vsMass.Draw("hist same")
+#    hist_fit_residual_vsMass_bkg.SetLineWidth(2) 
+#    hist_fit_residual_vsMass_bkg.SetLineColor(2) 
+#    hist_fit_residual_vsMass_bkg.SetLineStyle(2) 
+#    hist_fit_residual_vsMass_bkg.Draw("hist same")
+#
+#    line =  TLine(minX_mass,0,maxX_mass,0) 
+#    line.Draw("") 
+#
+#    if j<20:
+#      c2.SaveAs(args.output+"/fitAndResiduals_SplusB_"+sample+"_"+name_toy+".png")
+#      c2.SaveAs(args.output+"/fitAndResiduals_SplusB_"+sample+"_"+name_toy+".pdf")
+#
+#    j+=1
+#  ## END OF LOOP OVER TOYS
+#  
+#  
+#  
+##  canvas_chi2= TCanvas("chi2_VarBin","#chi^{2} distribution of bkg fit",600,600)
+##  canvas_chi2.cd()
+##  #gStyle.SetOptStat("nemr")
+##  ##chi2 nominal function 
+##  chi2= TF1("chi2","ROOT::Math::chisquared_pdf(x,35,0)",0,100)
+##  chi2.SetLineWidth(2)
+##  chi2.SetLineColor(2)
+##  h_chi2.SetStats(1)
+##  h_chi2.DrawNormalized("hist")
+##  chi2.Draw("same")
+##
+##  leg_chi2 = TLegend(0.6,0.6,0.86,0.75)
+##  leg_chi2.SetFillColor(0)
+##  leg_chi2.AddEntry(h_chi2,"toy distribution","l")
+##  leg_chi2.AddEntry(chi2,"#chi^{2} function for 35 ndf","l")
+##  leg_chi2.Draw("")
+##
+##  canvas_chi2.SaveAs("chi2_VarBin.png")
+##  canvas_chi2.SaveAs("chi2_VarBin.pdf")
+#
+##  c_test=TCanvas("test","",600,600)
+##  c_test.cd()
+##  h_s_plus_b.Draw("c")
+##  c_test.SaveAs("test_sig.png")
+#
+#  k+=1
+## END OF LOOP OVER MASSES
+#
+#

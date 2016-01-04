@@ -80,13 +80,13 @@ for line in  ins:
   
   ### when you want to inject 0 (or "fixed" signal strenght) signal you pass the signal strenght as an argument with --mu option 
   if not(args.mu==-999.):
-    command = "combine -M GenerateOnly --expectSignal "+str(args.mu)+"  -n "+sample+args.tag+"_MLfit_mu"+str(int(args.mu))+"  -t "+str(args.toys)+" --saveToys  "+line
-    command_fit = "combine -M MaxLikelihoodFit  -n "+sample+args.tag+"_MLfit_mu"+str(int(args.mu))+" -t "+str(args.toys)+" --out "+args.output+" --saveNormalizations  --toysFile "+args.output+"/higgsCombine"+sample+args.tag+"_MLfit_mu"+str(int(args.mu))+".GenerateOnly.mH120.123456.root --rMin -2 --rMax 10 --minos none --initFromBonly  "+datacards_fit[ii]
+    command = "combine -M GenerateOnly --expectSignal "+str(args.mu)+"  -n "+sample+args.tag+"_MLfit_mu"+str(int(args.mu))+"  -t "+str(args.toys)+" --saveToys --rMin -1000 --rMax 1000 "+line
+    command_fit = "combine -M MaxLikelihoodFit  -n "+sample+args.tag+"_MLfit_mu"+str(int(args.mu))+" -t "+str(args.toys)+" --out "+args.output+" --saveNormalizations  --toysFile "+args.output+"/higgsCombine"+sample+args.tag+"_MLfit_mu"+str(int(args.mu))+".GenerateOnly.mH120.123456.root --rMin -1000 --rMax 1000  --robustFit=0 --verbose=2 "+datacards_fit[ii]
   
   ### when you want to inject the 2-sigma signal you take the corresponding signal strenght from the limits output file 
   else:
     #filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_combine/src/CMSDIJET/StatisticalTools/dijet_limits_interpolated_pseudodatasetDinko/higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
-    filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_1_5/src/StatisticalTools/scripts/output_limits_dataRunD_830pb-1/higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
+    filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_1_5/src/StatisticalTools/scripts/output_limits_biasStudy_2fb-1/higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
     inf = TFile.Open(filename)
     tr = inf.Get('limit')
     y = []
@@ -102,12 +102,13 @@ for line in  ins:
     else: 
       twosigmalimit = 0
     print "mu lim hi band : "+str(twosigmalimit)
-    command = "combine -M GenerateOnly --expectSignal "+str(twosigmalimit)+"  -n "+sample+args.tag+"_MLfit_mu_limit  -t "+str(args.toys)+"  --saveToys  "+line
-    command_fit = "combine -M MaxLikelihoodFit  -n "+sample+args.tag+"_MLfit_mu_limit  -t "+str(args.toys)+" --out "+args.output+" --saveNormalizations --toysFile "+args.output+"/higgsCombine"+sample+args.tag+"_MLfit_mu_limit.GenerateOnly.mH120.123456.root --rMin -2 --rMax 10  --minos none --initFromBonly  "+datacards_fit[ii]
+    command = "combine -M GenerateOnly --expectSignal "+str(twosigmalimit)+"  -n "+sample+args.tag+"_MLfit_mu_limit  -t "+str(args.toys)+"  --saveToys   --rMin "+str(twosigmalimit-10.*twosigmalimit)+" --rMax "+str(twosigmalimit+10.*twosigmalimit)+"   "+line
+    command_fit = "combine -M MaxLikelihoodFit  -n "+sample+args.tag+"_MLfit_mu_limit  -t "+str(args.toys)+" --out "+args.output+" --saveNormalizations --toysFile "+args.output+"/higgsCombine"+sample+args.tag+"_MLfit_mu_limit.GenerateOnly.mH120.123456.root --rMin "+str(twosigmalimit-10.*twosigmalimit)+" --rMax "+str(twosigmalimit+10.*twosigmalimit)+" --robustFit=0 --verbose=2 "+datacards_fit[ii]
 
   ii += 1  
   
-  print "submit "+command
+  print command
+  print command_fit
   print ""
 
   if not args.mu==-999:

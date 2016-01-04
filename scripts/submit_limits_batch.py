@@ -4,7 +4,7 @@ import os
 import sys
 import argparse
 
-usage = "python submit_fits_batch.py -q <queue> -i <input list> -o <output dir> -t <num of toys> --run"
+usage = "python submit_fits_batch.py -q <queue> -i <input list> -o <output dir>  --run"
 
 parser = argparse.ArgumentParser(description='Process options.')
 
@@ -48,7 +48,7 @@ for line in  ins:
   #if not(os.path.isdir("args.output")):
   #  os.system("mkdir "+args.output)
 
-  command = "combine -M Asymptotic -n "+sample+"_limit --rMax 100  "+line
+  command = "combine -M Asymptotic -n "+sample+"_limit  --rMax 10000  "+line
   print "submit "+command
   print ""
 

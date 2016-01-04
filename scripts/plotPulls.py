@@ -80,7 +80,8 @@ for line in  ins:
  
  #extract mu limit 2 sigma band 
   #filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_2_1_combine/src/CMSDIJET/StatisticalTools/dijet_limits_interpolated_pseudodatasetDinko//higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
-  filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_1_5/src/StatisticalTools/scripts/output_limits_dataRunD_830pb-1/higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
+  #filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_1_5/src/StatisticalTools/scripts/output_limits_dataRunD_830pb-1/higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
+  filename = '/cmshome/gdimperi/Dijet/CMSDIJETrepo/CMSSW_7_1_5/src/StatisticalTools/scripts/output_limits_biasStudy_2fb-1/higgsCombine'+sample+'_limit.Asymptotic.mH120.root'
   inf = TFile.Open(filename)
   tr = inf.Get('limit')
   y = []
@@ -164,8 +165,18 @@ for line in  ins:
   pull_mu_list.append(p1)
   err_pull_mu_list.append(p2)
   err_mass.append(0)
+  
+  if not(args.mu==-999.):
+    filename = args.output+"/pull_"+sample+"_mu_"+str(int(args.mu))+".root"
+  else:
+    filename = args.output+"/pull_"+sample+"_mu_limit_2Sband.root"
 
-  ##### Draw and save fit to pulls #####
+  outfile = TFile(filename,"recreate")
+  outfile.cd()
+  h_pull_mu.Write()
+  outfile.Close()
+
+##### Draw and save fit to pulls #####
   c = TCanvas("c","",800,600)
   h_pull_mu.Draw()
   if not(args.mu==-999.):
@@ -247,7 +258,7 @@ g_pull_mu_68 = TGraphAsymmErrors(len(v_mass),v_mass,v_median,v_err_mass,v_err_ma
 g_pull_mu_95 = TGraphAsymmErrors(len(v_mass),v_mass,v_median,v_err_mass,v_err_mass,v_sigmaD95,v_sigmaU95)
 
 #style
-g_pull_mu.GetXaxis().SetTitle(' qg resonance Mass (TeV)')
+g_pull_mu.GetXaxis().SetTitle(' qg resonance Mass (GeV)')
 g_pull_mu.GetYaxis().SetTitle('Pull in Mean (Standard Deviations)')
 g_pull_mu.GetYaxis().SetNdivisions(510)
 g_pull_mu.GetYaxis().SetRangeUser(-1.5,1.5)
@@ -257,7 +268,7 @@ g_pull_mu_simple.SetMarkerStyle(20)
 g_pull_mu_simple.SetMarkerSize(0.8)
 g_pull_mu_simple.SetMarkerColor(kBlack)
 
-g_pull_mu_95.GetXaxis().SetTitle(' qg resonance Mass (TeV)')
+g_pull_mu_95.GetXaxis().SetTitle(' qg resonance Mass (GeV)')
 g_pull_mu_95.GetYaxis().SetTitle('Pull median')
 g_pull_mu_95.GetYaxis().SetNdivisions(510)
 g_pull_mu_95.GetYaxis().SetRangeUser(-3,3)
