@@ -1,4 +1,5 @@
 = Bias study
+:toc:
 
 This document provides instructions and a complete working example to perform a bias study for the dijet analysis as described in AN-15-175.
 For the moment the input files are in Rome T2 in `gdimperi` area but should be accessible to every Rome T2 user.
