@@ -57,7 +57,7 @@ def main():
                         metavar="LUMI")
 
     parser.add_argument("--massMin", dest="massMin",
-                        default=1118, type=int,
+                        default=1181, type=int,
                         help="Lower bound of the mass range used for fitting (default: %(default)s)",
                         metavar="MASS_MIN")
 
@@ -109,7 +109,7 @@ def main():
 
     parser.add_argument("--fixBkg", dest="fixBkg", default=False, action="store_true", help="Fix all background parameters")
 
-    parser.add_argument("--fitStrategy", dest="fitStrategy", type=int, default=0, help="Fit strategy (default: %(default).1f)")
+    parser.add_argument("--fitStrategy", dest="fitStrategy", type=int, default=1, help="Fit strategy (default: %(default).1f)")
 
     parser.add_argument("--theta", dest="theta", default=False, action="store_true", help="Produce histograms for the theta limit setting framework")
 
@@ -189,8 +189,8 @@ def main():
 
         # get signal shape
         hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
-        # normalize signal shape to the expected event yield (input shapes already normalized to unity)
-        hSig.Scale(signalCrossSection*lumi)
+        # normalize signal shape to the expected event yield (works even if input shapes are not normalized to unity)
+        hSig.Scale(signalCrossSection*lumi/hSig.Integral())#divide by a number that provides roughly an r value of 1-10
 
         rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
         rooSigHist.Print()
