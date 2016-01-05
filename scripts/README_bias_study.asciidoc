@@ -1,5 +1,5 @@
 = Bias study
-:toc:
+:toc: 
 
 This document provides instructions and a complete working example to perform a bias study for the dijet analysis as described in AN-15-175.
 For the moment the input files are in Rome T2 in `gdimperi` area but should be accessible to every Rome T2 user.
@@ -68,6 +68,7 @@ cd scripts
 python run_create_datacard.py
 ....
 you will automatically create, for each mass point from 1400 to 9000 GeV in 200 GeV steps:
+
 * one datacard + one workspace, to generate 1000 toys from the fit to data (renormalized to 2 /fb)
 * one datacard + one workspace, to generate 1000 toys from the MC template (renormalized to 2 /fb)
 * one datacard + one workspace, to fit the dijet spectrum with the 4-param function (defined in `create_datacard.py`)  
@@ -93,7 +94,7 @@ where the option `-n samplename` specifies a string appended to the standard out
 
 === Example
 
-Running
+With the commmand
 ....
 python submit_limits_batch.py -q cmsan -i ../lists/list_datacards_biasStudy_Spring15_toFit.txt  -o output_limits_biasStudy_2fb-1/ 
 ....
@@ -103,6 +104,7 @@ you will run in the Rome batch system the command to obtain upper limits on the 
 == Generate toys and run fits
 
 For the bias study you need:
+
 * one datacard + workspace for mass point for the generation
 * one datacard + workspace for mass point for the fitting
 * the number of signal events to inject at each mass point corresponding to roughly 2 sigma significance
@@ -127,17 +129,20 @@ Scripts for batch submission and log files will be saved in the directory `batch
 === Example
 
 The following commands will run the generation+fitting of 1000 toy experiments with background + signal (2-sigma significance) at each mass point in two cases:
-* the "closure test": toy experiments are generated from the fit to data
-*  toy experiments are generated from the MC histogram template
 
+* the "closure test": toy experiments are generated from the fit to data
+* toy experiments are generated from the MC histogram template
+
+Here the Rome T2 batch system is used. 
 ....
-python submit_fits_batch.py -q cmsan --inputListGen ../lists/list_datacards_biasStudy_Spring15_genFit_dataJECV6.txt   --inputListFit ../lists/list_datacards_biasudy_Spring15_toFit.txt --output output_toys_biasStudy_Spring15_genFit_dataJECV6_muLimit/ -t 1000 --mu -999 --run
-python submit_fits_batch.py -q cmsan --inputListGen ../lists/list_datacards_biasStudy_Spring15_genMChist.txt   --inputListFit ../lists/list_datacards_biasudy_Spring15_toFit.txt --output output_toys_biasStudy_Spring15_genMChist_muLimit_test/ -t 1000 --mu -999 --run
+python submit_fits_batch.py -q cmsan --inputListGen ../lists/list_datacards_biasStudy_Spring15_genFit_dataJECV6.txt   --inputListFit ../lists/list_datacards_biasStudy_Spring15_toFit.txt --output output_toys_biasStudy_Spring15_genFit_dataJECV6_muLimit/ -t 1000 --mu -999 --run
+python submit_fits_batch.py -q cmsan --inputListGen ../lists/list_datacards_biasStudy_Spring15_genMChist.txt   --inputListFit ../lists/list_datacards_biasStudy_Spring15_toFit.txt --output output_toys_biasStudy_Spring15_genMChist_muLimit_test/ -t 1000 --mu -999 --run
 ....
 
 
 You will have many output files in the output directory. 
 For each mass point:
+
 * higgsCombine*.GenerateOnly.mH120.123456.root
 * higgsCombine*.MaxLikelihoodFit.mH120.123456.root
 * mlfit*.root
