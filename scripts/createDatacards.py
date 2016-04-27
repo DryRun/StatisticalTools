@@ -2,31 +2,17 @@
 
 import sys, os, copy, re
 from argparse import ArgumentParser
+import ROOT
 
-theta_template = """files = ['theta_DUMMY_JOB.root']
-
-model = build_model_from_rootfile(files)
-model.set_signal_processes('signal')
-model.add_lognormal_uncertainty('overall_signal', math.log(1.1), 'signal')
-model_summary(model)
-
-res = mle(model, 'data' , 1)
-print res
-
-zvalue = zvalue_approx(model, 'data' , 1)
-print zvalue
-
-observed_limits = bayesian_quantiles(model, 'data', 10)
-print observed_limits
-
-plot_observed = limit_band_plot(observed_limits, False)
-plot_observed.write_txt('theta_DUMMY_JOB_observed_limit.txt')
-"""
+if not os.path.exists(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer_cc.so")):
+    ROOT.gROOT.ProcessLine(".L " + os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer.cc")+"+")
+else:
+    ROOT.gSystem.Load(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer_cc.so"))
 
 
 def main():
     # usage description
-    usage = "Example: ./scripts/createDatacards.py --inputData inputs/dijetFitResults_FuncType0_nParFit4_MC_1invfb.root --dataHistname hist_mass_1GeV --inputSig inputs/ResonanceShapes_qg_13TeV_PU30_Spring15.root -f qg -o datacards -l 1000 --massrange 1200 7000 100"
+    usage = "Example: ./scripts/createDatacards.py --inputData inputs/rawhistV7_Run2015D_scoutingPFHT_UNBLINDED_649_838_JEC_HLTplusV7_Mjj_cor_smooth.root --dataHistname mjj_mjjcor_gev --inputSig inputs/ResonanceShapes_gg_13TeV_Scouting_Spring15.root -f gg -o datacards -l 1866 --lumiUnc 0.027 --massrange 1000 1500 50 --runFit --p1 5 --p2 7 --p3 0.4 --massMin 838 --massMax 2037 --fitStrategy 2"
 
     # input parameters
     parser = ArgumentParser(description='Script that creates combine datacards and corresponding RooFit workspaces',epilog=usage)
@@ -109,11 +95,9 @@ def main():
 
     parser.add_argument("--fixBkg", dest="fixBkg", default=False, action="store_true", help="Fix all background parameters")
 
+    parser.add_argument("--decoBkg", dest="decoBkg", default=False, action="store_true", help="Decorrelate background parameters")
+
     parser.add_argument("--fitStrategy", dest="fitStrategy", type=int, default=1, help="Fit strategy (default: %(default).1f)")
-
-    parser.add_argument("--theta", dest="theta", default=False, action="store_true", help="Produce histograms for the theta limit setting framework")
-
-    parser.add_argument("--thetaNoSyst", dest="thetaNoSyst", default=False, action="store_true", help="Also produce files for theta without systematic uncertainties")
 
     parser.add_argument("--debug", dest="debug", default=False, action="store_true", help="Debug printout")
 
@@ -159,7 +143,7 @@ def main():
 
     # import ROOT stuff
     from ROOT import TFile, TH1F, TH1D, TGraph, kTRUE, kFALSE
-    from ROOT import RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf
+    from ROOT import RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, PdfDiagonalizer
 
     if not args.debug:
         RooMsgService.instance().setSilentMode(kTRUE)
@@ -190,13 +174,13 @@ def main():
         # get signal shape
         hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
         # normalize signal shape to the expected event yield (works even if input shapes are not normalized to unity)
-        hSig.Scale(signalCrossSection*lumi/hSig.Integral())#divide by a number that provides roughly an r value of 1-10
+        hSig.Scale(signalCrossSection*lumi/hSig.Integral()) # divide by a number that provides roughly an r value of 1-10
 
         rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
         rooSigHist.Print()
         signal = RooHistPdf('signal','signal',RooArgSet(mjj),rooSigHist)
         signal.Print()
-        signal_norm = RooRealVar('signal_norm','signal_norm',0,-1e+04,1e+04)
+        signal_norm = RooRealVar('signal_norm','signal_norm',0,-1e+05,1e+05)
         if args.fitBonly: signal_norm.setConstant()
         signal_norm.Print()
 
@@ -208,7 +192,7 @@ def main():
         background = RooGenericPdf('background','(pow(1-@0/%.1f,@1)/pow(@0/%.1f,@2+@3*log(@0/%.1f)))'%(sqrtS,sqrtS,sqrtS),RooArgList(mjj,p1,p2,p3))
         background.Print()
         dataInt = hData.Integral(hData.GetXaxis().FindBin(float(args.massMin)),hData.GetXaxis().FindBin(float(args.massMax)))
-        background_norm = RooRealVar('background_norm','background_norm',dataInt,0.,1e+07)
+        background_norm = RooRealVar('background_norm','background_norm',dataInt,0.,1e+08)
         background_norm.Print()
 
         # S+B model
@@ -219,13 +203,52 @@ def main():
 
         if args.runFit:
             res = model.fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Strategy(args.fitStrategy))
-            res.Print()
+            if not args.decoBkg: res.Print()
 
+            # decorrelated background parameters for Bayesian limits
+            if args.decoBkg:
+                signal_norm.setConstant()
+                res = model.fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Strategy(args.fitStrategy))
+                res.Print()
+                ## temp workspace for the PDF diagonalizer
+                w_tmp = RooWorkspace("w_tmp")
+                deco = PdfDiagonalizer("deco",w_tmp,res)
+                # here diagonalizing only the shape parameters since the overall normalization is already decorrelated
+                background_deco = deco.diagonalize(background)
+                print "##################### workspace for decorrelation"
+                w_tmp.Print("v")
+                print "##################### original parameters"
+                background.getParameters(rooDataHist).Print("v")
+                print "##################### decorrelated parameters"
+                # needed if want to evaluate limits without background systematics
+                if args.fixBkg:
+                    w_tmp.var("deco_eig1").setConstant()
+                    w_tmp.var("deco_eig2").setConstant()
+                    if not args.fixP3: w_tmp.var("deco_eig3").setConstant()
+                background_deco.getParameters(rooDataHist).Print("v")
+                print "##################### original pdf"
+                background.Print()
+                print "##################### decorrelated pdf"
+                background_deco.Print()
+                # release signal normalization
+                signal_norm.setConstant(kFALSE)
+                # set the background normalization range to +/- 5 sigma
+                bkg_val = background_norm.getVal()
+                bkg_error = background_norm.getError()
+                background_norm.setMin(bkg_val-5*bkg_error)
+                background_norm.setMax(bkg_val+5*bkg_error)
+                background_norm.Print()
+                # change background PDF names
+                background.SetName("background_old")
+                background_deco.SetName("background")
+
+        # needed if want to evaluate limits without background systematics
         if args.fixBkg:
-          background_norm.setConstant()
-          p1.setConstant()
-          p2.setConstant()
-          p3.setConstant()
+            background_norm.setConstant()
+            p1.setConstant()
+            p2.setConstant()
+            p3.setConstant()
+
         # -----------------------------------------
         # dictionaries holding systematic variations of the signal shape
         hSig_Syst = {}
@@ -300,8 +323,11 @@ def main():
         if args.jerUnc != None:
             getattr(w,'import')(hSig_Syst_DataHist['JERUp'],RooFit.Rename("signal__JERUp"))
             getattr(w,'import')(hSig_Syst_DataHist['JERDown'],RooFit.Rename("signal__JERDown"))
-        getattr(w,'import')(background)
-        getattr(w,'import')(background_norm)
+        if args.decoBkg:
+            getattr(w,'import')(background_deco,RooFit.Rename("background"))
+        else:
+            getattr(w,'import')(background,RooFit.Rename("background"))
+        getattr(w,'import')(background_norm,RooFit.Rename("background_norm"))
         getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
         w.Print()
         w.writeToFile(os.path.join(args.output_path,wsName))
@@ -331,81 +357,18 @@ def main():
             datacard.write('JER  shape   1          -\n')
         # flat parameters --- flat prior
         datacard.write('background_norm  flatParam\n')
-        datacard.write('p1  flatParam\n')
-        datacard.write('p2  flatParam\n')
-        if not args.fixP3: datacard.write('p3  flatParam\n')
+        if args.decoBkg:
+            datacard.write('deco_eig1  flatParam\n')
+            datacard.write('deco_eig2  flatParam\n')
+            if not args.fixP3: datacard.write('deco_eig3  flatParam\n')
+        else:
+            datacard.write('p1  flatParam\n')
+            datacard.write('p2  flatParam\n')
+            if not args.fixP3: datacard.write('p3  flatParam\n')
         datacard.close()
 
-        # -----------------------------------------
-        # create input histograms for the theta limit setting framework
-        if args.theta:
-            thetaName = 'theta_' + args.final_state + '_m' + str(mass) + '.root'
 
-            thetaFile = TFile(os.path.join(args.output_path,thetaName), 'RECREATE')
-            thetaFile.cd()
-
-            thetaData = rooDataHist.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
-            thetaData.SetName('dijet__DATA')
-            thetaData.Write()
-
-            thetaBkg = background.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
-            thetaBkg.Scale(background_norm.getVal())
-            thetaBkg.SetName('dijet__background')
-            thetaBkg.Write()
-
-            thetaSignal = rooSigHist.createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
-            thetaSignal.SetName('dijet__signal')
-            thetaSignal.Write()
-
-            if args.thetaNoSyst:
-                thetaFile_NoSyst = TFile(os.path.join(args.output_path,thetaName.replace('.root','_NoSyst.root')), 'RECREATE')
-
-                thetaFile_NoSyst.cd()
-                thetaData.Write()
-                thetaBkg.Write()
-                thetaSignal.Write()
-
-                thetaFile_NoSyst.Close()
-                thetaFile.cd()
-
-                # create theta analysis file
-                theta_content = theta_template
-                theta_content = re.sub('DUMMY_JOB',args.final_state + '_m' + str(mass) + '_NoSyst',theta_content)
-                theta_content = re.sub('model.add_lognormal_uncertainty','#model.add_lognormal_uncertainty',theta_content)
-
-                theta_file = open(os.path.join(args.output_path,thetaName.replace('.root','_NoSyst.py')),'w')
-                theta_file.write(theta_content)
-                theta_file.close()
-
-            if args.jesUnc != None:
-                thetaSignal_JESUp = hSig_Syst_DataHist['JESUp'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
-                thetaSignal_JESUp.SetName('dijet__signal__JES__up')
-                thetaSignal_JESUp.Write()
-
-                thetaSignal_JESDown = hSig_Syst_DataHist['JESDown'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
-                thetaSignal_JESDown.SetName('dijet__signal__JES__down')
-                thetaSignal_JESDown.Write()
-
-            if args.jerUnc != None:
-                thetaSignal_JERUp = hSig_Syst_DataHist['JERUp'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
-                thetaSignal_JERUp.SetName('dijet__signal__JER__up')
-                thetaSignal_JERUp.Write()
-
-                thetaSignal_JERDown = hSig_Syst_DataHist['JERDown'].createHistogram('dijet',mjj,RooFit.Binning(args.massMax-args.massMin,float(args.massMin),float(args.massMax)))
-                thetaSignal_JERDown.SetName('dijet__signal__JER__down')
-                thetaSignal_JERDown.Write()
-
-            thetaFile.Close()
-
-            # create theta analysis file
-            theta_content = theta_template
-            theta_content = re.sub('DUMMY_JOB',args.final_state + '_m' + str(mass),theta_content)
-
-            theta_file = open(os.path.join(args.output_path,thetaName.replace('.root','.py')),'w')
-            theta_file.write(theta_content)
-            theta_file.close()
-
-    print '>> Datacards and workspaces created and stored in %s/.'%( os.path.join(os.getcwd(),args.output_path) )
+    print '>> Datacards and workspaces created and stored in %s/'%( os.path.join(os.getcwd(),args.output_path) )
 
 
 if __name__ == '__main__':
