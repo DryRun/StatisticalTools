@@ -324,10 +324,10 @@ def main():
             getattr(w,'import')(hSig_Syst_DataHist['JERUp'],RooFit.Rename("signal__JERUp"))
             getattr(w,'import')(hSig_Syst_DataHist['JERDown'],RooFit.Rename("signal__JERDown"))
         if args.decoBkg:
-            getattr(w,'import')(background_deco,RooFit.Rename("background"))
+            getattr(w,'import')(background_deco,ROOT.RooCmdArg())
         else:
-            getattr(w,'import')(background,RooFit.Rename("background"))
-        getattr(w,'import')(background_norm,RooFit.Rename("background_norm"))
+            getattr(w,'import')(background,ROOT.RooCmdArg())
+        getattr(w,'import')(background_norm,ROOT.RooCmdArg())
         getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
         w.Print()
         w.writeToFile(os.path.join(args.output_path,wsName))
