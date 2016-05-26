@@ -6,30 +6,36 @@ from argparse import ArgumentParser
 jdl_template = """universe = vanilla
 Notification = never
 Executable = condor/run_DUMMY_JOB.sh
+request_memory = 3000
 Should_Transfer_Files = YES
 WhenToTransferOutput = ON_EXIT
 Transfer_Input_Files = DUMMY_FILES
-Output = DUMMY_OUTPUTDIR/condor/condor_DUMMY_JOB_$(Cluster)_$(Process).stdout
-Error = DUMMY_OUTPUTDIR/condor/condor_DUMMY_JOB_$(Cluster)_$(Process).stderr
-Log = DUMMY_OUTPUTDIR/condor/condor_DUMMY_JOB_$(Cluster)_$(Process).log
-Arguments = DUMMY_OUTPUTDIR
+Output = condor_DUMMY_JOB_$(Cluster)_$(Process).stdout
+Error = condor_DUMMY_JOB_$(Cluster)_$(Process).stderr
+Log = condor_DUMMY_JOB_$(Cluster)_$(Process).log
+Arguments = DUMMY_CMSSW_VERSION
 #+LENGTH="SHORT"
 Queue 1
 """
 
 bash_template = """#!/bin/bash
-
-OUTPUTDIR=$1
-
+exec 1>&2
 START_TIME=`/bin/date`
 echo "Started at $START_TIME"
 echo ""
 
-export SCRAM_ARCH=slc6_amd64_gcc481
+CMSSW_VERSION=$1
+
+export SCRAM_ARCH=slc6_amd64_gcc491
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 
-cd $OUTPUTDIR
+/cvmfs/cms.cern.ch/common/scramv1 project CMSSW $CMSSW_VERSION
+tar -xzvf src.tar.gz -C $1/src
+#tar -xzvf StatisticalTools.tar.gz
+
+cd $CMSSW_VERSION/src
 eval `scramv1 runtime -sh`
+scram b -j8
 
 # change to Condor scratch directory
 cd ${_CONDOR_SCRATCH_DIR}
@@ -170,6 +176,12 @@ def main():
     else:
         os.chdir(datacards_path)
 
+    # Tar up files for condor
+    if args.condor:
+        os.system("tar -czf src.tar.gz -C $CMSSW_BASE/src . --exclude=*/test/crab --exclude=*/skim/crab --exclude=*/test/condor --exclude=*/.git*")
+        #os.system("tar -czfh StatisticalTools.tar.gz -C $CMSSW_BASE/../StatisticalTools")
+
+
     for mass in masses:
 
         logName = '%s_%s_%s_m%i.log'%(prefix, method, args.final_state, int(mass))
@@ -187,11 +199,11 @@ def main():
             # create the jdl file
             jdl_content = jdl_template
             jdl_content = re.sub('DUMMY_JOB','%s_%s_m%i'%(method,args.final_state,int(mass)),jdl_content)
-            jdl_content = re.sub('DUMMY_OUTPUTDIR',os.getcwd(),jdl_content)
+            jdl_content = re.sub('DUMMY_CMSSW_VERSION',os.path.expandvars("$CMSSW_VERSION"),jdl_content)
             files_to_transfer = []
             files_to_transfer.append( os.path.join(datacards_path, 'datacard_%s_m%i.txt'%(args.final_state,int(mass))) )
             files_to_transfer.append( os.path.join(datacards_path, 'workspace_%s_m%i.root'%(args.final_state,int(mass))) )
-            jdl_content = re.sub('DUMMY_FILES',', '.join(files_to_transfer),jdl_content)
+            jdl_content = re.sub('DUMMY_FILES',', '.join(files_to_transfer) + ", src.tar.gz",jdl_content)
 
             jdl_file = open(os.path.join(condor_path,'run_%s_%s_m%i.jdl'%(method,args.final_state,int(mass))),'w')
             jdl_file.write(jdl_content)
