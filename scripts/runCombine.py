@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 jdl_template = """universe = vanilla
 Notification = never
 Executable = condor/run_DUMMY_JOB.sh
-request_memory = 3000
+request_memory = 4000
 Should_Transfer_Files = YES
 WhenToTransferOutput = ON_EXIT
 Transfer_Input_Files = DUMMY_FILES

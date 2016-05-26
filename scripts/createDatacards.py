@@ -326,7 +326,8 @@ def main():
         if args.decoBkg:
             getattr(w,'import')(background_deco,ROOT.RooCmdArg())
         else:
-            getattr(w,'import')(background,ROOT.RooCmdArg())
+            #getattr(w,'import')(background,ROOT.RooCmdArg())
+            getattr(w,'import')(background,RooFit.Rename("background"))
         getattr(w,'import')(background_norm,ROOT.RooCmdArg())
         getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
         w.Print()
