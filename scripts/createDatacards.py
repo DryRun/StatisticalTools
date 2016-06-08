@@ -8,6 +8,8 @@ if not os.path.exists(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/C
     ROOT.gROOT.ProcessLine(".L " + os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer.cc")+"+")
 else:
     ROOT.gSystem.Load(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer_cc.so"))
+sys.path.append("$CMSSSW_BASE/src/CMSDIJET/StatisticalTools/scripts")
+from limitPaths import *
 
 
 def main():
@@ -33,7 +35,8 @@ def main():
                         help="Final state (e.g. qq, qg, gg)",
                         metavar="FINAL_STATE")
 
-    parser.add_argument("-o", "--output_path", dest="output_path", required=True,
+    parser.add_argument("-o", "--output_path", dest="output_path",
+                        default=paths["datacards"],
                         help="Output path where datacards and workspaces will be stored",
                         metavar="OUTPUT_PATH")
 
@@ -43,12 +46,12 @@ def main():
                         metavar="LUMI")
 
     parser.add_argument("--massMin", dest="massMin",
-                        default=1181, type=int,
+                        default=200, type=int,
                         help="Lower bound of the mass range used for fitting (default: %(default)s)",
                         metavar="MASS_MIN")
 
     parser.add_argument("--massMax", dest="massMax",
-                        default=9067, type=int,
+                        default=2000, type=int,
                         help="Upper bound of the mass range used for fitting (default: %(default)s)",
                         metavar="MASS_MAX")
 
@@ -175,7 +178,9 @@ def main():
         hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
         # normalize signal shape to the expected event yield (works even if input shapes are not normalized to unity)
         hSig.Scale(signalCrossSection*lumi/hSig.Integral()) # divide by a number that provides roughly an r value of 1-10
-
+        print "[debug] hSig.Integral() = " + str(hSig.Integral())
+        print "[debug] hSig.GetMean() = " + str(hSig.GetMean())
+        print "[debug] hSig.GetRMS() = " + str(hSig.GetRMS())
         rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
         rooSigHist.Print()
         signal = RooHistPdf('signal','signal',RooArgSet(mjj),rooSigHist)

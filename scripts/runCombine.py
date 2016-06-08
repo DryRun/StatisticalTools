@@ -2,6 +2,8 @@
 
 import sys, os, re
 from argparse import ArgumentParser
+sys.path.append("$CMSSSW_BASE/src/CMSDIJET/StatisticalTools/scripts")
+from limitPaths import *
 
 jdl_template = """universe = vanilla
 Notification = never
@@ -72,7 +74,7 @@ def main():
                         metavar="FINAL_STATE")
 
     parser.add_argument("-o", "--output_path", dest="output_path",
-                        default='logs',
+                        default=paths["condor"],
                         help="Output path where log files will be stored (default: %(default)s)",
                         metavar="OUTPUT_PATH")
 
