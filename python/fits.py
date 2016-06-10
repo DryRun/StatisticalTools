@@ -2,24 +2,31 @@
 
 import os
 import sys
-from ROOT import TFile
-from ROOT import RooRealVar
-from ROOT import RooDataHist
-from ROOT import RooArgList
-from ROOT import RooArgSet
-from ROOT import RooAddPdf
-from ROOT import RooFit
-from ROOT import RooGenericPdf
-from ROOT import RooWorkspace
-from ROOT import RooMsgService
-from ROOT import RooHistPdf
+import ROOT
+from ROOT import *
+gROOT.SetBatch(True)
+ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/SeabornInterface.h\"")
+gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so")
+gStyle.SetOptStat(0)
+gStyle.SetOptTitle(0)
+seaborn = Root.SeabornInterface()
+seaborn.Initialize()
+
+if not os.path.exists(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer_cc.so")):
+	ROOT.gROOT.ProcessLine(".L " + os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer.cc")+"+")
+else:
+	ROOT.gSystem.Load(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer_cc.so"))
 from ROOT import PdfDiagonalizer
 RooMsgService.instance().setSilentMode(kTRUE)
 RooMsgService.instance().setStreamStatus(0,kFALSE)
 RooMsgService.instance().setStreamStatus(1,kFALSE)
 
-sys.path.append("/uscms/home/dryu/Dijets/CMSSW_7_4_15/python")
-import CMSDIJET.StatisticalTools.limitPaths as limit_paths
+sys.path.append("/uscms/home/dryu/Dijets/CMSSW_7_4_15/python/CMSDijet/StatisticalTools")
+import limitPaths as limit_paths
+
+sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python/CMSDIJET/QCDAnalysis")
+import analysis_configuration_8TeV as analysis_config
+import simulation_configuration_8TeV as simulation_config
 
 def BackgroundFit(x, par):
 	return par[0] * (1. - (x[0] / 8.e3))**par[1] / ((x[0] / 8.e3)**(par[2] + par[3] * TMath.Log((x[0] / 8.e3))))
@@ -46,19 +53,22 @@ class MjjFit:
 		self.signal_histograms_ = {}
 		self.signal_roohistograms_ = {}
 		self.signal_names_ = []
+		self.signal_initial_normalizations_ = {}
 
 		# Fit storage
 		self.simple_fit_ = None
 		self.mjj_ = RooRealVar('mjj','mjj',float(mass_range[0]),float(mass_range[1]))
-		self.workspace_ = None
+		#self.workspace_ = None
+		self.saved_workspaces_ = {}
 
-	def add_data(self, data_histogram):
+	def add_data(self, data_histogram, luminosity):
 		print "[MjFit.add_data] INFO : Adding data histogram"
 		# Add a data histogram
 		self.data_histogram_ = data_histogram.Clone()
 		self.data_histogram_.SetDirectory(0)		
 		self.data_roohistogram_ = RooDataHist('data_roohistogram','data_roohistogram',RooArgList(self.mjj_),self.data_histogram_)
 		self.data_roohistogram_.Print()
+		self.luminosity_ = luminosity
 
 	def add_signal(self, signal_name, signal_histogram):
 		print "[MjjFit.add_signal] INFO : Adding signal histogram " + signal_name
@@ -72,7 +82,7 @@ class MjjFit:
 		self.signal_histograms_[signal_name].SetDirectory(0)
 		self.signal_initial_normalizations_[signal_name] = self.signal_histograms_[signal_name].Integral()
 		self.signal_histograms_[signal_name].Scale(1. * self.luminosity_ / self.signal_histograms_[signal_name].Integral())
-		self.signal_roohistograms_[signal_name] = RooDataHist(signal_histogram.GetName() + "_rdh", signal_histogram.GetName() + "_rdh", RooArgList(self.mjj_), signal_histograms[signal_name])
+		self.signal_roohistograms_[signal_name] = RooDataHist(signal_histogram.GetName() + "_rdh", signal_histogram.GetName() + "_rdh", RooArgList(self.mjj_), self.signal_histograms_[signal_name])
 		self.signal_roohistograms_[signal_name].Print()
 
 	def simple_fit_B(self, fit_range=None):
@@ -119,18 +129,18 @@ class MjjFit:
 				hist_ratio.SetBinError(bin, 0.)
 		return hist_ratio
 		 
-	def fit(self, save_to, signal_name=None, fix_p3=False, fit_range=[300., 1200.], fit_strategy=1):
+	def fit(self, save_to, fit_options, signal_name=None, fix_p3=False, fit_strategy=1):
 		# Run a RooFit fit
 
 		# Create background PDF
-		p1 = RooRealVar('p1','p1',args.p1,0.,100.)
-		p2 = RooRealVar('p2','p2',args.p2,0.,60.)
-		p3 = RooRealVar('p3','p3',args.p3,-10.,10.)
-		if args.fix_p3:
+		p1 = RooRealVar('p1','p1',fit_options["p1"],0.,100.)
+		p2 = RooRealVar('p2','p2',fit_options["p2"],0.,60.)
+		p3 = RooRealVar('p3','p3',fit_options["p3"],-10.,10.)
+		if fix_p3:
 			p3.setConstant()
-		background_pdf = RooGenericPdf('background_pdf','(pow(1-@0/%.1f,@1)/pow(@0/%.1f,@2+@3*log(@0/%.1f)))'%(self.collision_energy,self.collision_energy,self.collision_energy),RooArgList(self.mjj_,p1,p2,p3))
+		background_pdf = RooGenericPdf('background_pdf','(pow(1-@0/%.1f,@1)/pow(@0/%.1f,@2+@3*log(@0/%.1f)))'%(self.collision_energy_,self.collision_energy_,self.collision_energy_),RooArgList(self.mjj_,p1,p2,p3))
 		background_pdf.Print()
-		data_integral = data_histogram.Integral(data_histogram.GetXaxis().FindBin(float(fit_range[0])),data_histogram.GetXaxis().FindBin(float(fit_range[1])))
+		data_integral = self.data_histogram_.Integral(self.data_histogram_.GetXaxis().FindBin(float(fit_options["min_mjj"])),self.data_histogram_.GetXaxis().FindBin(float(fit_options["max_mjj"])))
 		background_norm = RooRealVar('background_norm','background_norm',data_integral,0.,1e+08)
 		background_norm.Print()
 
@@ -146,7 +156,7 @@ class MjjFit:
 			model = RooAddPdf("model","b",RooArgList(background_pdf),RooArgList(background_norm))
 
 		# Run fit
-		res = model.fitTo(data_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy))
+		res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy))
 
 		# Save to workspace
 		self.workspace_ = RooWorkspace('w','workspace')
@@ -156,7 +166,7 @@ class MjjFit:
 		getattr(self.workspace_,'import')(self.data_roohistogram_,RooFit.Rename("data_obs"))
 		getattr(self.workspace_, 'import')(model, RooFit.Rename("model"))
 		if signal_name:
-			getattr(self.workspace_,'import')(signal_roohistogram,RooFit.Rename("signal"))
+			getattr(self.workspace_,'import')(self.signal_roohistograms_[signal_name],RooFit.Rename("signal"))
 			getattr(self.workspace_,'import')(signal_pdf,RooFit.Rename("signal_pdf"))
 			getattr(self.workspace_,'import')(signal_norm,ROOT.RooCmdArg())
 			getattr(self.workspace_,'import')(signal_initial_norm,RooFit.Rename("signal_initial_norm"))
@@ -164,14 +174,15 @@ class MjjFit:
 		self.workspace_.Print()
 		self.workspace_.writeToFile(save_to)
 		if signal_name:
-			roofit_results[signal_name] = save_to
+			self.saved_workspaces_[signal_name] = save_to
 		else:
-			roofit_results["background"] = save_to
+			self.saved_workspaces_["background"] = save_to
 
 	# fitted_signal_shapes = list of fitted S(+B) shapes to plot.
 	# expected_signal_shapes = list of S shapes to plot, scaled to cross sections taken from configuration file
 	def plot(self, save_tag, background_workspace, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None):
-		c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1600)
+		print "Plotting " + save_tag
+		c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
 		l = TLegend(0.55, 0.6, 0.88, 0.88)
 		l.SetFillColor(0)
 		l.SetBorderSize(0)
@@ -191,10 +202,10 @@ class MjjFit:
 		top.cd()
 
 		# Frame from background fit
-		if not roofit_results.has_key("background"):
-			print "[MjjFit.plot] ERROR : Please run background-only fit before plotting (e.g. MjjFit.plot(\"bkgd_file.root\"))"
-		f_background = TFile(roofit_results["background"], "READ")
+		print "Opening background workspace from " + background_workspace
+		f_background = TFile(background_workspace, "READ")
 		w_background = f_background.Get("w")
+		w_background.Print()
 		data_rdh = w_background.data("data_obs")
 		if x_range:
 			x_min = x_range[0]
@@ -203,7 +214,7 @@ class MjjFit:
 			x_min = self.mjj_.GetMin()
 			x_max = self.mjj_.GetMax()
 		frame_top = self.mjj_.frame(x_min, x_max)
-		frame_top.GetYaxis().SetTitle("Events / " + str(int(data_histogram.GetXaxis().GetBinWidth(1))) + " GeV")
+		frame_top.GetYaxis().SetTitle("Events / " + str(int(self.data_histogram_.GetXaxis().GetBinWidth(1))) + " GeV")
 		frame_top.GetXaxis().SetTitleSize(0)
 		frame_top.GetXaxis().SetLabelSize(0)
 		#if log:
@@ -215,52 +226,56 @@ class MjjFit:
 		frame_top.Draw()
 		data_rdh.plotOn(frame_top, RooFit.Name("Data"))
 		l.AddEntry(frame_top.findObject("Data"), "Data", "pl")
-		background_pdf = w_background.pdf("background")
-		background_pdf.plotOn(frame_top, RooFit.Name("Background Fit"), RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.LineWidth(2))
 
-		style_counter = 1
-		if fitted_signal_shapes:
-			for signal_name in fitted_signal_shapes:
+		style_counter = 0
+		if fitted_signal_workspaces:
+			for fitted_signal_workspace in fitted_signal_workspaces:
 				# Load from workspace
-				if not roofit_results.has_key(signal_name):
-					print "[MjjFit.plot] ERROR : Signal name " + signal_name + " does not exist in roofit_results. Did you run the fit first?"
-					sys.exit(1)
-				f_in = TFile(roofit_results[signal_name], "READ")
-				w = f_in.Get("workspace")
-				fit_pdf = w.pdf("model")
-				fit_pdf_name = "Fit (" + signal_name + ")"
+				print "Opening signal workspace from " + fitted_signal_workspace
+				f_in = TFile(fitted_signal_workspace, "READ")
+				w = f_in.Get("w")
+				w.Print()
+				fit_pdf = w.pdf("signal_pdf")
+				fit_pdf_name = "S+B Fit"
 				fit_pdf.SetName(fit_pdf_name)
 				fit_pdf.plotOn(frame_top, RooFit.Name(fit_pdf_name), RooFit.LineColor(seaborn.GetColorRoot("default", style_counter)), RooFit.LineStyle(1), RooFit.LineWidth(2))
-				l.AddEntry(frame_top.findObject(signal_name), signal_name, "l")
+				l.AddEntry(frame_top.findObject(fit_pdf_name), fit_pdf_name, "l")
 				style_counter += 1
 				f_in.Close()
-		if expected_signal_shapes:
-			for signal_name in expected_signal_shapes:
+		if expected_signal_workspaces:
+			for expected_signal_workspace in expected_signal_workspaces:
+				f_in = TFile(expected_signal_workspace, "READ")
+				w = f_in.Get("w")
+				fit_pdf = w.pdf("model")
+
 				self.signal_roohistograms_[signal_name].plotOn(frame_top, RooFit.Name(signal_name), RooFit.Rescale(cross_section * self.luminosity_ / self.signal_roohistograms_[signal_name].sum()), RooFit.LineColor(seaborn.GetColorRoot("pastel", style_counter)), RooFit.LineStyle(2), RooFit.LineWidth(2))
 				l.AddEntry(frame_top.findObject(signal_name), signal_name, "l")
 				style_counter += 1
+		background_pdf = w_background.pdf("background_pdf")
+		background_pdf.plotOn(frame_top, RooFit.Name("B Fit"), RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(1), RooFit.LineWidth(2))
+		l.AddEntry(frame_top.findObject("B Fit"), "B Fit", "l")
+
 		frame_top.Draw()
 		l.Draw()
 		
 		# Pull histogram
 		c.cd()
 		bottom.cd()
-		pull_histogram = frame_top.pullHist("Data", "Background Fit")
-		frame_bottom = self.mjj_.frame(x_min, x_max)
-		pull_histogram.plotOn(frame_bottom, RooFit.Name(fit_pdf_name))
-		frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
-		frame_bottom.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
-		frame_bottom.Draw()
+		pull_histogram = frame_top.pullHist("Data", "B Fit")
+		#frame_bottom = self.mjj_.frame(x_min, x_max)
+		#pull_histogram.plotOn(frame_bottom, RooFit.Name(fit_pdf_name))
+		#frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
+		#frame_bottom.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
+		#frame_bottom.Draw()
+		pull_histogram.GetXaxis().SetTitle("m_{jj} [GeV]")
+		pull_histogram.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
+		pull_histogram.Draw("same")
 		c.cd()
 
 		c.SaveAs("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures/c_" + save_tag + ".pdf")
 
 
 if __name__ == "__main__":
-	sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python")
-	import CMSDIJET.QCDAnalysis.analysis_configuration_8TeV as analysis_config
-	import CMSDIJET.QCDAnalysis.simulation_configuration_8TeV as simulation_config
-
 	import argparse
 	parser = argparse.ArgumentParser(description="Run and plot fits")
 	parser.add_argument("analysis_name", type=str, help='Analysis name (see analysis_configuration_8TeV.py)')
@@ -269,11 +284,50 @@ if __name__ == "__main__":
 	parser.add_argument("--signal", type=str, help='Signal model(s) to fit. Use comma-separated list to specify multiple.')
 	parser.add_argument("--fixed_signal", type=str, help='Signal model(s) to plot, normalized to expected cross sections')
 	parser.add_argument("--plot", action="store_true", help="Plot mjj spectra and fits. Background fit is always plotted; signal fits are plotted if --signal is specified.")
+
+	# Fit options
+	parser.add_argument("-l", "--lumi", dest="lumi",
+						default=19700., type=float,
+						help="Integrated luminosity in pb-1 (default: %(default).1f)",
+						metavar="LUMI")
+
+	parser.add_argument("--fit_min_mjj", dest="fit_min_mjj",
+						default=500, type=int,
+						help="Lower bound of the mass range used for fitting (default: %(default)s)",
+						metavar="MASS_MIN")
+
+	parser.add_argument("--fit_max_mjj", dest="fit_max_mjj",
+						default=1500, type=int,
+						help="Upper bound of the mass range used for fitting (default: %(default)s)",
+						metavar="MASS_MAX")
+
+	parser.add_argument("--fit_p1", dest="fit_p1",
+						default=1.0003e+01, type=float,
+						help="Fit function p1 parameter (default: %(default)e)",
+						metavar="P1")
+
+	parser.add_argument("--fit_p2", dest="fit_p2",
+						default=5.2648e+00, type=float,
+						help="Fit function p2 parameter (default: %(default)e)",
+						metavar="P2")
+
+	parser.add_argument("--fit_p3", dest="fit_p3",
+						default=0.0000e+00, type=float,
+						help="Fit function p3 parameter (default: %(default)e)",
+						metavar="P3")
+
 	args = parser.parse_args()
 
-	mjj_fit = MjjFit([500., 1500.])
+	# Pack up fit options
+	fit_options = {}
+	fit_options["min_mjj"] = args.fit_min_mjj
+	fit_options["max_mjj"] = args.fit_max_mjj
+	fit_options["p1"]      = args.fit_p1
+	fit_options["p2"]      = args.fit_p2
+	fit_options["p3"]      = args.fit_p3
+	mjj_fit = MjjFit([fit_options["min_mjj"], fit_options["max_mjj"]])
 	data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, args.data_sample), "READ")
-	mjj_fit.add_data(data_file.Get("BHistograms/h_pfjet_mjj"))
+	mjj_fit.add_data(data_file.Get("BHistograms/h_pfjet_mjj"), args.lumi)
 	data_file.Close()
 
 	signal_models = None
@@ -285,19 +339,19 @@ if __name__ == "__main__":
 			signal_file.Close()
 
 	if args.fit:
-		mjj_fit.fit(analysis_config.get_workspace_filename(args.analysis_name, "background"), fit_range=[500., 1500.])
+		mjj_fit.fit(limit_paths.get_workspace_filename(args.analysis_name, "background"), fit_options)
 		if args.signal:
 			for signal_model in signal_models:
-				mjj_fit.fit(analysis_config.get_workspace_filename(args.analysis_name, signal_model), signal_name=signal_model, fit_range=[500., 1500.])
+				mjj_fit.fit(limit_paths.get_workspace_filename(args.analysis_name, signal_model), fit_options, signal_name=signal_model)
 
 	if args.plot:
 		fitted_signal_workspaces = []
 		expected_signal_workspaces = []
 		if args.signal:
 			for signal_model in args.signal.split(","):
-				fitted_signal_workspaces.append(analysis_config.get_workspace_filename(args.analysis_name, signal_model))
+				fitted_signal_workspaces.append(limit_paths.get_workspace_filename(args.analysis_name, signal_model))
 		if args.fixed_signal:
 			for signal_model in args.fixed_signal.split(","):
-				expected_signal_workspaces.append(analysis_config.get_workspace_filename(args.analysis_name, signal_model))
-		mjj_fit.plot("mjj_fits_" + analysis_name, analysis_config.get_workspace_filename(args.analysis_name, "background"), fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=[300., 2000.])
+				expected_signal_workspaces.append(limit_paths.get_workspace_filename(args.analysis_name, signal_model))
+		mjj_fit.plot("mjj_fits_" + args.analysis_name, limit_paths.get_workspace_filename(args.analysis_name, "background"), fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=[300., 2000.])
 

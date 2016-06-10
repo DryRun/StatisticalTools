@@ -6,5 +6,5 @@ paths["condor"] = paths["limits"] + "/condor/"
 paths["resonance_shapes"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Results/ResonanceShapes/"
 
 # Get the path to a workspace. 
-def get_workspace_path(analysis_name, model):
+def get_workspace_filename(analysis_name, model):
 	return paths["workspaces"] + "/workspace_" + analysis_name + "_" + model + ".root"
