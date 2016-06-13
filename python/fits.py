@@ -2,6 +2,8 @@
 
 import os
 import sys
+import array
+from array import array
 import ROOT
 from ROOT import *
 gROOT.SetBatch(True)
@@ -180,7 +182,7 @@ class MjjFit:
 
 	# fitted_signal_shapes = list of fitted S(+B) shapes to plot.
 	# expected_signal_shapes = list of S shapes to plot, scaled to cross sections taken from configuration file
-	def plot(self, save_tag, background_workspace, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None):
+	def plot(self, save_tag, background_workspace, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=20):
 		print "Plotting " + save_tag
 		c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
 		l = TLegend(0.55, 0.6, 0.88, 0.88)
@@ -207,14 +209,31 @@ class MjjFit:
 		w_background = f_background.Get("w")
 		w_background.Print()
 		data_rdh = w_background.data("data_obs")
+		data_hist_raw = data_rdh.createHistogram("mjj", 1000)
+		data_integral = data_hist_raw.Integral()
+		if data_binning:
+			data_hist = data_hist_raw.Rebin(len(data_binning) - 1, "data_hist_rebinned", data_binning)
+		else:
+			data_hist = data_hist_raw
+		for bin in xrange(1, data_hist.GetNbinsX() + 1):
+			data_hist.SetBinContent(bin, data_hist.GetBinContent(bin) / data_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
+			data_hist.SetBinError(bin, data_hist.GetBinError(bin) / data_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
+		for bin in xrange(1, data_hist.GetNbinsX() + 1):
+			print "Bin " + str(bin) + " = " + str(data_hist.GetBinContent(bin))
 		if x_range:
 			x_min = x_range[0]
 			x_max = x_range[1]
 		else:
 			x_min = self.mjj_.GetMin()
 			x_max = self.mjj_.GetMax()
-		frame_top = self.mjj_.frame(x_min, x_max)
-		frame_top.GetYaxis().SetTitle("Events / " + str(int(self.data_histogram_.GetXaxis().GetBinWidth(1))) + " GeV")
+		frame_top = TH1D("frame_top", "frame_top", 100, x_min, x_max)
+		if log:
+			frame_top.SetMaximum(data_hist.GetMaximum() * 50.)
+			frame_top.SetMinimum(0.1)
+		else:
+			frame_top.SetMaximum(data_hist.GetMaximum() * 1.3)
+			frame_top.SetMinimum(0.)
+		frame_top.GetYaxis().SetTitle("Events / " + str(normalization_bin_width) + " GeV")
 		frame_top.GetXaxis().SetTitleSize(0)
 		frame_top.GetXaxis().SetLabelSize(0)
 		#if log:
@@ -224,8 +243,12 @@ class MjjFit:
 		#	frame_top.SetMaximum(y_max * 1.3)
 		#	frame_top.SetMinimum(0.)
 		frame_top.Draw()
-		data_rdh.plotOn(frame_top, RooFit.Name("Data"))
-		l.AddEntry(frame_top.findObject("Data"), "Data", "pl")
+		#data_rdh.plotOn(frame_top, RooFit.Name("Data"))
+		data_hist.SetMarkerStyle(20)
+		data_hist.SetMarkerColor(1)
+		data_hist.SetMarkerSize(1)
+		data_hist.Draw("p same")
+		l.AddEntry(data_hist, "Data", "pl")
 
 		style_counter = 0
 		if fitted_signal_workspaces:
@@ -252,24 +275,47 @@ class MjjFit:
 				l.AddEntry(frame_top.findObject(signal_name), signal_name, "l")
 				style_counter += 1
 		background_pdf = w_background.pdf("background_pdf")
-		background_pdf.plotOn(frame_top, RooFit.Name("B Fit"), RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(1), RooFit.LineWidth(2))
-		l.AddEntry(frame_top.findObject("B Fit"), "B Fit", "l")
+		background_hist_raw = background_pdf.createHistogram("mjj", 1000)
+		background_hist_raw.Scale(data_integral / background_hist_raw.Integral())
+		if data_binning:
+			background_hist = background_hist_raw.Rebin(len(data_binning) - 1, "background_hist_rebinned", data_binning)
+		else:
+			background_hist = background_hist_raw
+		for bin in xrange(1, data_hist.GetNbinsX() + 1):
+			background_hist.SetBinContent(bin, background_hist.GetBinContent(bin) / background_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
+			background_hist.SetBinError(bin, background_hist.GetBinError(bin) / background_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
 
-		frame_top.Draw()
+		background_hist.SetLineColor(seaborn.GetColorRoot("default", 2))
+		background_hist.SetLineStyle(1)
+		background_hist.SetLineWidth(2)
+		background_hist.Draw("hist same")
+		#background_pdf.plotOn(frame_top, RooFit.Name("B Fit"), RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(1), RooFit.LineWidth(2))
+		l.AddEntry(background_hist, "B Fit", "l")
 		l.Draw()
 		
 		# Pull histogram
 		c.cd()
 		bottom.cd()
-		pull_histogram = frame_top.pullHist("Data", "B Fit")
-		#frame_bottom = self.mjj_.frame(x_min, x_max)
+		pull_histogram = data_hist.Clone()
+		for bin in xrange(1, data_hist.GetNbinsX() + 1):
+			if data_hist.GetBinError(bin) > 0:
+				pull = (data_hist.GetBinContent(bin) - background_hist.GetBinContent(bin)) / data_hist.GetBinError(bin)
+			else:
+				pull = 0.
+			pull_histogram.SetBinContent(bin, pull)
+			pull_histogram.SetBinError(bin, 0.)
+		#pull_histogram = frame_top.pullHist("Data", "B Fit")
+		frame_bottom = TH1D("frame_bottom", "frame_bottom", 100, x_min, x_max)
+		frame_bottom.SetMinimum(-5.)
+		frame_bottom.SetMaximum(5.)
 		#pull_histogram.plotOn(frame_bottom, RooFit.Name(fit_pdf_name))
-		#frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
-		#frame_bottom.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
-		#frame_bottom.Draw()
-		pull_histogram.GetXaxis().SetTitle("m_{jj} [GeV]")
-		pull_histogram.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
-		pull_histogram.Draw("same")
+		frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
+		frame_bottom.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Data)}")
+		frame_bottom.Draw()
+		pull_histogram.Draw("hist same")
+		#pull_histogram.GetXaxis().SetTitle("m_{jj} [GeV]")
+		#pull_histogram.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
+		#pull_histogram.Draw("same")
 		c.cd()
 
 		c.SaveAs("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures/c_" + save_tag + ".pdf")
@@ -344,7 +390,11 @@ if __name__ == "__main__":
 			for signal_model in signal_models:
 				mjj_fit.fit(limit_paths.get_workspace_filename(args.analysis_name, signal_model), fit_options, signal_name=signal_model)
 
+	mass_bins = array("d", [500, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1500])
+
+
 	if args.plot:
+		print "Plotting"
 		fitted_signal_workspaces = []
 		expected_signal_workspaces = []
 		if args.signal:
@@ -353,5 +403,5 @@ if __name__ == "__main__":
 		if args.fixed_signal:
 			for signal_model in args.fixed_signal.split(","):
 				expected_signal_workspaces.append(limit_paths.get_workspace_filename(args.analysis_name, signal_model))
-		mjj_fit.plot("mjj_fits_" + args.analysis_name, limit_paths.get_workspace_filename(args.analysis_name, "background"), fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=[300., 2000.])
+		mjj_fit.plot("mjj_fits_" + args.analysis_name, limit_paths.get_workspace_filename(args.analysis_name, "background"), fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=[300., 2000.], data_binning=mass_bins)
 
