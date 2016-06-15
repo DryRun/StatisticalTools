@@ -9,34 +9,38 @@ if not os.path.exists(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/C
 else:
     ROOT.gSystem.Load(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer_cc.so"))
 sys.path.append("$CMSSSW_BASE/src/CMSDIJET/StatisticalTools/scripts")
-from limitPaths import *
+
+sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python/CMSDIJET/QCDAnalysis")
+import analysis_configuration_8TeV as analysis_config
 
 
-def main():
+if __name__ == "__main__":
     # usage description
     usage = "Example: ./scripts/createDatacards.py --inputData inputs/rawhistV7_Run2015D_scoutingPFHT_UNBLINDED_649_838_JEC_HLTplusV7_Mjj_cor_smooth.root --dataHistname mjj_mjjcor_gev --inputSig inputs/ResonanceShapes_gg_13TeV_Scouting_Spring15.root -f gg -o datacards -l 1866 --lumiUnc 0.027 --massrange 1000 1500 50 --runFit --p1 5 --p2 7 --p3 0.4 --massMin 838 --massMax 2037 --fitStrategy 2"
 
     # input parameters
     parser = ArgumentParser(description='Script that creates combine datacards and corresponding RooFit workspaces',epilog=usage)
 
-    parser.add_argument("--inputData", dest="inputData", required=True,
-                        help="Input data spectrum",
-                        metavar="INPUT_DATA")
+    parser.add_argument("--analysis", dest="analysis", required=True, help="Name of analysis", metavar="ANALYSIS_NAME")
+    parser.add_argument("--data_sample", dest="data_sample", required=True, help="Name of data sample", metavar="DATA_SAMPLE")
+    #parser.add_argument("--inputData", dest="inputData", required=True,
+    #                    help="Input data spectrum",
+    #                    metavar="INPUT_DATA")
 
-    parser.add_argument("--dataHistname", dest="dataHistname", required=True,
+    parser.add_argument("--data_hist", dest="data_hist", required=True,
                         help="Data histogram name",
                         metavar="DATA_HISTNAME")
 
-    parser.add_argument("--inputSig", dest="inputSig", required=True,
+    parser.add_argument("--signal_shapes", dest="signal_shapes", required=True,
                         help="Input signal shapes",
-                        metavar="INPUT_SIGNAL")
+                        metavar="SIGNAL_SHAPES")
 
-    parser.add_argument("-f", "--final_state", dest="final_state", required=True,
-                        help="Final state (e.g. qq, qg, gg)",
-                        metavar="FINAL_STATE")
+    parser.add_argument("--signal_model", dest="signal_model", required=True,
+                        help="Signal model name (Hbb, Zprime, RSG)",
+                        metavar="SIGNAL_MODEL")
 
     parser.add_argument("-o", "--output_path", dest="output_path",
-                        default=paths["datacards"],
+                        default=analysis_config.limit_paths["datacards"],
                         help="Output path where datacards and workspaces will be stored",
                         metavar="OUTPUT_PATH")
 
@@ -45,13 +49,13 @@ def main():
                         help="Integrated luminosity in pb-1 (default: %(default).1f)",
                         metavar="LUMI")
 
-    parser.add_argument("--massMin", dest="massMin",
-                        default=200, type=int,
+    parser.add_argument("--min_mass", dest="min_mass",
+                        default=500, type=int,
                         help="Lower bound of the mass range used for fitting (default: %(default)s)",
                         metavar="MASS_MIN")
 
-    parser.add_argument("--massMax", dest="massMax",
-                        default=2000, type=int,
+    parser.add_argument("--max_mass", dest="max_mass",
+                        default=1000, type=int,
                         help="Upper bound of the mass range used for fitting (default: %(default)s)",
                         metavar="MASS_MAX")
 
@@ -86,7 +90,7 @@ def main():
                         metavar="JER_UNC")
 
     parser.add_argument("--sqrtS", dest="sqrtS",
-                        default=13000., type=float,
+                        default=8000., type=float,
                         help="Collision center-of-mass energy (default: %(default).1f)",
                         metavar="SQRTS")
 
@@ -154,17 +158,17 @@ def main():
         RooMsgService.instance().setStreamStatus(1,kFALSE)
 
     # input data file
-    inputData = TFile(args.inputData)
+    data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis, args.data_sample), "READ")
     # input data histogram
-    hData = inputData.Get(args.dataHistname)
+    hData = data_file.Get(args.data_hist)
 
     # input sig file
-    inputSig = TFile(args.inputSig)
+    signal_shapes_file = TFile(args.signal_shapes)
 
     sqrtS = args.sqrtS
 
     # mass variable
-    mjj = RooRealVar('mjj','mjj',float(args.massMin),float(args.massMax))
+    mjj = RooRealVar('mjj','mjj',float(args.min_mass),float(args.max_mass))
 
     # integrated luminosity and signal cross section
     lumi = args.lumi
@@ -172,10 +176,10 @@ def main():
 
     for mass in masses:
 
-        print ">> Creating datacard and workspace for %s resonance with m = %i GeV..."%(args.final_state, int(mass))
+        print ">> Creating datacard and workspace for %s resonance with m = %i GeV..."%(args.signal_model, int(mass))
 
         # get signal shape
-        hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
+        hSig = signal_shapes_file.Get( "h_" + args.signal_model + "_" + str(int(mass)) )
         # normalize signal shape to the expected event yield (works even if input shapes are not normalized to unity)
         hSig.Scale(signalCrossSection*lumi/hSig.Integral()) # divide by a number that provides roughly an r value of 1-10
         print "[debug] hSig.Integral() = " + str(hSig.Integral())
@@ -321,6 +325,7 @@ def main():
         wsName = 'workspace_' + args.final_state + '_m' + str(mass) + '.root'
 
         w = RooWorkspace('w','workspace')
+        getattr(w,'import')(res)
         getattr(w,'import')(rooSigHist,RooFit.Rename("signal"))
         if args.jesUnc != None:
             getattr(w,'import')(hSig_Syst_DataHist['JESUp'],RooFit.Rename("signal__JESUp"))
