@@ -30,21 +30,20 @@ sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python/CMSDIJET/QCD
 import analysis_configuration_8TeV as analysis_config
 import simulation_configuration_8TeV as simulation_config
 
-
-def BackgroundFit_f0(x, par):
+def BackgroundFit_f1(x, par):
 	return par[0] * (1. - (x[0] / 8.e3))**par[1] / ((x[0] / 8.e3)**(par[2] + par[3] * TMath.Log((x[0] / 8.e3))))
 
-def BackgroundFit_f1(x, par):
-	return par[0] * (1. - (x[0] / 8.e3))**par[1] / ((x[0] / 8.e3)**(par[2]))
-
 def BackgroundFit_f2(x, par):
-	return par[0] * (1. - (x[0] / 8.e3)**(1./3.))**par[1] / ((x[0] / 8.e3)**(par[2]))
+	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3))**par[2]
 
 def BackgroundFit_f3(x, par):
-	return par[0] * (par[1] + par[2]*(x[0] / 8.e3) + par[3]*(x[0] / 8.e3)**2)**(-1. * par[4])
+	return par[0] / (par[1] + (x[0] / 8.e3))**par[2]
 
 def BackgroundFit_f4(x, par):
-	return par[0] * (par[1] + (x[0] / 8.e3))**(-1. * par[2])
+	return par[0] / ((par[1] + par[2]*x[0]/8.e3 + (x[0]/8.e3)**2)**par[3])
+
+def BackgroundFit_f5(x, par):
+	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3)**(1./3.))**par[2]
 
 def CrystalBallFit(x, par):
 	#Crystal ball function for signal, parameters are 0:alpha,1:n,2:mean,3:sigma,4:normalization;
@@ -73,18 +72,36 @@ class MjjFit:
 		# Fit storage
 		self.simple_fit_ = None
 		self.mjj_ = RooRealVar('mjj','mjj',float(mass_range[0]),float(mass_range[1]))
+		#self.mjj_.setRange("fit_range", float(mass_range[0]), float(mass_range[1]))
 		#self.workspace_ = None
 		self.saved_workspaces_ = {}
 		self.fit_parameters = {}
 
+		# Trigger correction
+		trigbbl_efficiency_ = TF1("trigbbl_efficiency", "(0.5 * (1 + TMath::Erf((x-[0])/[1])))**[2]", 175, 400)
+		trigbbl_efficiency_.SetParameter(0, -6.50036e+01)
+		trigbbl_efficiency_.SetParameter(1,  1.44923e+02)
+		trigbbl_efficiency_.SetParameter(2,  8.04812e+01)
+
 	def add_data(self, data_histogram, luminosity):
-		print "[MjFit.add_data] INFO : Adding data histogram"
+		print "[MjjFit.add_data] INFO : Adding data histogram"
 		# Add a data histogram
 		self.data_histogram_ = data_histogram.Clone()
 		self.data_histogram_.SetDirectory(0)		
 		self.data_roohistogram_ = RooDataHist('data_roohistogram','data_roohistogram',RooArgList(self.mjj_),self.data_histogram_)
 		self.data_roohistogram_.Print()
 		self.luminosity_ = luminosity
+
+	def correct_trigger(self):
+		if not self.data_histogram_:
+			print "[MjjFit.correct_trigger] ERROR : Call to correct_trigger before add_data"
+			sys.exit(1)
+		for bin in xrange(1, self.data_histogram_.GetNbinsX() + 1):
+			bin_center = self.data_histogram_.GetXaxis().GetBinCenter(bin)
+			if bin_center > self.trigbbl_efficiency_.GetXmin() and bin_center < self.trigbbl_efficiency_.GetXmax():
+				self.data_histogram_.SetBinContent(bin, self.data_histogram_.GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
+				self.data_histogram_.SetBinError(bin, self.data_histogram_.GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
+
 
 	def add_signal(self, signal_name, signal_histogram):
 		print "[MjjFit.add_signal] INFO : Adding signal histogram " + signal_name
@@ -144,55 +161,64 @@ class MjjFit:
 				hist_ratio.SetBinContent(bin, 0.)
 				hist_ratio.SetBinError(bin, 0.)
 		return hist_ratio
-	
+
+
 	def make_background_pdf(self, fit_function):
 		self.fit_parameters[fit_function] = {}
-		if fit_function == "f0":
-			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1','p1',1.0003e+01,0.,100.)
-			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2','p2',5.2648e+00,0.,60.)
-			self.fit_parameters[fit_function]["p3"] = RooRealVar('p3','p3',0.,-10.,10.)
+		if fit_function == "f1":
+			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1','p1',5.e-3,0.,100.)
+			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2','p2',9.1,0.,60.)
+			self.fit_parameters[fit_function]["p3"] = RooRealVar('p3','p3',0.5,-10.,10.)
 			background_pdf = RooGenericPdf('background_pdf','(pow(1-@0/%.1f,@1)/pow(@0/%.1f,@2+@3*log(@0/%.1f)))'%(self.collision_energy_,self.collision_energy_,self.collision_energy_),RooArgList(self.mjj_,self.fit_parameters[fit_function]["p1"],self.fit_parameters[fit_function]["p2"],self.fit_parameters[fit_function]["p3"]))
-		elif fit_function == "f1":
-			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1','p1',1.0003e+01,0.,100.)
-			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2','p2',5.2648e+00,0.,60.)
-			background_pdf = RooGenericPdf('background_pdf','pow(1.-@0/%.1f,@1) / pow(@0/%.1f, @2)'%(self.collision_energy_, self.collision_energy_), RooArgList(self.mjj_, self.fit_parameters[fit_function]["p1"], self.fit_parameters[fit_function]["p2"]))
 		elif fit_function == "f2":
-			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1','p1',1.0003e+01,0.,100.)
-			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2','p2',5.2648e+00,0.,60.)
-			background_pdf = RooGenericPdf('background_pdf','pow(1.-pow(@0/%.1f, 1./3.),@1) / pow(@0/%.1f, @2)'%(self.collision_energy_, self.collision_energy_), RooArgList(self.mjj_, self.fit_parameters[fit_function]["p1"], self.fit_parameters[fit_function]["p2"]))
+			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1','p1',5.6,0.,100.)
+			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2','p2',10.,0.,60.)
+			background_pdf = RooGenericPdf('background_pdf','(pow(@0/%.1f,-@1)*pow(1-@0/%.1f,@2))'%(self.collision_energy_, self.collision_energy_), RooArgList(self.mjj_, self.fit_parameters[fit_function]["p1"], self.fit_parameters[fit_function]["p2"]))
 		elif fit_function == "f3":
-			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1', 'p1', 0., -10., 10.)
-			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2', 'p2', 0., -10., 10.)
-			self.fit_parameters[fit_function]["p3"] = RooRealVar('p3', 'p3', 0.,-10., 10.)
-			self.fit_parameters[fit_function]["p4"] = RooRealVar('p4', 'p4', 5., 0., 60.)
-			background_pdf = RooGenericPdf('background_pdf','pow(@1 + @2*@0/%.1f + @3*pow(@0/%.1f,2), -1. * @4)'%(self.collision_energy_,self.collision_energy_), RooArgList(self.mjj_, self.fit_parameters[fit_function]["p1"], self.fit_parameters[fit_function]["p2"], self.fit_parameters[fit_function]["p3"], self.fit_parameters[fit_function]["p4"]))
+			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1','p1',0.016, -50., 50.)
+			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2','p2',8., -50., 50.)
+			background_pdf = RooGenericPdf('background_pdf','(1/pow(@1+@0/%.1f,@2))'%(self.collision_energy_), RooArgList(self.mjj_, self.fit_parameters[fit_function]["p1"], self.fit_parameters[fit_function]["p2"]))
 		elif fit_function == "f4":
-			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1','p1',0.,-10.,10.)
-			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2','p2',5., 0., 60.)
-			background_pdf = RooGenericPdf('background_pdf','pow(@1 + @0/%.1f, -1. * @2)'%(self.collision_energy_),RooArgList(self.mjj_,self.fit_parameters[fit_function]["p1"],self.fit_parameters[fit_function]["p2"]))
+			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1', 'p1', 22, -50., 50.)
+			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2', 'p2', 14.1, -50., 50.)
+			self.fit_parameters[fit_function]["p3"] = RooRealVar('p3', 'p3', 8.0,-50., 50.)
+			background_pdf = RooGenericPdf('background_pdf','(1/pow(@1+@2*@0/%.1f+pow(@0/%.1f,2),@3))'%(self.collision_energy_,self.collision_energy_), RooArgList(self.mjj_, self.fit_parameters[fit_function]["p1"], self.fit_parameters[fit_function]["p2"], self.fit_parameters[fit_function]["p3"]))
+		elif fit_function == "f5":
+			self.fit_parameters[fit_function]["p1"] = RooRealVar('p1','p1',4.8,-50., 50.)
+			self.fit_parameters[fit_function]["p2"] = RooRealVar('p2','p2',7., -50., 50.)
+			background_pdf = RooGenericPdf('background_pdf','(pow(@0/%.1f,-@1)*pow(1-pow(@0/%.1f,1/3),@2))'%(self.collision_energy_, self.collision_energy_),RooArgList(self.mjj_,self.fit_parameters[fit_function]["p1"],self.fit_parameters[fit_function]["p2"]))
 		else:
 			print "[MjjFit::make_background_pdf] ERROR : Unrecognized fit function " + fit_function
 			sys.exit(1)
 		return background_pdf
 
-	def make_background_tf1(self, fit_function):
-		if fit_function == "f0":
-			background_tf1 = TF1('background_tf1_f0',BackgroundFit_f0, self.mjj_.getMin(), self.mjj_.getMax(), 4)
-		elif fit_function == "f1":
-			background_tf1 = TF1('background_tf1_f1',BackgroundFit_f1, self.mjj_.getMin(), self.mjj_.getMax(), 3)
+	def make_background_tf1(self, fit_function, mjj_range=None):
+		if mjj_range:
+			mjj_min = mjj_range[0]
+			mjj_max = mjj_range[1]
+		else:
+			mjj_min = self.mjj_.getMin()
+			mjj_max = self.mjj_.getMax()
+
+		if fit_function == "f1":
+			background_tf1 = TF1('background_tf1_f1',BackgroundFit_f1, mjj_min, mjj_max, 4)
 		elif fit_function == "f2":
-			background_tf1 = TF1('background_tf1_f2',BackgroundFit_f2, self.mjj_.getMin(), self.mjj_.getMax(), 3)
+			background_tf1 = TF1('background_tf1_f2',BackgroundFit_f2, mjj_min, mjj_max, 3)
 		elif fit_function == "f3":
-			background_tf1 = TF1('background_tf1_f3',BackgroundFit_f3, self.mjj_.getMin(), self.mjj_.getMax(), 5)
+			background_tf1 = TF1('background_tf1_f3',BackgroundFit_f3, mjj_min, mjj_max, 3)
 		elif fit_function == "f4":
-			background_tf1 = TF1('background_tf1_f4',BackgroundFit_f4, self.mjj_.getMin(), self.mjj_.getMax(), 3)
+			background_tf1 = TF1('background_tf1_f4',BackgroundFit_f4, mjj_min, mjj_max, 4)
+		elif fit_function == "f5":
+			background_tf1 = TF1('background_tf1_f5',BackgroundFit_f5, mjj_min, mjj_max, 3)
 		else:
 			print "[MjjFit::make_background_tf1] ERROR : Unrecognized fit function " + fit_function
 			sys.exit(1)
 		return background_tf1
 
-	def make_background_tf1_from_roofitresult(self, fit_function, roofitresult):
-		function = self.make_background_tf1(fit_function)
+	def make_background_tf1_from_roofitresult(self, fit_function, roofitresult, mjj_range=None):
+		print "[MjJFit::make_background_tf1_from_roofitresult] INFO : make_background_tf1_from_roofitresult for fit function " + fit_function
+		print mjj_range
+		function = self.make_background_tf1(fit_function, mjj_range)
 		for i in xrange(function.GetNpar()):
 			function.SetParameter(i, roofitresult.floatParsFinal()[i].getVal())
 			function.SetParError(i, roofitresult.floatParsFinal()[i].getError())
@@ -200,6 +226,7 @@ class MjjFit:
 
 
 	def fit(self, fit_function, save_to, fit_options, signal_name=None, fit_strategy=1):
+		print "[MjjFit::fit] INFO : Fitting with function " + fit_function + ", save_to = " + save_to
 		# Run a RooFit fit
 		# Create background PDF
 		background_pdf = self.make_background_pdf(fit_function)
@@ -220,7 +247,10 @@ class MjjFit:
 			model = RooAddPdf("model_" + fit_function,"b",RooArgList(background_pdf),RooArgList(background_norm))
 
 		# Run fit
-		res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy))
+		if fit_options.has_key("fit_range"):
+			res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.Range(fit_options["fit_range"][0], fit_options["fit_range"][1]))
+		else:
+			res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy))
 
 		# Save to workspace
 		self.workspace_ = RooWorkspace('w','workspace')
@@ -243,9 +273,11 @@ class MjjFit:
 		else:
 			self.saved_workspaces_["background"] = save_to
 
+		print "[MjjFit::fit] INFO : Done with fit."
+
 	# fitted_signal_shapes = list of fitted S(+B) shapes to plot.
 	# expected_signal_shapes = list of S shapes to plot, scaled to cross sections taken from configuration file
-	def plot(self, save_tag, background_workspace, fit_functions=["f0"], fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1):
+	def plot(self, save_tag, fit_functions, background_workspaces, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1):
 		print "Plotting " + save_tag
 		c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
 		l = TLegend(0.55, 0.6, 0.88, 0.88)
@@ -266,23 +298,17 @@ class MjjFit:
 		ROOT.SetOwnership(bottom, False)
 		top.cd()
 
-		# Frame from background fit
-		print "Opening background workspace from " + background_workspace
-		f_background = TFile(background_workspace, "READ")
-		w_background = f_background.Get("w")
-		w_background.Print()
-		data_rdh = w_background.data("data_obs")
-		data_hist_raw = data_rdh.createHistogram("mjj", 1000)
-		data_integral = data_hist_raw.Integral()
+		# Make data histogram
+		data_hist_raw = self.data_histogram_.Clone()
+
 		if data_binning:
 			data_hist = data_hist_raw.Rebin(len(data_binning) - 1, "data_hist_rebinned", data_binning)
+			for bin in xrange(1, data_hist.GetNbinsX() + 1):
+				data_hist.SetBinContent(bin, data_hist.GetBinContent(bin) / data_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
+				data_hist.SetBinError(bin, data_hist.GetBinError(bin) / data_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
 		else:
 			data_hist = data_hist_raw
-		for bin in xrange(1, data_hist.GetNbinsX() + 1):
-			data_hist.SetBinContent(bin, data_hist.GetBinContent(bin) / data_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
-			data_hist.SetBinError(bin, data_hist.GetBinError(bin) / data_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
-		#for bin in xrange(1, data_hist.GetNbinsX() + 1):
-		#	print "Bin " + str(bin) + " = " + str(data_hist.GetBinContent(bin))
+
 		if x_range:
 			x_min = x_range[0]
 			x_max = x_range[1]
@@ -338,18 +364,20 @@ class MjjFit:
 		#		l.AddEntry(frame_top.findObject(signal_name), signal_name, "l")
 		#		style_counter += 1
 		background_tf1s = {}
+		background_histograms = {}
 		style_counter = 0
 		for fit_function in fit_functions:
-			print "[debug] Trying to load fit parameters for fit " + fit_function
+			f_workspace = TFile(background_workspaces[fit_function], "READ")
+			workspace = f_workspace.Get("w")
 			fitresult_name = "fitresult_model_" + fit_function + "_data_roohistogram"
-			print "[debug] fitresult_name = " + fitresult_name
-			fitresult = w_background.genobj(fitresult_name)
+			fitresult = workspace.genobj(fitresult_name)
 			fitresult.Print()
-			background_tf1s[fit_function] = self.make_background_tf1_from_roofitresult(fit_function, fitresult)
+			background_tf1s[fit_function] = self.make_background_tf1_from_roofitresult(fit_function, fitresult, mjj_range=x_range)
 			# Force normalization?
-			data_integral = data_hist_raw.Integral(data_hist_raw.GetXaxis().FindBin(self.mjj_.getMin()), data_hist_raw.GetXaxis().FindBin(self.mjj_.getMax()))
-			integration_xmin = data_hist_raw.GetXaxis().GetBinLowEdge(data_hist_raw.GetXaxis().FindBin(self.mjj_.getMin()))
-			integration_xmax = data_hist_raw.GetXaxis().GetBinUpEdge(data_hist_raw.GetXaxis().FindBin(self.mjj_.getMax()))
+			print "[MjjFit::plot] INFO : Normalizing fit to data over range [" + str(self.mjj_.getMin()) + ", " + str(self.mjj_.getMax()) + "]"
+			data_integral = data_hist.Integral(data_hist.GetXaxis().FindBin(self.mjj_.getMin()), data_hist.GetXaxis().FindBin(self.mjj_.getMax()), "width")
+			integration_xmin = data_hist.GetXaxis().GetBinLowEdge(data_hist.GetXaxis().FindBin(self.mjj_.getMin()))
+			integration_xmax = data_hist.GetXaxis().GetBinUpEdge(data_hist.GetXaxis().FindBin(self.mjj_.getMax()))
 			scale_factor = data_integral / background_tf1s[fit_function].Integral(integration_xmin, integration_xmax)
 			background_tf1s[fit_function].SetParameter(0, background_tf1s[fit_function].GetParameter(0) * scale_factor)
 			background_tf1s[fit_function].SetParError(0, background_tf1s[fit_function].GetParError(0) * scale_factor)
@@ -359,7 +387,9 @@ class MjjFit:
 			background_tf1s[fit_function].Draw("l same")
 			l.AddEntry(background_tf1s[fit_function], "Background " + fit_function, "l")
 
+			f_workspace.Close()
 			style_counter += 1
+
 		#background_pdf = w_background.pdf("background_pdf")
 		#background_hist_raw = background_pdf.createHistogram("mjj", 1000)
 		#background_hist_raw.Scale(data_integral / background_hist_raw.Integral())
@@ -383,27 +413,40 @@ class MjjFit:
 		# Pull histogram
 		c.cd()
 		bottom.cd()
-		#pull_histogram = data_hist.Clone()
-		#for bin in xrange(1, data_hist.GetNbinsX() + 1):
-		#	if data_hist.GetBinError(bin) > 0:
-		#		pull = (data_hist.GetBinContent(bin) - background_hist.GetBinContent(bin)) / data_hist.GetBinError(bin)
-		#	else:
-		#		pull = 0.
-		#	pull_histogram.SetBinContent(bin, pull)
-		#	pull_histogram.SetBinError(bin, 0.)
-		##pull_histogram = frame_top.pullHist("Data", "B Fit")
-		#frame_bottom = TH1D("frame_bottom", "frame_bottom", 100, x_min, x_max)
-		#frame_bottom.SetMinimum(-5.)
-		#frame_bottom.SetMaximum(5.)
-		##pull_histogram.plotOn(frame_bottom, RooFit.Name(fit_pdf_name))
-		#frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
-		#frame_bottom.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Data)}")
-		#frame_bottom.Draw()
-		#pull_histogram.Draw("hist same")
-		##pull_histogram.GetXaxis().SetTitle("m_{jj} [GeV]")
-		##pull_histogram.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
-		##pull_histogram.Draw("same")
-		#c.cd()
+		pull_histograms = {}
+		for fit_function in fit_functions:
+			pull_histograms[fit_function] = data_hist.Clone()
+			pull_histograms[fit_function].Reset()
+			for bin in xrange(1, data_hist.GetNbinsX() + 1):
+				if data_hist.GetBinError(bin) > 0:
+					background_integral = background_tf1s[fit_function].Integral(data_hist.GetXaxis().GetBinLowEdge(bin), data_hist.GetXaxis().GetBinUpEdge(bin))
+					bin_width = data_hist.GetXaxis().GetBinWidth(bin)
+					pull = (data_hist.GetBinContent(bin)*bin_width - background_integral) / (data_hist.GetBinError(bin)*bin_width)
+				else:
+					pull = 0.
+				#print "[debug] Pull = " + str(pull)
+				pull_histograms[fit_function].SetBinContent(bin, pull)
+				pull_histograms[fit_function].SetBinError(bin, 0.)
+			#pull_histogram = frame_top.pullHist("Data", "B Fit")
+		frame_bottom = TH1D("frame_bottom", "frame_bottom", 100, x_min, x_max)
+		frame_bottom.SetMinimum(-5.)
+		frame_bottom.SetMaximum(5.)
+		#pull_histogram.plotOn(frame_bottom, RooFit.Name(fit_pdf_name))
+		frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
+		frame_bottom.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Data)}")
+		frame_bottom.Draw()
+
+		style_counter = 0
+		for fit_function in fit_functions:
+			pull_histograms[fit_function].SetLineColor(seaborn.GetColorRoot("default", style_counter))
+			pull_histograms[fit_function].SetLineWidth(2)
+			pull_histograms[fit_function].SetLineStyle(1)
+			pull_histograms[fit_function].Draw("hist same")
+			style_counter += 1
+		#pull_histogram.GetXaxis().SetTitle("m_{jj} [GeV]")
+		#pull_histogram.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
+		#pull_histogram.Draw("same")
+		c.cd()
 
 		c.SaveAs("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures/c_" + save_tag + ".pdf")
 
@@ -417,6 +460,7 @@ if __name__ == "__main__":
 	parser.add_argument("--signal", type=str, help='Signal model(s) to fit. Use comma-separated list to specify multiple.')
 	parser.add_argument("--fixed_signal", type=str, help='Signal model(s) to plot, normalized to expected cross sections')
 	parser.add_argument("--plot", action="store_true", help="Plot mjj spectra and fits. Background fit is always plotted; signal fits are plotted if --signal is specified.")
+	parser.add_argument("--x_range", type=int, nargs=2, help="Plot xrange")
 
 	# Fit options
 	parser.add_argument("-l", "--lumi", dest="lumi",
@@ -424,13 +468,23 @@ if __name__ == "__main__":
 						help="Integrated luminosity in pb-1 (default: %(default).1f)",
 						metavar="LUMI")
 
+	parser.add_argument("--min_mjj", dest="min_mjj",
+						default=500., type=int,
+						help="Lower bound of the mass range used for plotting (default: %(default)s)",
+						metavar="MASS_MIN")
+
+	parser.add_argument("--max_mjj", dest="max_mjj",
+						default=1500., type=int,
+						help="Upper bound of the mass range used for plotting (default: %(default)s)",
+						metavar="MASS_MAX")
+
 	parser.add_argument("--fit_min_mjj", dest="fit_min_mjj",
-						default=500, type=int,
+						default=500., type=float,
 						help="Lower bound of the mass range used for fitting (default: %(default)s)",
 						metavar="MASS_MIN")
 
 	parser.add_argument("--fit_max_mjj", dest="fit_max_mjj",
-						default=1500, type=int,
+						default=1500., type=float,
 						help="Upper bound of the mass range used for fitting (default: %(default)s)",
 						metavar="MASS_MAX")
 
@@ -438,11 +492,14 @@ if __name__ == "__main__":
 
 	# Pack up fit options
 	fit_options = {}
-	fit_options["min_mjj"] = args.fit_min_mjj
-	fit_options["max_mjj"] = args.fit_max_mjj
+	fit_options["min_mjj"] = args.min_mjj
+	fit_options["max_mjj"] = args.max_mjj
+	#fit_options["fit_range"] = [args.fit_min_mjj, args.fit_max_mjj]
 	mjj_fit = MjjFit([fit_options["min_mjj"], fit_options["max_mjj"]])
 	data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, args.data_sample), "READ")
 	mjj_fit.add_data(data_file.Get("BHistograms/h_pfjet_mjj"), args.lumi)
+	if "trigbbl" in args.analysis_name:
+		mjj_fit.correct_trigger()
 	data_file.Close()
 
 	signal_models = []
@@ -454,14 +511,12 @@ if __name__ == "__main__":
 			signal_file.Close()
 
 	if args.fit:
-		#for fit_function in ["f0", "f1", "f2", "f3", "f4"]:
-		for fit_function in ["f0"]:
-			mjj_fit.fit(fit_function, limit_paths.get_workspace_filename(args.analysis_name, "background"), fit_options)
+		for fit_function in ["f1", "f2", "f3", "f4", "f5"]:
+			mjj_fit.fit(fit_function, limit_paths.get_workspace_filename(args.analysis_name, "background_" + fit_function), fit_options)
 			for signal_model in signal_models:
 				mjj_fit.fit(fit_function, limit_paths.get_workspace_filename(args.analysis_name, signal_model), fit_options, signal_name=signal_model)
 
-	mass_bins = array("d", [500, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1500])
-
+	mass_bins = array("d", [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8000])
 
 	if args.plot:
 		print "Plotting"
@@ -473,5 +528,14 @@ if __name__ == "__main__":
 		if args.fixed_signal:
 			for signal_model in args.fixed_signal.split(","):
 				expected_signal_workspaces.append(limit_paths.get_workspace_filename(args.analysis_name, signal_model))
-		mjj_fit.plot("mjj_fits_" + args.analysis_name, limit_paths.get_workspace_filename(args.analysis_name, "background"), fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=[300., 2000.], data_binning=mass_bins)
+
+		fit_functions = ["f1", "f2", "f3", "f4", "f5"]
+		background_workspaces = {}
+		for fit_function in fit_functions:
+			background_workspaces[fit_function] = limit_paths.get_workspace_filename(args.analysis_name, "background_" + fit_function)
+		if args.x_range:
+			x_range = args.x_range
+		else:
+			x_range = [0., 2000.]
+		mjj_fit.plot("mjj_fits_" + args.analysis_name, fit_functions, background_workspaces, fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1.)
 
