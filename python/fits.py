@@ -78,10 +78,10 @@ class MjjFit:
 		self.fit_parameters = {}
 
 		# Trigger correction
-		self.trigbbl_efficiency_ = TF1("trigbbl_efficiency", "(0.5 * (1 + TMath::Erf((x-[0])/[1])))**[2]", 175, 400)
-		self.trigbbl_efficiency_.SetParameter(0, -6.50036e+01)
-		self.trigbbl_efficiency_.SetParameter(1,  1.44923e+02)
-		self.trigbbl_efficiency_.SetParameter(2,  8.04812e+01)
+		self.trigbbl_efficiency_ = TF1("trigbbl_efficiency", "(1. / (1. + TMath::Exp(-1. * (x - [0]) / [1])))**[2]", 175, 400)
+		self.trigbbl_efficiency_.SetParameter(0, 1.82469e+02)
+		self.trigbbl_efficiency_.SetParameter(1,  2.87768e+01)
+		self.trigbbl_efficiency_.SetParameter(2,  9.11659e-01)
 
 	def add_data(self, data_histogram, luminosity):
 		print "[MjjFit.add_data] INFO : Adding data histogram"
@@ -93,12 +93,14 @@ class MjjFit:
 		self.luminosity_ = luminosity
 
 	def correct_trigger(self):
+		print "[MjjFit.correct_trigger] INFO : Correcting trigger efficiency using Jet60_Jet53"
 		if not self.data_histogram_:
 			print "[MjjFit.correct_trigger] ERROR : Call to correct_trigger before add_data"
 			sys.exit(1)
 		for bin in xrange(1, self.data_histogram_.GetNbinsX() + 1):
 			bin_center = self.data_histogram_.GetXaxis().GetBinCenter(bin)
 			if bin_center > self.trigbbl_efficiency_.GetXmin() and bin_center < self.trigbbl_efficiency_.GetXmax():
+				print "[MjjFit.correct_trigger] DEBUG : For mjj=" + str(bin_center) + ", applying correction " + str(1. / self.trigbbl_efficiency_.Eval(bin_center))
 				self.data_histogram_.SetBinContent(bin, self.data_histogram_.GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 				self.data_histogram_.SetBinError(bin, self.data_histogram_.GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 
@@ -364,6 +366,8 @@ class MjjFit:
 		#		l.AddEntry(frame_top.findObject(signal_name), signal_name, "l")
 		#		style_counter += 1
 		background_tf1s = {}
+		background_tf1s_fitted_range = {}
+
 		background_histograms = {}
 		style_counter = 0
 		for fit_function in fit_functions:
@@ -382,9 +386,18 @@ class MjjFit:
 			background_tf1s[fit_function].SetParameter(0, background_tf1s[fit_function].GetParameter(0) * scale_factor)
 			background_tf1s[fit_function].SetParError(0, background_tf1s[fit_function].GetParError(0) * scale_factor)
 			background_tf1s[fit_function].SetLineColor(seaborn.GetColorRoot("default", style_counter))
-			background_tf1s[fit_function].SetLineWidth(2)
-			background_tf1s[fit_function].SetLineStyle(1)
+			background_tf1s[fit_function].SetLineWidth(1)
+			background_tf1s[fit_function].SetLineStyle(2)
 			background_tf1s[fit_function].Draw("l same")
+
+			background_tf1s_fitted_range[fit_function] = background_tf1s[fit_function].Clone()
+			background_tf1s_fitted_range[fit_function].SetRange(self.mjj_.getMin(), self.mjj_.getMax())
+			background_tf1s_fitted_range[fit_function].SetLineColor(seaborn.GetColorRoot("dark", style_counter))
+			background_tf1s_fitted_range[fit_function].SetLineWidth(2)
+			background_tf1s_fitted_range[fit_function].SetLineStyle(1)
+			background_tf1s_fitted_range[fit_function].Draw("l same")
+
+
 			l.AddEntry(background_tf1s[fit_function], "Background " + fit_function, "l")
 
 			f_workspace.Close()
@@ -414,6 +427,7 @@ class MjjFit:
 		c.cd()
 		bottom.cd()
 		pull_histograms = {}
+		pull_histograms_fitted_range = {}
 		for fit_function in fit_functions:
 			pull_histograms[fit_function] = data_hist.Clone()
 			pull_histograms[fit_function].Reset()
@@ -427,6 +441,14 @@ class MjjFit:
 				#print "[debug] Pull = " + str(pull)
 				pull_histograms[fit_function].SetBinContent(bin, pull)
 				pull_histograms[fit_function].SetBinError(bin, 0.)
+
+			pull_histograms_fitted_range[fit_function] = pull_histograms[fit_function].Clone()
+			for bin in xrange(1, pull_histograms_fitted_range[fit_function].GetNbinsX() + 1):
+				bin_center = pull_histograms_fitted_range[fit_function].GetXaxis().GetBinCenter(bin)
+				if bin_center < self.mjj_.getMin() or bin_center > self.mjj_.getMax():
+					pull_histograms_fitted_range[fit_function].SetBinContent(bin, 0)
+					pull_histograms_fitted_range[fit_function].SetBinError(bin, 0)
+
 			#pull_histogram = frame_top.pullHist("Data", "B Fit")
 		frame_bottom = TH1D("frame_bottom", "frame_bottom", 100, x_min, x_max)
 		frame_bottom.SetMinimum(-5.)
@@ -440,8 +462,13 @@ class MjjFit:
 		for fit_function in fit_functions:
 			pull_histograms[fit_function].SetLineColor(seaborn.GetColorRoot("default", style_counter))
 			pull_histograms[fit_function].SetLineWidth(2)
-			pull_histograms[fit_function].SetLineStyle(1)
+			pull_histograms[fit_function].SetLineStyle(2)
 			pull_histograms[fit_function].Draw("hist same")
+
+			pull_histograms_fitted_range[fit_function].SetLineColor(seaborn.GetColorRoot("dark", style_counter))
+			pull_histograms_fitted_range[fit_function].SetLineWidth(2)
+			pull_histograms_fitted_range[fit_function].SetLineStyle(1)
+			pull_histograms_fitted_range[fit_function].Draw("hist same")
 			style_counter += 1
 		#pull_histogram.GetXaxis().SetTitle("m_{jj} [GeV]")
 		#pull_histogram.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
