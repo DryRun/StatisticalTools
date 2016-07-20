@@ -78,10 +78,10 @@ class MjjFit:
 		self.fit_parameters = {}
 
 		# Trigger correction
-		trigbbl_efficiency_ = TF1("trigbbl_efficiency", "(0.5 * (1 + TMath::Erf((x-[0])/[1])))**[2]", 175, 400)
-		trigbbl_efficiency_.SetParameter(0, -6.50036e+01)
-		trigbbl_efficiency_.SetParameter(1,  1.44923e+02)
-		trigbbl_efficiency_.SetParameter(2,  8.04812e+01)
+		self.trigbbl_efficiency_ = TF1("trigbbl_efficiency", "(0.5 * (1 + TMath::Erf((x-[0])/[1])))**[2]", 175, 400)
+		self.trigbbl_efficiency_.SetParameter(0, -6.50036e+01)
+		self.trigbbl_efficiency_.SetParameter(1,  1.44923e+02)
+		self.trigbbl_efficiency_.SetParameter(2,  8.04812e+01)
 
 	def add_data(self, data_histogram, luminosity):
 		print "[MjjFit.add_data] INFO : Adding data histogram"
