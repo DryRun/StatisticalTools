@@ -488,6 +488,7 @@ if __name__ == "__main__":
 	parser.add_argument("--fixed_signal", type=str, help='Signal model(s) to plot, normalized to expected cross sections')
 	parser.add_argument("--plot", action="store_true", help="Plot mjj spectra and fits. Background fit is always plotted; signal fits are plotted if --signal is specified.")
 	parser.add_argument("--x_range", type=int, nargs=2, help="Plot xrange")
+	parser.add_argument('--backgrounds', type=str, help='Backgrounds to subtract (comma-separated list)')
 
 	# Fit options
 	parser.add_argument("-l", "--lumi", dest="lumi",
@@ -528,6 +529,15 @@ if __name__ == "__main__":
 	if "trigbbl" in args.analysis_name:
 		mjj_fit.correct_trigger()
 	data_file.Close()
+
+	if args.backgrounds:
+		backgrounds = args.backgrounds.split(",")
+		for background in backgrounds:
+			background_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, background), "READ")
+			input_nevents = background_file.Get("BHistograms/h_input_nevents").Integral()
+			background_histogram = background_file.Get("BHistograms/h_pfjet_mjj")
+			background_histogram.Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents)
+			mjj_fit.add_background(background_histogram, background)
 
 	signal_models = []
 	if args.signal:
