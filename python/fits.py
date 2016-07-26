@@ -62,12 +62,18 @@ class MjjFit:
 	def __init__(self, mass_range=[0., 2000.]):
 		self.data_histogram_ = None
 		self.data_roohistogram_ = None
-		self.luminosity_ = 0.
-		self.collision_energy_ = 8000.
+		self.data_minus_background_histogram_ = None
+
+		self.backgrounds_ = []
+		self.background_histograms_ = {}
+
 		self.signal_histograms_ = {}
 		self.signal_roohistograms_ = {}
 		self.signal_names_ = []
 		self.signal_initial_normalizations_ = {}
+
+		self.luminosity_ = 0.
+		self.collision_energy_ = 8000.
 
 		# Fit storage
 		self.simple_fit_ = None
@@ -78,6 +84,7 @@ class MjjFit:
 		self.fit_parameters = {}
 
 		# Trigger correction
+		self.trigger_correction_applied_ = False
 		self.trigbbl_efficiency_ = TF1("trigbbl_efficiency", "(1. / (1. + TMath::Exp(-1. * (x - [0]) / [1])))**[2]", 175, 400)
 		self.trigbbl_efficiency_.SetParameter(0, 1.82469e+02)
 		self.trigbbl_efficiency_.SetParameter(1,  2.87768e+01)
@@ -87,12 +94,20 @@ class MjjFit:
 		print "[MjjFit.add_data] INFO : Adding data histogram"
 		# Add a data histogram
 		self.data_histogram_ = data_histogram.Clone()
-		self.data_histogram_.SetDirectory(0)		
-		self.data_roohistogram_ = RooDataHist('data_roohistogram','data_roohistogram',RooArgList(self.mjj_),self.data_histogram_)
-		self.data_roohistogram_.Print()
+		self.data_histogram_.SetDirectory(0)
+		self.data_minus_background_histogram_ = self.data_histogram_.Clone()
 		self.luminosity_ = luminosity
 
+	def add_background(self, background_histogram, background):
+		if self.trigger_correction_applied_:
+			raise Exception("Attempt to subtract background after correcting for trigger. For consistency, all backgrounds must be subtracted before correcting.")
+		self.backgrounds_.append(background)
+		self.background_histograms_[background] = background_histogram.Clone()
+		self.background_histograms_[background].SetDirectory(0)
+		self.data_minus_background_histogram_.Add(self.background_histograms_[background], -1)
+
 	def correct_trigger(self):
+		self.trigger_correction_applied_ = True
 		print "[MjjFit.correct_trigger] INFO : Correcting trigger efficiency using Jet60_Jet53"
 		if not self.data_histogram_:
 			print "[MjjFit.correct_trigger] ERROR : Call to correct_trigger before add_data"
@@ -104,6 +119,9 @@ class MjjFit:
 				self.data_histogram_.SetBinContent(bin, self.data_histogram_.GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 				self.data_histogram_.SetBinError(bin, self.data_histogram_.GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 
+				for background in self.backgrounds_:
+					self.backround_histograms_[background].SetBinContent(bin, self.backround_histograms_[background].GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
+					self.backround_histograms_[background].SetBinError(bin, self.backround_histograms_[background].GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 
 	def add_signal(self, signal_name, signal_histogram):
 		print "[MjjFit.add_signal] INFO : Adding signal histogram " + signal_name
@@ -230,6 +248,11 @@ class MjjFit:
 	def fit(self, fit_function, save_to, fit_options, signal_name=None, fit_strategy=1):
 		print "[MjjFit::fit] INFO : Fitting with function " + fit_function + ", save_to = " + save_to
 		# Run a RooFit fit
+
+		# Make data roohistogram
+		self.data_roohistogram_ = RooDataHist('data_roohistogram','data_roohistogram',RooArgList(self.mjj_),self.data_minus_background_histogram_)
+		self.data_roohistogram_.Print()
+
 		# Create background PDF
 		background_pdf = self.make_background_pdf(fit_function)
 		background_pdf.Print()
@@ -506,15 +529,15 @@ if __name__ == "__main__":
 						help="Upper bound of the mass range used for plotting (default: %(default)s)",
 						metavar="MASS_MAX")
 
-	parser.add_argument("--fit_min_mjj", dest="fit_min_mjj",
-						default=500., type=float,
-						help="Lower bound of the mass range used for fitting (default: %(default)s)",
-						metavar="MASS_MIN")
+	#parser.add_argument("--fit_min_mjj", dest="fit_min_mjj",
+	#					default=500., type=float,
+	#					help="Lower bound of the mass range used for fitting (default: %(default)s)",
+	#					metavar="MASS_MIN")
 
-	parser.add_argument("--fit_max_mjj", dest="fit_max_mjj",
-						default=1500., type=float,
-						help="Upper bound of the mass range used for fitting (default: %(default)s)",
-						metavar="MASS_MAX")
+	#parser.add_argument("--fit_max_mjj", dest="fit_max_mjj",
+	#					default=1500., type=float,
+	#					help="Upper bound of the mass range used for fitting (default: %(default)s)",
+	#					metavar="MASS_MAX")
 
 	args = parser.parse_args()
 
@@ -530,14 +553,14 @@ if __name__ == "__main__":
 		mjj_fit.correct_trigger()
 	data_file.Close()
 
-	if args.backgrounds:
-		backgrounds = args.backgrounds.split(",")
-		for background in backgrounds:
-			background_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, background), "READ")
-			input_nevents = background_file.Get("BHistograms/h_input_nevents").Integral()
-			background_histogram = background_file.Get("BHistograms/h_pfjet_mjj")
-			background_histogram.Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents)
-			mjj_fit.add_background(background_histogram, background)
+	#if args.backgrounds:
+	#	backgrounds = args.backgrounds.split(",")
+	#	for background in backgrounds:
+	#		background_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, background), "READ")
+	#		input_nevents = background_file.Get("BHistograms/h_input_nevents").Integral()
+	#		background_histogram = background_file.Get("BHistograms/h_pfjet_mjj")
+	#		background_histogram.Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents)
+	#		mjj_fit.add_background(background_histogram, background)
 
 	signal_models = []
 	if args.signal:
