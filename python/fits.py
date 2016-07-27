@@ -62,14 +62,15 @@ class MjjFit:
 	def __init__(self, mass_range=[0., 2000.]):
 		self.data_histogram_ = None
 		self.data_roohistogram_ = None
-		self.data_minus_background_histogram_ = None
 
 		self.backgrounds_ = []
 		self.background_histograms_ = {}
+		self.background_dnorm_ = {}
 
+		self.signals_ = []
 		self.signal_histograms_ = {}
 		self.signal_roohistograms_ = {}
-		self.signal_names_ = []
+		#self.signal_names_ = []
 		self.signal_initial_normalizations_ = {}
 
 		self.luminosity_ = 0.
@@ -95,16 +96,15 @@ class MjjFit:
 		# Add a data histogram
 		self.data_histogram_ = data_histogram.Clone()
 		self.data_histogram_.SetDirectory(0)
-		self.data_minus_background_histogram_ = self.data_histogram_.Clone()
 		self.luminosity_ = luminosity
 
-	def add_background(self, background_histogram, background):
+	def add_background(self, background_histogram, background, normalization_uncertainty = 0):
 		if self.trigger_correction_applied_:
 			raise Exception("Attempt to subtract background after correcting for trigger. For consistency, all backgrounds must be subtracted before correcting.")
 		self.backgrounds_.append(background)
 		self.background_histograms_[background] = background_histogram.Clone()
 		self.background_histograms_[background].SetDirectory(0)
-		self.data_minus_background_histogram_.Add(self.background_histograms_[background], -1)
+		self.background_dnorm_[background] = normalization_uncertainty
 
 	def correct_trigger(self):
 		self.trigger_correction_applied_ = True
@@ -120,17 +120,23 @@ class MjjFit:
 				self.data_histogram_.SetBinError(bin, self.data_histogram_.GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 
 				for background in self.backgrounds_:
-					self.backround_histograms_[background].SetBinContent(bin, self.backround_histograms_[background].GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
-					self.backround_histograms_[background].SetBinError(bin, self.backround_histograms_[background].GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
+					self.background_histograms_[background].SetBinContent(bin, self.background_histograms_[background].GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
+					self.background_histograms_[background].SetBinError(bin, self.background_histograms_[background].GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
+
+				for signal in self.signals_:
+					self.signal_histograms_[background].SetBinContent(bin, self.signal_histograms_[background].GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
+					self.signal_histograms_[background].SetBinError(bin, self.signal_histograms_[background].GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 
 	def add_signal(self, signal_name, signal_histogram):
 		print "[MjjFit.add_signal] INFO : Adding signal histogram " + signal_name
+		if self.trigger_correction_applied_:
+			raise Exception("Attempt to subtract background after correcting for trigger. For consistency, all backgrounds must be subtracted before correcting.")
 		# Add a signal histogram. 
 		# Scale to sigma=1 (in whatever units the data luminosity is given in), so the 'r' parameter corresponds to the limit on the cross section.
 		if self.luminosity_ == 0:
 			print "[MjjFit.add_signal] ERROR : Please set luminosity first (MjjFit.set_luminosity(###))."
 			sys.exit(1)
-		self.signal_names_.append(signal_name)
+		self.signals_.append(signal_name)
 		self.signal_histograms_[signal_name] = signal_histogram.Clone()
 		self.signal_histograms_[signal_name].SetDirectory(0)
 		self.signal_initial_normalizations_[signal_name] = self.signal_histograms_[signal_name].Integral()
@@ -250,32 +256,51 @@ class MjjFit:
 		# Run a RooFit fit
 
 		# Make data roohistogram
-		self.data_roohistogram_ = RooDataHist('data_roohistogram','data_roohistogram',RooArgList(self.mjj_),self.data_minus_background_histogram_)
+		self.data_roohistogram_ = RooDataHist('data_roohistogram','data_roohistogram',RooArgList(self.mjj_),self.data_histogram_)
 		self.data_roohistogram_.Print()
 
 		# Create background PDF
-		background_pdf = self.make_background_pdf(fit_function)
-		background_pdf.Print()
+		background_pdfs = {}
+		background_epdfs = {}
+		background_normalizations = {}
+		background_constraints = {}
+		background_epdf_list = RooArgList("background_epdfs")
+		background_constraint_list = RooArgSet("background_constraints")
+		for background in self.backgrounds_:
+			background_pdfs[background]           = RooHistPdf(background + "_pdf", background + "_pdf", RooArgSet(self.mjj_), RooDataHist(self.background_histograms_[background].GetName() + "_rdf", self.background_histograms_[background].GetName() + "_rdh", RooArgList(self.mjj_), self.background_histograms_[background]))
+			background_normalizations[background] = RooRealVar(background + "_n", background + "_n", self.background_histograms_[background].Integral())
+			background_epdfs[background]          = RooExtendPdf(background + "_epdf", background + "_epdf", background_pdfs[background], background_normalizations[background])
+			background_epdf_list.add(background_epdfs[background])
+			if self.background_dnorm_[background] > 0:
+				background_constraints[background] = RooGaussian(background + "_constraint", background + "_constraint", background_normalizations[background], RooConst(background_normalizations[background] * (1. - self.background_dnorm_[background])), RooConst(background_normalizations[background] * (1. + self.background_dnorm_[background])))
+				background_constraint_list.add(background_constraints[background])
+			else:
+				background_normalizations[background].setConstant(True)
+		background_pdfs["fit"] = self.make_background_pdf(fit_function)
+		background_epdfs["fit"] = RooExtendPdf("fit_epdf", "fit_epdf", background_pdfs["fit"])
 		data_integral = self.data_histogram_.Integral(self.data_histogram_.GetXaxis().FindBin(float(fit_options["min_mjj"])),self.data_histogram_.GetXaxis().FindBin(float(fit_options["max_mjj"])))
-		background_norm = RooRealVar('background_norm','background_norm',data_integral,0.,1e+08)
-		background_norm.Print()
+		background_normalizations["fit"] = RooRealVar('background_norm','background_norm',data_integral,0.,data_integral * 1.e4)
+		background_epdf_list.add(background_epdfs[background])
+
+		background_model = RooAddPdf("total_background", "b", background_epdf_list)
 
 		# Create signal PDF and fit model
 		if signal_name:
 			signal_pdf = RooHistPdf('signal_pdf', 'signal_pdf', RooArgSet(self.mjj_), self.signal_roohistograms_[signal_name])
-			signal_pdf.Print()
+			#signal_pdf.Print()
 			signal_norm = RooRealVar('signal_norm','signal_norm',0,-1e+05,1e+05)
-			signal_norm.Print()
+			signal_epdf = RooExtendPdf("signal_epdf", "signal_epdf", signal_pdf, signal_norm)
+			#signal_norm.Print()
 			signal_initial_norm = RooRealVar('signal_initial_norm', 'signal_initial_norm', self.signal_initial_normalizations_[signal_name])
-			model = RooAddPdf("model_" + fit_function,"s+b",RooArgList(background_pdf,signal_pdf),RooArgList(background_norm,signal_norm))
+			model = RooAddPdf("model_" + fit_function,"s+b",RooArgList(background_model,signal_epdf))
 		else:
-			model = RooAddPdf("model_" + fit_function,"b",RooArgList(background_pdf),RooArgList(background_norm))
+			model = RooAddPdf("model_" + fit_function,"b",RooArgList(background_model))
 
 		# Run fit
 		if fit_options.has_key("fit_range"):
-			res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.Range(fit_options["fit_range"][0], fit_options["fit_range"][1]))
+			res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.Range(fit_options["fit_range"][0], fit_options["fit_range"][1]), RooFit.ExternalConstraints(background_constraint_list))
 		else:
-			res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy))
+			res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.ExternalConstraints(background_constraint_list))
 
 		# Save to workspace
 		self.workspace_ = RooWorkspace('w','workspace')
@@ -549,18 +574,28 @@ if __name__ == "__main__":
 	mjj_fit = MjjFit([fit_options["min_mjj"], fit_options["max_mjj"]])
 	data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, args.data_sample), "READ")
 	mjj_fit.add_data(data_file.Get("BHistograms/h_pfjet_mjj"), args.lumi)
-	if "trigbbl" in args.analysis_name:
-		mjj_fit.correct_trigger()
 	data_file.Close()
 
-	#if args.backgrounds:
-	#	backgrounds = args.backgrounds.split(",")
-	#	for background in backgrounds:
-	#		background_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, background), "READ")
-	#		input_nevents = background_file.Get("BHistograms/h_input_nevents").Integral()
-	#		background_histogram = background_file.Get("BHistograms/h_pfjet_mjj")
-	#		background_histogram.Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents)
-	#		mjj_fit.add_background(background_histogram, background)
+	if args.backgrounds:
+		backgrounds = args.backgrounds.split(",")
+		for background in backgrounds:
+			if analysis_config.simulation.background_supersamples.has_key(background):
+				first = True
+				for subbackground in analysis_config.simulation.background_supersamples[background]:
+					background_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, subbackground), "READ")
+					input_nevents = background_file.Get("BHistograms/h_input_nevents").Integral()
+					if first:
+						background_histogram = background_file.Get("BHistograms/h_pfjet_mjj").Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents).Clone()
+						background_histogram.SetDirectory(0)
+					else:
+						background_histogram.Add(background_file.Get("BHistograms/h_pfjet_mjj").Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents))
+					background_file.Close()
+			else:
+				background_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, background), "READ")
+				input_nevents = background_file.Get("BHistograms/h_input_nevents").Integral()
+				background_histogram = background_file.Get("BHistograms/h_pfjet_mjj")
+				background_histogram.Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents)
+			mjj_fit.add_background(background_histogram, background, analysis_config.simulation.background_cross_section_uncertainties[background])
 
 	signal_models = []
 	if args.signal:
@@ -569,6 +604,10 @@ if __name__ == "__main__":
 			signal_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, args.data_sample), "READ")
 			mjj_fit.add_signal(signal_model, signal_file.Get("BHistograms/h_pfjet_mjj"))
 			signal_file.Close()
+
+	# For trigbbl, apply a trigger correction. This has to be done after loading all the histograms.
+	if "trigbbl" in args.analysis_name:
+		mjj_fit.correct_trigger()
 
 	if args.fit:
 		for fit_function in ["f1", "f2", "f3", "f4", "f5"]:
