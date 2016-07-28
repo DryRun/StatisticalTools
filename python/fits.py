@@ -65,6 +65,7 @@ class MjjFit:
 
 		self.backgrounds_ = []
 		self.background_histograms_ = {}
+		self.background_initial_normalizations_ = {}
 		self.background_dnorm_ = {}
 
 		self.signals_ = []
@@ -79,6 +80,7 @@ class MjjFit:
 		# Fit storage
 		self.simple_fit_ = None
 		self.mjj_ = RooRealVar('mjj','mjj',float(mass_range[0]),float(mass_range[1]))
+		self.fit_range_ = mass_range
 		#self.mjj_.setRange("fit_range", float(mass_range[0]), float(mass_range[1]))
 		#self.workspace_ = None
 		self.saved_workspaces_ = {}
@@ -90,6 +92,9 @@ class MjjFit:
 		self.trigbbl_efficiency_.SetParameter(0, 1.82469e+02)
 		self.trigbbl_efficiency_.SetParameter(1,  2.87768e+01)
 		self.trigbbl_efficiency_.SetParameter(2,  9.11659e-01)
+
+	def set_fit_range(self, fit_range):
+		self.fit_range_ = fit_range
 
 	def add_data(self, data_histogram, luminosity):
 		print "[MjjFit.add_data] INFO : Adding data histogram"
@@ -104,6 +109,7 @@ class MjjFit:
 		self.backgrounds_.append(background)
 		self.background_histograms_[background] = background_histogram.Clone()
 		self.background_histograms_[background].SetDirectory(0)
+		self.background_initial_normalizations_[background] = self.background_histograms_[background].Integral()
 		self.background_dnorm_[background] = normalization_uncertainty
 
 	def correct_trigger(self):
@@ -115,13 +121,14 @@ class MjjFit:
 		for bin in xrange(1, self.data_histogram_.GetNbinsX() + 1):
 			bin_center = self.data_histogram_.GetXaxis().GetBinCenter(bin)
 			if bin_center > self.trigbbl_efficiency_.GetXmin() and bin_center < self.trigbbl_efficiency_.GetXmax():
-				print "[MjjFit.correct_trigger] DEBUG : For mjj=" + str(bin_center) + ", applying correction " + str(1. / self.trigbbl_efficiency_.Eval(bin_center))
 				self.data_histogram_.SetBinContent(bin, self.data_histogram_.GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 				self.data_histogram_.SetBinError(bin, self.data_histogram_.GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 
 				for background in self.backgrounds_:
 					self.background_histograms_[background].SetBinContent(bin, self.background_histograms_[background].GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
 					self.background_histograms_[background].SetBinError(bin, self.background_histograms_[background].GetBinError(bin) / self.trigbbl_efficiency_.Eval(bin_center))
+					# Recompute background normalization!
+					self.background_initial_normalizations_[background] = self.background_histograms_[background].Integral()
 
 				for signal in self.signals_:
 					self.signal_histograms_[background].SetBinContent(bin, self.signal_histograms_[background].GetBinContent(bin) / self.trigbbl_efficiency_.Eval(bin_center))
@@ -262,25 +269,31 @@ class MjjFit:
 		# Create background PDF
 		background_pdfs = {}
 		background_epdfs = {}
+		background_rdhs = {}
 		background_normalizations = {}
 		background_constraints = {}
 		background_epdf_list = RooArgList("background_epdfs")
 		background_constraint_list = RooArgSet("background_constraints")
 		for background in self.backgrounds_:
-			background_pdfs[background]           = RooHistPdf(background + "_pdf", background + "_pdf", RooArgSet(self.mjj_), RooDataHist(self.background_histograms_[background].GetName() + "_rdf", self.background_histograms_[background].GetName() + "_rdh", RooArgList(self.mjj_), self.background_histograms_[background]))
-			background_normalizations[background] = RooRealVar(background + "_n", background + "_n", self.background_histograms_[background].Integral())
+			print "[debug] Creating background RooHistPdf for background " + background
+			print "[debug] \tInput = histogram ",
+			print self.background_histograms_[background],
+			print " with integral " + str(self.background_histograms_[background].Integral())
+			background_rdhs[background] = RooDataHist(self.background_histograms_[background].GetName() + "_rdf", self.background_histograms_[background].GetName() + "_rdh", RooArgList(self.mjj_), self.background_histograms_[background])
+			background_pdfs[background]           = RooHistPdf(background + "_pdf", background + "_pdf", RooArgSet(self.mjj_), background_rdhs[background])
+			background_normalizations[background] = RooRealVar(background + "_norm", background + "_norm", self.background_initial_normalizations_[background], 0., self.background_initial_normalizations_[background] * 2.)
 			background_epdfs[background]          = RooExtendPdf(background + "_epdf", background + "_epdf", background_pdfs[background], background_normalizations[background])
 			background_epdf_list.add(background_epdfs[background])
 			if self.background_dnorm_[background] > 0:
-				background_constraints[background] = RooGaussian(background + "_constraint", background + "_constraint", background_normalizations[background], RooConst(background_normalizations[background] * (1. - self.background_dnorm_[background])), RooConst(background_normalizations[background] * (1. + self.background_dnorm_[background])))
+				background_constraints[background] = RooGaussian(background + "_constraint", background + "_constraint", background_normalizations[background], RooFit.RooConst(self.background_initial_normalizations_[background]), RooFit.RooConst(self.background_initial_normalizations_[background] * self.background_dnorm_[background]))
 				background_constraint_list.add(background_constraints[background])
 			else:
 				background_normalizations[background].setConstant(True)
 		background_pdfs["fit"] = self.make_background_pdf(fit_function)
-		background_epdfs["fit"] = RooExtendPdf("fit_epdf", "fit_epdf", background_pdfs["fit"])
 		data_integral = self.data_histogram_.Integral(self.data_histogram_.GetXaxis().FindBin(float(fit_options["min_mjj"])),self.data_histogram_.GetXaxis().FindBin(float(fit_options["max_mjj"])))
-		background_normalizations["fit"] = RooRealVar('background_norm','background_norm',data_integral,0.,data_integral * 1.e4)
-		background_epdf_list.add(background_epdfs[background])
+		background_normalizations["fit"] = RooRealVar('fit_norm','fit_norm',data_integral,0.,data_integral * 1.e4)
+		background_epdfs["fit"] = RooExtendPdf("fit_epdf", "fit_epdf", background_pdfs["fit"], background_normalizations["fit"])
+		background_epdf_list.add(background_epdfs["fit"])
 
 		background_model = RooAddPdf("total_background", "b", background_epdf_list)
 
@@ -294,21 +307,36 @@ class MjjFit:
 			signal_initial_norm = RooRealVar('signal_initial_norm', 'signal_initial_norm', self.signal_initial_normalizations_[signal_name])
 			model = RooAddPdf("model_" + fit_function,"s+b",RooArgList(background_model,signal_epdf))
 		else:
-			model = RooAddPdf("model_" + fit_function,"b",RooArgList(background_model))
+			model = background_model
+			#model = RooAddPdf("model_" + fit_function,"b",RooArgList(background_model))
 
 		# Run fit
-		if fit_options.has_key("fit_range"):
-			res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.Range(fit_options["fit_range"][0], fit_options["fit_range"][1]), RooFit.ExternalConstraints(background_constraint_list))
-		else:
-			res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.ExternalConstraints(background_constraint_list))
+		res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.Range(float(self.fit_range_[0]), float(self.fit_range_[1])), RooFit.ExternalConstraints(background_constraint_list))
+
+		# Print some results
+		print "Background normalizations:"
+		for background, var in background_normalizations.iteritems():
+			var.Print()
+		print "Constraints:"
+		for background, var in background_constraints.iteritems():
+			var.Print()
+
 
 		# Save to workspace
 		self.workspace_ = RooWorkspace('w','workspace')
 		#getattr(w,'import')(background,ROOT.RooCmdArg())
-		getattr(self.workspace_,'import')(background_pdf,RooFit.Rename("background"))
-		getattr(self.workspace_,'import')(background_norm,ROOT.RooCmdArg())
+		print model
+		model.Print()
+		getattr(self.workspace_, 'import')(model, RooFit.Rename("total_background_model"))
+		for background in background_epdfs.keys():
+			getattr(self.workspace_,'import')(background_epdfs[background],RooFit.Rename("background_epdf_" + background))
+		for background in background_normalizations.keys():
+			getattr(self.workspace_,'import')(background_normalizations[background],ROOT.RooCmdArg())
+		for background in self.backgrounds_:
+			getattr(self.workspace_,'import')(RooRealVar(background + '_initial_norm', 'background_' + background + '_initial_norm', self.background_initial_normalizations_[background], 0., self.background_initial_normalizations_[background]*1.e3), ROOT.RooCmdArg())
+		for background in background_constraints.keys():
+			getattr(self.workspace_,'import')(background_constraints[background],ROOT.RooCmdArg())
 		getattr(self.workspace_,'import')(self.data_roohistogram_,RooFit.Rename("data_obs"))
-		getattr(self.workspace_, 'import')(model, RooFit.Rename("model"))
 		getattr(self.workspace_, 'import')(res)
 		if signal_name:
 			getattr(self.workspace_,'import')(self.signal_roohistograms_[signal_name],RooFit.Rename("signal"))
@@ -324,6 +352,231 @@ class MjjFit:
 			self.saved_workspaces_["background"] = save_to
 
 		print "[MjjFit::fit] INFO : Done with fit."
+
+	def rooplot(self, save_tag, fit_functions, background_workspaces, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1):
+		print "RooPlotting " + save_tag
+		c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
+		l = TLegend(0.55, 0.6, 0.88, 0.88)
+		l.SetFillColor(0)
+		l.SetBorderSize(0)
+		top = TPad("top", "top", 0., 0.5, 1., 1.)
+		top.SetBottomMargin(0.03)
+		top.Draw()
+		if log:
+			top.SetLogy()
+		c.cd()
+		bottom = TPad("bottom", "bottom", 0., 0., 1., 0.5)
+		bottom.SetTopMargin(0.02)
+		bottom.SetBottomMargin(0.2)
+		bottom.Draw()
+		ROOT.SetOwnership(c, False)
+		ROOT.SetOwnership(top, False)
+		ROOT.SetOwnership(bottom, False)
+		top.cd()
+
+		# Make data histogram
+		data_hist_raw = self.data_histogram_.Clone()
+
+		if data_binning:
+			data_hist = data_hist_raw.Rebin(len(data_binning) - 1, "data_hist_rebinned", data_binning)
+			for bin in xrange(1, data_hist.GetNbinsX() + 1):
+				data_hist.SetBinContent(bin, data_hist.GetBinContent(bin) / data_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
+				data_hist.SetBinError(bin, data_hist.GetBinError(bin) / data_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
+			roobinning = RooBinning(len(data_binning) - 1, data_binning, "data_binning")
+		else:
+			data_hist = data_hist_raw
+			bins_array = array('d', [])
+			for bin in xrange(1, data_hist.GetNbinsX() + 1):
+				bins_array.append(data_hist.GetXaxis().GetBinLowEdge(bin))
+			bins_array.append(data_hist.GetXaxis().GetBinUpEdge(data_hist.GetNbinsX()))
+			roobinning = RooBinning(len(bins_array) - 1, bins_array, "data_binning")
+
+		if x_range:
+			x_min = x_range[0]
+			x_max = x_range[1]
+		else:
+			x_min = self.mjj_.GetMin()
+			x_max = self.mjj_.GetMax()
+		frame_top = TH1D("frame_top", "frame_top", 100, x_min, x_max)
+		if log:
+			frame_top.SetMaximum(data_hist.GetMaximum() * 50.)
+			frame_top.SetMinimum(0.1)
+		else:
+			frame_top.SetMaximum(data_hist.GetMaximum() * 1.3)
+			frame_top.SetMinimum(0.)
+		frame_top.GetYaxis().SetTitle("Events / " + str(normalization_bin_width) + " GeV")
+		frame_top.GetXaxis().SetTitleSize(0)
+		frame_top.GetXaxis().SetLabelSize(0)
+		#if log:
+		#	frame_top.SetMaximum(y_max * 10.)
+		#	frame_top.SetMinimum(y_min / 100.)
+		#else:
+		#	frame_top.SetMaximum(y_max * 1.3)
+		#	frame_top.SetMinimum(0.)
+		frame_top.Draw()
+		#data_rdh.plotOn(frame_top, RooFit.Name("Data"))
+		data_hist.SetMarkerStyle(20)
+		data_hist.SetMarkerColor(1)
+		data_hist.SetMarkerSize(1)
+		data_hist.Draw("p same")
+		l.AddEntry(data_hist, "Data", "pl")
+
+
+
+		background_histograms = {}
+		background_histograms_fitted_range = {}
+		mc_stack = THStack("mc_stack", "")
+		style_counter = 0
+		for fit_function in fit_functions:
+			f_workspace = TFile(background_workspaces[fit_function], "READ")
+			workspace = f_workspace.Get("w")
+
+			# First time: scale the MC histograms
+			if style_counter == 0:
+				mc_stack = THStack("mc_stack", "")
+				mc_counter = 0
+				for mc_background in self.backgrounds_:
+					mc_background_pdf = workspace.pdf(mc_background + "_epdf")
+					background_histograms[background] = mc_background_pdf.createHistogram(mc_background, self.mjj_, RooFit.Binning(roobinning), RooFit.Extended(True))
+					background_histograms[background].SetDirectory(0)
+					background_histograms[background].SetFillColor(seaborn.GetColorRoot("default", mc_counter))
+					mc_stack.Add(background_histograms[background])
+					l.AddEntry(background_histograms[background], background, "f")
+					mc_counter += 1
+				mc_stack.Draw("hist same")
+
+			# Make TF1 from fit background
+			fitresult_name = "fitresult_total_background_data_roohistogram"
+			fitresult = workspace.genobj(fitresult_name)
+			fitresult.Print()
+			background_tf1 = self.make_background_tf1_from_roofitresult(fit_function, fitresult, mjj_range=x_range)
+			fit_normalization = workspace.var("fit_norm").getVal()
+			scale_factor = fit_normalization / background_tf1.Integral(self.mjj_.getMin(), self.mjj_.getMax())
+			background_tf1.SetParameter(0, background_tf1.GetParameter(0) * scale_factor)
+
+			print "[MjjFit::plot] INFO : Normalizing fit to data over range [" + str(self.mjj_.getMin()) + ", " + str(self.mjj_.getMax()) + "]"
+			data_integral = data_hist.Integral(data_hist.GetXaxis().FindBin(self.mjj_.getMin()), data_hist.GetXaxis().FindBin(self.mjj_.getMax()), "width")
+			integration_xmin = data_hist.GetXaxis().GetBinLowEdge(data_hist.GetXaxis().FindBin(self.mjj_.getMin()))
+			integration_xmax = data_hist.GetXaxis().GetBinUpEdge(data_hist.GetXaxis().FindBin(self.mjj_.getMax()))
+			scale_factor = data_integral / background_tf1s[fit_function].Integral(integration_xmin, integration_xmax)
+			background_tf1s[fit_function].SetParameter(0, background_tf1s[fit_function].GetParameter(0) * scale_factor)
+			background_tf1s[fit_function].SetParError(0, background_tf1s[fit_function].GetParError(0) * scale_factor)
+			background_tf1s[fit_function].SetLineColor(seaborn.GetColorRoot("default", style_counter))
+			background_tf1s[fit_function].SetLineWidth(1)
+			background_tf1s[fit_function].SetLineStyle(2)
+			background_tf1s[fit_function].Draw("l same")
+
+			background_tf1s_fitted_range[fit_function] = background_tf1s[fit_function].Clone()
+			background_tf1s_fitted_range[fit_function].SetRange(self.mjj_.getMin(), self.mjj_.getMax())
+			background_tf1s_fitted_range[fit_function].SetLineColor(seaborn.GetColorRoot("dark", style_counter))
+			background_tf1s_fitted_range[fit_function].SetLineWidth(2)
+			background_tf1s_fitted_range[fit_function].SetLineStyle(1)
+			background_tf1s_fitted_range[fit_function].Draw("l same")
+
+
+
+
+			background_pdf = workspace.pdf("total_background")
+			background_histograms[fit_function] = background_pdf.createHistogram("total_background_" + fit_function, self.mjj_, RooFit.Binning(roobinning), RooFit.Extended(True))
+			background_histograms[fit_function].SetDirectory(0)
+
+			background_histograms[fit_function].SetLineColor(seaborn.GetColorRoot("default", style_counter))
+			background_histograms[fit_function].SetLineWidth(1)
+			background_histograms[fit_function].SetLineStyle(2)
+			background_histograms[fit_function].Draw("hist same")
+
+			background_histograms_fitted_range[fit_function] = background_histograms[fit_function].Clone()
+			background_histograms_fitted_range[fit_function].SetDirectory(0)
+			low_bin = background_histograms[fit_function].GetXaxis().FindBin(self.mjj_.getMin())
+			high_bin = background_histograms[fit_function].GetXaxis().FindBin(self.mjj_.getMax())
+			for bin in xrange(1, background_histograms[fit_function].GetNbinsX() + 1):
+				if bin < low_bin or bin > high_bin:
+					background_histograms_fitted_range[fit_function].SetBinContent(bin, 0)
+					background_histograms_fitted_range[fit_function].SetBinError(bin, 0)
+
+			background_histograms_fitted_range[fit_function].SetLineColor(seaborn.GetColorRoot("dark", style_counter))
+			background_histograms_fitted_range[fit_function].SetLineWidth(2)
+			background_histograms_fitted_range[fit_function].SetLineStyle(1)
+			background_histograms_fitted_range[fit_function].Draw("hist same")
+
+
+			l.AddEntry(background_histograms[fit_function], "Background " + fit_function, "l")
+
+			f_workspace.Close()
+			style_counter += 1
+
+		#background_pdf = w_background.pdf("background_pdf")
+		#background_hist_raw = background_pdf.createHistogram("mjj", 1000)
+		#background_hist_raw.Scale(data_integral / background_hist_raw.Integral())
+		#if data_binning:
+		#	background_hist = background_hist_raw.Rebin(len(data_binning) - 1, "background_hist_rebinned", data_binning)
+		#else:
+		#	background_hist = background_hist_raw
+		#for bin in xrange(1, data_hist.GetNbinsX() + 1):
+		#	background_hist.SetBinContent(bin, background_hist.GetBinContent(bin) / background_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
+		#	background_hist.SetBinError(bin, background_hist.GetBinError(bin) / background_hist.GetXaxis().GetBinWidth(bin) * normalization_bin_width)
+
+		#background_hist.SetLineColor(seaborn.GetColorRoot("default", 2))
+		#background_hist.SetLineStyle(1)
+		#background_hist.SetLineWidth(2)
+		#background_hist.Draw("hist same")
+		#background_pdf.plotOn(frame_top, RooFit.Name("B Fit"), RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(1), RooFit.LineWidth(2))
+
+		#l.AddEntry(background_hist, "B Fit", "l")
+
+		l.Draw()
+		
+		# Pull histogram
+		c.cd()
+		bottom.cd()
+		pull_histograms = {}
+		pull_histograms_fitted_range = {}
+		for fit_function in fit_functions:
+			pull_histograms[fit_function] = data_hist.Clone()
+			pull_histograms[fit_function].Reset()
+			for bin in xrange(1, data_hist.GetNbinsX() + 1):
+				if data_hist.GetBinError(bin) > 0:
+					pull = (data_hist.GetBinContent(bin) - background_histograms[fit_function].GetBinContent(bin)) / (data_hist.GetBinError(bin))
+				else:
+					pull = 0.
+				#print "[debug] Pull = " + str(pull)
+				pull_histograms[fit_function].SetBinContent(bin, pull)
+				pull_histograms[fit_function].SetBinError(bin, 0.)
+
+			pull_histograms_fitted_range[fit_function] = pull_histograms[fit_function].Clone()
+			for bin in xrange(1, pull_histograms_fitted_range[fit_function].GetNbinsX() + 1):
+				bin_center = pull_histograms_fitted_range[fit_function].GetXaxis().GetBinCenter(bin)
+				if bin_center < self.mjj_.getMin() or bin_center > self.mjj_.getMax():
+					pull_histograms_fitted_range[fit_function].SetBinContent(bin, 0)
+					pull_histograms_fitted_range[fit_function].SetBinError(bin, 0)
+
+			#pull_histogram = frame_top.pullHist("Data", "B Fit")
+		frame_bottom = TH1D("frame_bottom", "frame_bottom", 100, x_min, x_max)
+		frame_bottom.SetMinimum(-5.)
+		frame_bottom.SetMaximum(5.)
+		#pull_histogram.plotOn(frame_bottom, RooFit.Name(fit_pdf_name))
+		frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
+		frame_bottom.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Data)}")
+		frame_bottom.Draw()
+
+		style_counter = 0
+		for fit_function in fit_functions:
+			pull_histograms[fit_function].SetLineColor(seaborn.GetColorRoot("default", style_counter))
+			pull_histograms[fit_function].SetLineWidth(2)
+			pull_histograms[fit_function].SetLineStyle(2)
+			pull_histograms[fit_function].Draw("hist same")
+
+			pull_histograms_fitted_range[fit_function].SetLineColor(seaborn.GetColorRoot("dark", style_counter))
+			pull_histograms_fitted_range[fit_function].SetLineWidth(2)
+			pull_histograms_fitted_range[fit_function].SetLineStyle(1)
+			pull_histograms_fitted_range[fit_function].Draw("hist same")
+			style_counter += 1
+		#pull_histogram.GetXaxis().SetTitle("m_{jj} [GeV]")
+		#pull_histogram.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
+		#pull_histogram.Draw("same")
+		c.cd()
+
+		c.SaveAs("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures/c_" + save_tag + ".pdf")
 
 	# fitted_signal_shapes = list of fitted S(+B) shapes to plot.
 	# expected_signal_shapes = list of S shapes to plot, scaled to cross sections taken from configuration file
@@ -389,7 +642,6 @@ class MjjFit:
 		data_hist.Draw("p same")
 		l.AddEntry(data_hist, "Data", "pl")
 
-		style_counter = 0
 		#if fitted_signal_workspaces:
 		#	for fitted_signal_workspace in fitted_signal_workspaces:
 		#		# Load from workspace
@@ -413,6 +665,7 @@ class MjjFit:
 	#	#		self.signal_roohistograms_[signal_name].plotOn(frame_top, RooFit.Name(signal_name), RooFit.Rescale(cross_section * self.luminosity_ / self.signal_roohistograms_[signal_name].sum()), RooFit.LineColor(seaborn.GetColorRoot("pastel", style_counter)), RooFit.LineStyle(2), RooFit.LineWidth(2))
 		#		l.AddEntry(frame_top.findObject(signal_name), signal_name, "l")
 		#		style_counter += 1
+
 		background_tf1s = {}
 		background_tf1s_fitted_range = {}
 
@@ -469,6 +722,7 @@ class MjjFit:
 		#background_pdf.plotOn(frame_top, RooFit.Name("B Fit"), RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(1), RooFit.LineWidth(2))
 
 		#l.AddEntry(background_hist, "B Fit", "l")
+
 		l.Draw()
 		
 		# Pull histogram
@@ -545,19 +799,19 @@ if __name__ == "__main__":
 						metavar="LUMI")
 
 	parser.add_argument("--min_mjj", dest="min_mjj",
-						default=500., type=int,
-						help="Lower bound of the mass range used for plotting (default: %(default)s)",
+						default=0., type=int,
+						help="Min m(jj) considered (default: %(default)s)",
 						metavar="MASS_MIN")
 
 	parser.add_argument("--max_mjj", dest="max_mjj",
-						default=1500., type=int,
-						help="Upper bound of the mass range used for plotting (default: %(default)s)",
+						default=2000., type=int,
+						help="Max m(jj) considered (default: %(default)s)",
 						metavar="MASS_MAX")
 
-	#parser.add_argument("--fit_min_mjj", dest="fit_min_mjj",
-	#					default=500., type=float,
-	#					help="Lower bound of the mass range used for fitting (default: %(default)s)",
-	#					metavar="MASS_MIN")
+	parser.add_argument("--fit_range", dest="fit_range",
+						type=int, nargs=2,
+						help="m(jj) range used in fit (default: %(default)s)",
+						metavar="MASS_MIN")
 
 	#parser.add_argument("--fit_max_mjj", dest="fit_max_mjj",
 	#					default=1500., type=float,
@@ -571,7 +825,9 @@ if __name__ == "__main__":
 	fit_options["min_mjj"] = args.min_mjj
 	fit_options["max_mjj"] = args.max_mjj
 	#fit_options["fit_range"] = [args.fit_min_mjj, args.fit_max_mjj]
-	mjj_fit = MjjFit([fit_options["min_mjj"], fit_options["max_mjj"]])
+	mjj_fit = MjjFit([args.min_mjj, args.max_mjj])
+	if args.fit_range:
+		mjj_fit.set_fit_range(args.fit_range)
 	data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, args.data_sample), "READ")
 	mjj_fit.add_data(data_file.Get("BHistograms/h_pfjet_mjj"), args.lumi)
 	data_file.Close()
@@ -585,10 +841,11 @@ if __name__ == "__main__":
 					background_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, subbackground), "READ")
 					input_nevents = background_file.Get("BHistograms/h_input_nevents").Integral()
 					if first:
-						background_histogram = background_file.Get("BHistograms/h_pfjet_mjj").Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents).Clone()
+						background_histogram = background_file.Get("BHistograms/h_pfjet_mjj").Clone()
+						background_histogram.Scale(args.lumi * analysis_config.simulation.background_cross_sections[subbackground] / input_nevents)
 						background_histogram.SetDirectory(0)
 					else:
-						background_histogram.Add(background_file.Get("BHistograms/h_pfjet_mjj").Scale(args.lumi * analysis_config.simulation.background_cross_sections[background] / input_nevents))
+						background_histogram.Add(background_file.Get("BHistograms/h_pfjet_mjj").Scale(args.lumi * analysis_config.simulation.background_cross_sections[subbackground] / input_nevents))
 					background_file.Close()
 			else:
 				background_file = TFile(analysis_config.get_b_histogram_filename(args.analysis_name, background), "READ")
@@ -636,5 +893,5 @@ if __name__ == "__main__":
 			x_range = args.x_range
 		else:
 			x_range = [0., 2000.]
-		mjj_fit.plot("mjj_fits_" + args.analysis_name, fit_functions, background_workspaces, fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1.)
+		mjj_fit.rooplot("mjj_fits_" + args.analysis_name, fit_functions, background_workspaces, fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1.)
 
