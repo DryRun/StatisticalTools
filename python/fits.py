@@ -311,7 +311,7 @@ class MjjFit:
 			#model = RooAddPdf("model_" + fit_function,"b",RooArgList(background_model))
 
 		# Run fit
-		res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.Range(float(self.fit_range_[0]), float(self.fit_range_[1])), RooFit.ExternalConstraints(background_constraint_list))
+		res = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.Range(float(self.fit_range_[0]), float(self.fit_range_[1])), RooFit.ExternalConstraints(background_constraint_list), RooFit.Verbose(True))
 
 		# Print some results
 		print "Background normalizations:"
@@ -867,7 +867,8 @@ if __name__ == "__main__":
 		mjj_fit.correct_trigger()
 
 	if args.fit:
-		for fit_function in ["f1", "f2", "f3", "f4", "f5"]:
+		#for fit_function in ["f1", "f2", "f3", "f4", "f5"]:
+		for fit_function in ["f1"]:
 			mjj_fit.fit(fit_function, limit_paths.get_workspace_filename(args.analysis_name, "background_" + fit_function), fit_options)
 			for signal_model in signal_models:
 				mjj_fit.fit(fit_function, limit_paths.get_workspace_filename(args.analysis_name, signal_model), fit_options, signal_name=signal_model)
