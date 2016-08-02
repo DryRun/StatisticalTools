@@ -1,9 +1,10 @@
 paths = {}
-paths["limits"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Results/Limits/"
+paths["limits"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Limits/"
+paths["fits"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/"
 paths["datacards"] = paths["limits"] + "/datacards/"
-paths["workspaces"] = paths["limits"] + "/workspaces/"
-paths["condor"] = paths["limits"] + "/condor/"
-paths["resonance_shapes"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Results/ResonanceShapes/"
+paths["workspaces"] = paths["fits"] + "/workspaces/"
+#paths["condor"] = paths["fits"] + "/condor/"
+paths["resonance_shapes"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/ResonanceShapes/"
 
 # Get the path to a workspace. 
 def get_workspace_filename(analysis_name, model):
