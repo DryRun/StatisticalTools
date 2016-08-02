@@ -328,7 +328,6 @@ class MjjFit:
 		# Run fit
 		fit_result = model.fitTo(self.data_roohistogram_, RooFit.Save(kTRUE), RooFit.Strategy(fit_strategy), RooFit.ExternalConstraints(background_constraint_list)) # RooFit.Range(float(self.fit_range_[0]), float(self.fit_range_[1]))... Range causes an unacceptable performance degradation :(
 
-
 		# Print some results
 		print "Background normalizations:"
 		for background, var in background_normalizations.iteritems():
