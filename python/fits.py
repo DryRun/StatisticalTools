@@ -40,10 +40,10 @@ def BackgroundFit_f2(x, par):
 	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3))**par[2]
 
 def BackgroundFit_f3(x, par):
-	return par[0] / (par[1] + (x[0] / 8.e3))**par[2]
+	return par[0] / (1 + par[1] * (x[0] / 8.e3))**par[2]
 
 def BackgroundFit_f4(x, par):
-	return par[0] / ((par[1] + par[2]*x[0]/8.e3 + (x[0]/8.e3)**2)**par[3])
+	return par[0] / ((1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2)**par[3])
 
 def BackgroundFit_f5(x, par):
 	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3)**(1./3.))**par[2]
@@ -371,7 +371,7 @@ class MjjFit:
 		print "[MjjFit::fit] INFO : Done with fit.\n\n"
 
 
-	def rooplot(self, save_tag, fit_functions, background_workspaces, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1):
+	def rooplot(self, save_tag, fit_functions, background_workspaces, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1, draw_chi2ndf=False):
 		print "RooPlotting " + save_tag
 		c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
 		l = TLegend(0.55, 0.6, 0.88, 0.88)
@@ -438,6 +438,8 @@ class MjjFit:
 
 		background_histograms = {}
 		background_histograms_fitted_range = {}
+		chi2s = {}
+		chi2ndfs = {}
 		mc_stack = THStack("mc_stack", "")
 		style_counter = 0
 		for fit_function in fit_functions:
@@ -448,23 +450,24 @@ class MjjFit:
 			background_histograms[fit_function + "_MC"] = data_hist.Clone()
 			background_histograms[fit_function + "_MC"].Reset()
 			background_histograms[fit_function + "_MC"].SetName(fit_function + "_MC")
-			for mc_background in self.backgrounds_:
-				print "Trying to get " + "h_pfjet_mjj_" + mc_background
-				f_workspace.ls()
-				this_mc_histogram = f_workspace.Get("h_pfjet_mjj_" + mc_background)
-				this_mc_histogram.SetDirectory(0)
-				print "Fitted normalization is scaled from initial by " + str(workspace.var(background + "_norm_backgroundonly").getVal() / workspace.var(background + "_initial_norm_backgroundonly").getVal())
-				this_mc_histogram.Scale(workspace.var(background + "_norm_backgroundonly").getVal() / workspace.var(background + "_initial_norm_backgroundonly").getVal())
-				this_mc_histogram = histogram_tools.rebin_histogram(this_mc_histogram, data_binning, normalization_bin_width=normalization_bin_width)
-				background_histograms[fit_function + "_MC"].Add(this_mc_histogram)
-			background_histograms[fit_function + "_MC"].SetLineColor(seaborn.GetColorRoot("default", style_counter))
-			background_histograms[fit_function + "_MC"].SetLineStyle(2)
-			background_histograms[fit_function + "_MC"].SetLineWidth(2)
-			background_histograms[fit_function + "_MC"].SetMarkerStyle(20)
-			background_histograms[fit_function + "_MC"].SetMarkerSize(0)
-			background_histograms[fit_function + "_MC"].SetDirectory(0)
-			background_histograms[fit_function + "_MC"].Draw("hist same")
-			l.AddEntry(background_histograms[fit_function + "_MC"], "MC " + fit_function, "l")
+			if len(self.backgrounds_):
+				for mc_background in self.backgrounds_:
+					print "Trying to get " + "h_pfjet_mjj_" + mc_background
+					f_workspace.ls()
+					this_mc_histogram = f_workspace.Get("h_pfjet_mjj_" + mc_background)
+					this_mc_histogram.SetDirectory(0)
+					print "Fitted normalization is scaled from initial by " + str(workspace.var(background + "_norm_backgroundonly").getVal() / workspace.var(background + "_initial_norm_backgroundonly").getVal())
+					this_mc_histogram.Scale(workspace.var(background + "_norm_backgroundonly").getVal() / workspace.var(background + "_initial_norm_backgroundonly").getVal())
+					this_mc_histogram = histogram_tools.rebin_histogram(this_mc_histogram, data_binning, normalization_bin_width=normalization_bin_width)
+					background_histograms[fit_function + "_MC"].Add(this_mc_histogram)
+				background_histograms[fit_function + "_MC"].SetLineColor(seaborn.GetColorRoot("default", style_counter))
+				background_histograms[fit_function + "_MC"].SetLineStyle(2)
+				background_histograms[fit_function + "_MC"].SetLineWidth(2)
+				background_histograms[fit_function + "_MC"].SetMarkerStyle(20)
+				background_histograms[fit_function + "_MC"].SetMarkerSize(0)
+				background_histograms[fit_function + "_MC"].SetDirectory(0)
+				background_histograms[fit_function + "_MC"].Draw("hist same")
+				l.AddEntry(background_histograms[fit_function + "_MC"], "MC " + fit_function, "l")
 
 			# Make histogram from fitted background
 			fitresult_name = "fitresult_background_data_roohistogram"
@@ -485,6 +488,20 @@ class MjjFit:
 				up_edge = background_histograms[fit_function].GetXaxis().GetBinUpEdge(bin)
 				background_histograms[fit_function].SetBinContent(bin, fit.Integral(low_edge, up_edge) / (up_edge - low_edge) * normalization_bin_width)
 
+			chi2s[fit_function] = 0.
+			chi2ndfs[fit_function] = 0.
+			ndf = -1 * fit.GetNpar()
+			for bin in xrange(1, self.data_histogram_.GetNbinsX() + 1):
+				low_edge = self.data_histogram_.GetXaxis().GetBinLowEdge(bin)
+				up_edge = self.data_histogram_.GetXaxis().GetBinUpEdge(bin)
+				if up_edge < self.mjj_.getMin() or low_edge > self.mjj_.getMax():
+					continue
+				if self.data_histogram_.GetBinError(bin):
+					chi2s[fit_function] += ((self.data_histogram_.GetBinContent(bin) - fit.Integral(low_edge, up_edge)) / self.data_histogram_.GetBinError(bin))**2
+					ndf += 1
+			chi2ndfs[fit_function] = chi2s[fit_function] / ndf
+			print "#chi^2/NDF(" + fit_function + ") = " + str(round(chi2s[fit_function], 3)) + "/" + str(ndf) + " = " + str(round(chi2ndfs[fit_function], 3)) + " / p = " + str(TMath.Prob(chi2s[fit_function], ndf))
+
 			# Add in all the MC background
 			background_histograms[fit_function].Add(background_histograms[fit_function + "_MC"])
 
@@ -493,7 +510,11 @@ class MjjFit:
 			background_histograms[fit_function].SetLineWidth(1)
 			background_histograms[fit_function].SetLineStyle(1)
 			background_histograms[fit_function].Draw("hist same")
-			l.AddEntry(background_histograms[fit_function], "MC + fit " + fit_function, "l")
+			if draw_chi2ndf:
+				legend_entry = "Total background " + fit_function + "(#chi^{2}/NDF=" + str(round(chi2ndfs[fit_function], 2)) + ")"
+			else:
+				legend_entry = "Total background " + fit_function
+			l.AddEntry(background_histograms[fit_function], legend_entry, "l")
 			background_histograms[fit_function].SetDirectory(0)
 
 			f_workspace.Close()
@@ -880,5 +901,5 @@ if __name__ == "__main__":
 			x_range = args.x_range
 		else:
 			x_range = [0., 2000.]
-		mjj_fit.rooplot("mjj_fits_" + args.analysis_name, fit_functions, background_workspaces, fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1.)
+		mjj_fit.rooplot("mjj_fits_" + args.analysis_name + "_" + str(args.min_mjj) + "_" + str(args.max_mjj), fit_functions, background_workspaces, fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1.)
 
