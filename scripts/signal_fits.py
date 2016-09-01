@@ -16,7 +16,6 @@ import CMSDIJET.StatisticalTools.limit_configuration as limit_config
 
 sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python/CMSDIJET/QCDAnalysis")
 import analysis_configuration_8TeV as analysis_config
-import simulation_configuration_8TeV as simulation_config
 
 from array import array
 dijet_binning = array("d", [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8000])
@@ -34,11 +33,13 @@ def make_signal_pdf(fit_function, mjj, tag=None, mass=750.):
 		# Bukin
 		signal_vars = {
 			"xp":RooRealVar("xp", "xp", mass, mass - 200., mass + 200.),
-			"sigp":RooRealVar("sigp", "sigp", 100., 1., 1000.),
-			"xi":RooRealVar("xi", "xi", 0., -5., 5.),
+			"sigp":RooRealVar("sigp", "sigp", 100., 1., 150.),
+			"xi":RooRealVar("xi", "xi", 0., -1.5, 0.),
 			"rho1":RooRealVar("rho1", "rho1", 0.5, 0., 10.),
 			"rho2":RooRealVar("rho2", "rho2", 0.5, 0., 10.),
 		}
+		signal_vars["rho1"].setVal(0.)
+		signal_vars["rho1"].setConstant()
 		signal_pdf = ROOT.RooBukinPdf("bukin", "bukin", mjj, signal_vars["xp"], signal_vars["sigp"], signal_vars["xi"], signal_vars["rho1"], signal_vars["rho2"])
 	elif fit_function == "cb":
 		# Crystal Ball
@@ -70,7 +71,7 @@ def make_signal_pdf(fit_function, mjj, tag=None, mass=750.):
 			var.SetName(var.GetName() + tag)
 	return signal_pdf, signal_vars
 
-def setfix_systematic_parameters(systematic_name, central_parameters, systematic_parameters):
+def setfix_systematic_parameters(fit_function, systematic_name, central_parameters, systematic_parameters):
 	floating_parameters = {}
 	floating_parameters["JESUp"] = {
 		"voigt":["mean"],
@@ -97,7 +98,7 @@ def setfix_systematic_parameters(systematic_name, central_parameters, systematic
 		raise ValueError("[setfix_systematic_parameters] ERROR : Systematic " + systematic_name + " not known.")
 
 	for parameter_name in central_parameters:
-		if not parameter_name in floating_parameters[systematic_name]:
+		if not parameter_name in floating_parameters[systematic_name][fit_function]:
 			systematic_parameters[parameter_name].setVal(central_parameters[parameter_name].getVal())
 			systematic_parameters[parameter_name].setConstant()
 
@@ -119,7 +120,7 @@ def copy_signal_pdf(fit_function, input_function, mjj, tag=None):
 		input_var = iterator.Next()
 
 	for input_var_name, input_var_value in input_var_values.iteritems():
-		print copy_vars
+		#print copy_vars
 		copy_vars[input_var_name].setVal(input_var_value)
 
 	#if fit_function == "voigt":
@@ -231,40 +232,44 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 				RooArgList(mjj))
 
 		signal_rdh = RooDataHist(histogram.GetName() + "_rdh", histogram.GetName() + "_rdh", ROOT.RooArgList(mjj), histogram)
-		signal_pdf, signal_vars = make_signal_pdf(fit_function, mjj, mass=mass)
-		signal_pdf.SetName("signal_" + fit_function + "_pdf")
+		signal_pdf_raw, signal_vars = make_signal_pdf(fit_function, mjj, mass=mass)
+		signal_pdf_raw.SetName("signal_" + fit_function + "_pdf_raw")
 		if correct_trigger:
-			signal_pdf_raw = signal_pdf
-			signal_pdf_raw.SetName(signal_pdf_raw.GetName() + "_raw")
-			signal_pdf = RooProdPdf(signal_pdf.GetName(), signal_pdf.GetTitle(), signal_pdf_raw, trigger_efficiency_pdfs[analysis])
+			signal_pdf = RooProdPdf("signal_" + fit_function + "_pdf", "signal_" + fit_function + "_pdf", signal_pdf_raw, trigger_efficiency_pdfs[analysis])
+		else:
+			signal_pdf = signal_pdf_raw
+			signal_pdf.SetName("signal_" + fit_function + "_pdf")
 
 		signal_vars["norm"] = RooRealVar(signal_pdf.GetName() + "_norm", signal_pdf.GetName() + "_norm", histogram.Integral(), histogram.Integral() / 50., histogram.Integral() * 50.)
 		signal_epdf = ROOT.RooExtendPdf("signal_" + fit_function + "_epdf", "signal_" + fit_function + "_epdf", signal_pdf, signal_vars["norm"])
 
 		if len(systematic_variations) > 0:
 			signal_rdhs_syst = {}
+			signal_pdfs_raw_syst = {}
 			signal_pdfs_syst = {}
 			signal_epdfs_syst = {}
 			signal_vars_syst = {}
 			for variation_name in systematic_variations:
 				signal_rdhs_syst[variation_name] = RooDataHist(histograms_syst[variation_name].GetName() + "_rdh", histograms_syst[variation_name].GetName() + "_rdh", ROOT.RooArgList(mjj), histograms_syst[variation_name])
-				signal_pdfs_syst[variation_name], signal_vars_syst[variation_name] = make_signal_pdf(fit_function, mjj, tag=variation_name, mass=mass)
-				signal_pdfs_syst[variation_name].SetName("signal_" + fit_function + "_pdf__" + variation_name)
+				signal_pdfs_raw_syst[variation_name], signal_vars_syst[variation_name] = make_signal_pdf(fit_function, mjj, tag=variation_name, mass=mass)
+				signal_pdfs_raw_syst[variation_name].SetName("signal_" + fit_function + "_pdf__" + variation_name + "_raw")
 				if correct_trigger:
-					signal_pdf_raw = signal_pdfs_syst[variation_name]
-					signal_pdf_raw.SetName(signal_pdf_raw.GetName() + "_raw")
-					signal_pdfs_syst[variation_name] = RooProdPdf(signal_pdfs_syst[variation_name].GetName(), signal_pdfs_syst[variation_name].GetTitle(), signal_pdf_raw, trigger_efficiency_pdfs[analysis])
+					signal_pdfs_syst[variation_name] = RooProdPdf("signal_" + fit_function + "_pdf__" + variation_name, "signal_" + fit_function + "_pdf__" + variation_name, signal_pdfs_raw_syst[variation_name], trigger_efficiency_pdfs[analysis])
+				else:
+					signal_pdfs_syst[variation_name] = signal_pdfs_raw_syst[variation_name]
+					signal_pdfs_syst[variation_name].SetName("signal_" + fit_function + "_pdf__" + variation_name)
 				signal_vars_syst[variation_name]["norm"] = RooRealVar(signal_pdfs_syst[variation_name].GetName() + "_norm", signal_pdfs_syst[variation_name].GetName() + "_norm", histograms_syst[variation_name].Integral(), histograms_syst[variation_name].Integral() / 50., histograms_syst[variation_name].Integral() * 50.)
 				signal_epdfs_syst[variation_name] = ROOT.RooExtendPdf("signal_" + fit_function + "_epdf__" + variation_name, "signal_" + fit_function + "_epdf__" + variation_name, signal_pdfs_syst[variation_name], signal_vars_syst[variation_name]["norm"])
 
 		print "Fitting " + fit_function + " nominal"
 		fit_results = signal_epdf.fitTo(signal_rdh, RooFit.Save(kTRUE))
+		print fit_results
 		fit_results.Print()
 		if len(systematic_variations) > 0:
 			fit_results_syst = {}
 			for variation_name in systematic_variations:
 				print "Fitting " + fit_function + " systematic " + variation_name
-				setfix_systematic_parameters(variation_name, signal_vars, signal_vars_syst[variation_name])
+				setfix_systematic_parameters(fit_function, variation_name, signal_vars, signal_vars_syst[variation_name])
 				fit_results_syst[variation_name] = signal_epdfs_syst[variation_name].fitTo(signal_rdhs_syst[variation_name], RooFit.Save(kTRUE))
 				fit_results_syst[variation_name].Print()
 
@@ -283,7 +288,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 		for variation_name in systematic_variations:
 			getattr(w,'import')(signal_rdhs_syst[variation_name], ROOT.RooCmdArg(), RooFit.Rename("signal_hist__" + variation_name))
 			signal_pdfs_syst[variation_name].SetName("signal__" + variation_name)
-			getattr(w,'import')(signal_pdfs_syst[variation_name], ROOT.RooCmdArg())
+			getattr(w,'import')(signal_pdfs_syst[variation_name], ROOT.RooCmdArg(), RooFit.RecycleConflictNodes())
 			signal_vars_syst[variation_name]["norm"].SetName(signal_pdfs_syst[variation_name].GetName() + "_norm")
 			getattr(w,'import')(signal_vars_syst[variation_name]["norm"], ROOT.RooCmdArg())
 			fit_results_syst[variation_name].SetName("fit_results_signal_" + variation_name)
@@ -297,6 +302,18 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 		f.Close()
 
 def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
+	print "Welcome to plot_fits"
+	print "analysis=",
+	print analysis
+	print "model=",
+	print model
+	print "mass=",
+	print mass
+	print "fit_functions=",
+	print fit_functions
+	print "systematics=",
+	print systematics
+
 	systematic_variations = []
 	if "jer" in systematics:
 		systematic_variations.append("JERUp")
@@ -319,7 +336,7 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 		for variation in systematic_variations:
 			signal_rdhs_syst[variation] = w.data("signal_hist__" + variation)
 			signal_pdfs_syst[variation] = w.pdf("signal__" + variation)
-			fit_results_syst[variation] = w.getobj("fit_results_signal_" + variation)
+			fit_results_syst[variation] = w.genobj("fit_results_signal_" + variation)
 
 		# Make extended PDFs
 		signal_vars = {}
@@ -328,8 +345,9 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 		signal_epdfs_syst = {}
 		signal_vars_syst = {}
 		for variation in systematic_variations:
-			signal_vars_syst[variation_name]["norm"] = RooRealVar(signal_pdfs_syst[variation_name].GetName() + "_norm", signal_pdfs_syst[variation_name].GetName() + "_norm", histograms_syst[variation_name].sum(False), histograms_syst[variation_name].sum(False) / 50., histograms_syst[variation_name].sum(False) * 50.)
-			signal_epdfs_syst[variation_name] = ROOT.RooExtendPdf("signal_" + fit_function + "_epdf__" + variation_name, "signal_" + fit_function + "_epdf__" + variation_name, signal_pdfs_syst[variation_name], signal_vars_syst[variation_name]["norm"])
+			signal_vars_syst[variation] = {}
+			signal_vars_syst[variation]["norm"] = RooRealVar(signal_pdfs_syst[variation].GetName() + "_norm", signal_pdfs_syst[variation].GetName() + "_norm", signal_rdhs_syst[variation].sum(False), signal_rdhs_syst[variation].sum(False) / 50., signal_rdhs_syst[variation].sum(False) * 50.)
+			signal_epdfs_syst[variation] = ROOT.RooExtendPdf("signal_" + fit_function + "_epdf__" + variation, "signal_" + fit_function + "_epdf__" + variation, signal_pdfs_syst[variation], signal_vars_syst[variation]["norm"])
 
 		# Draw central value fit
 		l = TLegend(0.6, 0.7, 0.88, 0.88)
@@ -350,6 +368,23 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 		c = TCanvas("c_signal_fits_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, "c_signal_fits_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, 800, 600)
 		frame.Draw()
 		l.Draw()
+
+		# For Bukin, draw x1 and x2
+		if fit_function == "bukin":
+			consts = 2*(2*TMath.Log(2.))**0.5
+			hp = w.var("sigp").getVal() * consts
+			r4 = ((w.var("xi").getVal())**2+1)**0.5
+			r1 = w.var("xi").getVal()/r4; 
+			x1 = w.var("xp").getVal() + (hp / 2) * (r1-1)
+			x2 = w.var("xp").getVal() + (hp / 2) * (r1+1)
+			x1_line = TLine(x1, frame.GetMinimum(), x1, frame.GetMaximum())
+			x1_line.SetLineStyle(1)
+			x1_line.SetLineColor(kGray)
+			x1_line.Draw()
+			x2_line = TLine(x2, frame.GetMinimum(), x2, frame.GetMaximum())
+			x2_line.SetLineStyle(1)
+			x2_line.SetLineColor(kGray)
+			x2_line.Draw()
 		c.SaveAs(analysis_config.figure_directory + "/" + c.GetName() + ".pdf")
 
 		# Systematic variations
@@ -420,6 +455,7 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 def get_signal_parameters(pdf, exclude=["mjj"], tag=None):
 	parameters = pdf.getVariables()
 	parameter_values = {}
+	parameter_uncertainties = {}
 	iterator = parameters.createIterator()
 	parameter = iterator.Next()
 	while parameter:
@@ -428,16 +464,29 @@ def get_signal_parameters(pdf, exclude=["mjj"], tag=None):
 			name = name.replace(tag, "")
 		if not name in exclude:
 			parameter_values[name] = parameter.getVal()
+			parameter_uncertainties[name] = parameter.getError()
 		parameter = iterator.Next()
-	return parameter_values
+	return parameter_values, parameter_uncertainties
 
 
 
 def signal_interpolations(analysis, model, input_masses, output_masses, fit_function, systematic_variations=[]):
+	print "Welcome to signal_interpolations"
+	print "analysis = {}".format(analysis)
+	print "model = {}".format(model)
+	print "input_masses = ",
+	print input_masses
+	print "output_masses = ",
+	print output_masses
+	print "fit_function = {}".format(fit_function)
+	print "systematic_variations = ",
+	print systematic_variations
+
 	input_masses.sort()
 	# Load input shapes
 	input_shapes = {}
 	input_parameters = {}
+	input_parameter_uncertainties = {}
 	input_parameter_graphs = {}
 	input_parameter_splines = {}
 	parameter_names = {}
@@ -451,13 +500,14 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 
 		input_shapes[input_mass] = {}
 		input_parameters[input_mass] = {}
+		input_parameter_uncertainties[input_mass] = {}
 		# Nominal
 		input_shapes[input_mass]["nominal"] = w.pdf("signal")
-		input_parameters[input_mass]["nominal"] = get_signal_parameters(input_shapes[input_mass]["nominal"])
+		input_parameters[input_mass]["nominal"], input_parameter_uncertainties[input_mass]["nominal"] = get_signal_parameters(input_shapes[input_mass]["nominal"])
 
 		for systematic_variation in systematic_variations:
 			input_shapes[input_mass][systematic_variation] = w.pdf("signal__" + systematic_variation)
-			input_parameters[input_mass][systematic_variation] = get_signal_parameters(input_shapes[input_mass][systematic_variation], tag=systematic_variation)
+			input_parameters[input_mass][systematic_variation], input_parameter_uncertainties[input_mass][systematic_variation] = get_signal_parameters(input_shapes[input_mass][systematic_variation], tag=systematic_variation)
 
 		# Make TGraphs
 		if index == 0:
@@ -469,11 +519,12 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 				parameter_names[variation] = []
 				for parameter_name, parameter_value in parameter_name_values.iteritems():
 					parameter_names[variation].append(parameter_name)
-					input_parameter_graphs[variation][parameter_name] = TGraph(len(input_masses))
+					input_parameter_graphs[variation][parameter_name] = TGraphErrors(len(input_masses))
 
 		for variation, parameter_name_value in input_parameters[input_mass].iteritems():
 			for parameter_name, parameter_value in parameter_name_value.iteritems():
 				input_parameter_graphs[variation][parameter_name].SetPoint(index, input_mass, parameter_value)
+				input_parameter_graphs[variation][parameter_name].SetPointError(index, 0., input_parameter_uncertainties[input_mass][variation][parameter_name])
 		f.Close()
 
 	# Convert graphs to splines
@@ -566,7 +617,7 @@ if __name__ == "__main__":
 		for analysis in analyses:
 			for model in models:
 				for mass in masses[analysis]:
-					signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, correct_trigger=True)
+					signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, correct_trigger=False)
 
 	if args.plots:
 		for analysis in analyses:
