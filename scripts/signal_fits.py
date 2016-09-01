@@ -391,9 +391,9 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 		if "jer" in systematics:
 			frame_jer = mjj.frame()
 			c_jer = TCanvas("c_signal_hist_jer_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, "c_signal_hist_jer_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, 800, 600)
-			signal_rdh.plotOn(frame_jer, RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.Name(fit_function))
-			signal_rdhs_syst["JERUp"].plotOn(frame_jer, RooFit.LineColor(seaborn.GetColorRoot("default", 1)), RooFit.LineStyle(2), RooFit.Name(fit_function + ", JER+"))
-			signal_rdhs_syst["JERDown"].plotOn(frame_jer, RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(3), RooFit.Name(fit_function + ", JER-"))
+			signal_rdh.plotOn(frame_jer, RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.Name(fit_function), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+			signal_rdhs_syst["JERUp"].plotOn(frame_jer, RooFit.LineColor(seaborn.GetColorRoot("default", 1)), RooFit.LineStyle(2), RooFit.Name(fit_function + ", JER+"), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+			signal_rdhs_syst["JERDown"].plotOn(frame_jer, RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(3), RooFit.Name(fit_function + ", JER-"), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
 			frame_jer.Draw()
 			l_jer = TLegend(0.6, 0.7, 0.88, 0.88)
 			l_jer.SetFillColor(0)
@@ -402,7 +402,7 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 			l_jer.AddEntry(frame_jer.findObject(fit_function + ", JER+"), fit_function + ", JER+", "l")
 			l_jer.AddEntry(frame_jer.findObject(fit_function + ", JER-"), fit_function + ", JER-", "l")
 			l_jer.Draw()
-			c.SaveAs(analysis_config.figure_directory + "/" + c_jer.GetName() + ".pdf")
+			c_jer.SaveAs(analysis_config.figure_directory + "/" + c_jer.GetName() + ".pdf")
 
 			frame_jer_fit = mjj.frame()
 			c_jer_fit = TCanvas("c_signal_fits_jer_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, "c_signal_fits_jer_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, 800, 600)
@@ -417,14 +417,14 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 			l_jer_fit.AddEntry(frame_jer_fit.findObject(fit_function + ", JER+"), fit_function + ", JER+", "l")
 			l_jer_fit.AddEntry(frame_jer_fit.findObject(fit_function + ", JER-"), fit_function + ", JER-", "l")
 			l_jer_fit.Draw()
-			c.SaveAs(analysis_config.figure_directory + "/" + c_jer_fit.GetName() + ".pdf")
+			c_jer_fit.SaveAs(analysis_config.figure_directory + "/" + c_jer_fit.GetName() + ".pdf")
 
 		if "jes" in systematics:
 			frame_jes = mjj.frame()
 			c_jes = TCanvas("c_signal_hist_jes_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, "c_signal_hist_jes_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, 800, 600)
-			signal_rdh.plotOn(frame_jes, RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.Name(fit_function))
-			signal_rdhs_syst["JESUp"].plotOn(frame_jes, RooFit.LineColor(seaborn.GetColorRoot("default", 1)), RooFit.LineStyle(2), RooFit.Name(fit_function + ", JES+"))
-			signal_rdhs_syst["JESDown"].plotOn(frame_jes, RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(3), RooFit.Name(fit_function + ", JES-"))
+			signal_rdh.plotOn(frame_jes, RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.Name(fit_function), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+			signal_rdhs_syst["JESUp"].plotOn(frame_jes, RooFit.LineColor(seaborn.GetColorRoot("default", 1)), RooFit.LineStyle(2), RooFit.Name(fit_function + ", JES+"), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+			signal_rdhs_syst["JESDown"].plotOn(frame_jes, RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(3), RooFit.Name(fit_function + ", JES-"), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
 			frame_jes.Draw()
 			l_jes = TLegend(0.6, 0.7, 0.88, 0.88)
 			l_jes.SetFillColor(0)
@@ -433,7 +433,7 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 			l_jes.AddEntry(frame_jes.findObject(fit_function + ", JES+"), fit_function + ", JES+", "l")
 			l_jes.AddEntry(frame_jes.findObject(fit_function + ", JES-"), fit_function + ", JES-", "l")
 			l_jes.Draw()
-			c.SaveAs(analysis_config.figure_directory + "/" + c_jes.GetName() + ".pdf")
+			c_jes.SaveAs(analysis_config.figure_directory + "/" + c_jes.GetName() + ".pdf")
 
 			frame_jes_fit = mjj.frame()
 			c_jes_fit = TCanvas("c_signal_fits_jes_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, "c_signal_fits_jes_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, 800, 600)
@@ -448,7 +448,7 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 			l_jes_fit.AddEntry(frame_jes_fit.findObject(fit_function + ", JES+"), fit_function + ", JES+", "l")
 			l_jes_fit.AddEntry(frame_jes_fit.findObject(fit_function + ", JES-"), fit_function + ", JES-", "l")
 			l_jes_fit.Draw()
-			c.SaveAs(analysis_config.figure_directory + "/" + c_jes_fit.GetName() + ".pdf")
+			c_jes_fit.SaveAs(analysis_config.figure_directory + "/" + c_jes_fit.GetName() + ".pdf")
 		f.Close()
 
 # Get values of fit parameters as a dict, excluding the independent variable.
@@ -470,7 +470,7 @@ def get_signal_parameters(pdf, exclude=["mjj"], tag=None):
 
 
 
-def signal_interpolations(analysis, model, input_masses, output_masses, fit_function, systematic_variations=[]):
+def signal_interpolations(analysis, model, input_masses, output_masses, fit_function, systematic_variations=[], spline_interpolation=False):
 	print "Welcome to signal_interpolations"
 	print "analysis = {}".format(analysis)
 	print "model = {}".format(model)
@@ -528,10 +528,11 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 		f.Close()
 
 	# Convert graphs to splines
-	for systematic_variation, parameter_graphs in input_parameter_graphs.iteritems():
-		input_parameter_splines[systematic_variation] = {}
-		for parameter, graph in parameter_graphs.iteritems():
-			input_parameter_splines[systematic_variation][parameter] = TSpline3("spline_" + systematic_variation + "_" + parameter, graph)
+	if spline_interpolation:
+		for systematic_variation, parameter_graphs in input_parameter_graphs.iteritems():
+			input_parameter_splines[systematic_variation] = {}
+			for parameter, graph in parameter_graphs.iteritems():
+				input_parameter_splines[systematic_variation][parameter] = TSpline3("spline_" + systematic_variation + "_" + parameter, graph)
 
 	output_shapes = {}
 	output_parameters = {}
@@ -545,13 +546,18 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 		output_shapes[output_mass] = {}
 		output_parameters[output_mass] = {}
 		output_shapes[output_mass]["nominal"], output_parameters[output_mass]["nominal"] = copy_signal_pdf(fit_function, input_shapes[input_masses[0]]["nominal"], mjj)
-		for parameter_name in parameter_names["nominal"]:		
-			output_parameters[output_mass]["nominal"][parameter_name].setVal(input_parameter_splines["nominal"][parameter_name].Eval(output_mass))
-
+		for parameter_name in parameter_names["nominal"]:
+			if spline_interpolation:	
+				output_parameters[output_mass]["nominal"][parameter_name].setVal(input_parameter_splines["nominal"][parameter_name].Eval(output_mass))
+			else:
+				output_parameters[output_mass]["nominal"][parameter_name].setVal(input_parameter_graphs["nominal"][parameter_name].Eval(output_mass))
 		for systematic_variation in systematic_variations:
 			output_shapes[output_mass][systematic_variation], output_parameters[output_mass][systematic_variation] = copy_signal_pdf(fit_function, input_shapes[input_masses[0]][systematic_variation], mjj, tag=systematic_variation)
-			for parameter_name in parameter_names[systematic_variation]:		
-				output_parameters[output_mass][systematic_variation][parameter_name].setVal(input_parameter_splines[systematic_variation][parameter_name].Eval(output_mass))
+			for parameter_name in parameter_names[systematic_variation]:
+				if spline_interpolation:
+					output_parameters[output_mass][systematic_variation][parameter_name].setVal(input_parameter_splines[systematic_variation][parameter_name].Eval(output_mass))
+				else:
+					output_parameters[output_mass][systematic_variation][parameter_name].setVal(input_parameter_graphs[systematic_variation][parameter_name].Eval(output_mass))
 
 		# Save
 		w = RooWorkspace('w_signal','w_signal')
@@ -577,10 +583,11 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 			input_parameter_graphs[systematic_variation][parameter].SetMarkerSize(1)
 			input_parameter_graphs[systematic_variation][parameter].GetXaxis().SetTitle(parameter)
 			input_parameter_graphs[systematic_variation][parameter].Draw("ap")
-			input_parameter_splines[systematic_variation][parameter].SetLineStyle(1)
-			input_parameter_splines[systematic_variation][parameter].SetLineWidth(1)
-			input_parameter_splines[systematic_variation][parameter].SetLineColor(2)
-			input_parameter_splines[systematic_variation][parameter].Draw("same")
+			if spline_interpolation:
+				input_parameter_splines[systematic_variation][parameter].SetLineStyle(1)
+				input_parameter_splines[systematic_variation][parameter].SetLineWidth(1)
+				input_parameter_splines[systematic_variation][parameter].SetLineColor(2)
+				input_parameter_splines[systematic_variation][parameter].Draw("same")
 			c.SaveAs(analysis_config.figure_directory + "/"+ c.GetName() + ".pdf")
 
 if __name__ == "__main__":
@@ -589,6 +596,7 @@ if __name__ == "__main__":
 	parser.add_argument("--fit", action="store_true", help="Run signal fits")
 	parser.add_argument("--plots", action="store_true", help="Plot signal fits")
 	parser.add_argument("--interpolate", action="store_true", help="Run signal interpolation")
+	parser.add_argument("--validate_interpolation", action="store_true", help="Compare actual fits to interpolations")
 	parser.add_argument("--analyses", type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help="List of analyses to run (comma-separated)")
 	parser.add_argument("--models", type=str, default="Hbb,RSG", help="List of models to run")
 	parser.add_argument("--mass", type=int, help="Manually specify mass (otherwise, script runs all mass points)")

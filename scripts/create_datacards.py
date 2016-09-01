@@ -9,7 +9,7 @@ ROOT.gROOT.SetBatch(True)
 import CMSDIJET.StatisticalTools.limit_configuration as limit_config
 from CMSDIJET.StatisticalTools.systematics import *
 from CMSDIJET.StatisticalTools.roofit_functions import *
-import CMSDIJET.StatisticalTools.signal_fits
+import signal_fits
 
 ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/RooCBPlusVoigtian.h\"")
 gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so")
@@ -170,6 +170,7 @@ def main():
     hData.SetDirectory(0)
 
     # input sig file
+    print "[create_datacards] INFO : Opening resonance shapes file at " + limit_config.get_resonance_shapes(args.analysis, args.model)
     inputSig = TFile(limit_config.get_resonance_shapes(args.analysis, args.model), "READ")
 
     sqrtS = args.sqrtS
@@ -195,6 +196,14 @@ def main():
         rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
         print 'Signal acceptance:', (rooSigHist.sumEntries()/hSig.Integral())
 
+        # If using fitted signal shapes, load the signal PDF
+        if args.fitSignal:
+            print "[create_datacards] Loading fitted signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
+            f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses)), "READ")
+            w_signal = f_signal_pdfs.Get("w_signal")
+            signal_pdf = w_signal.pdf("signal")
+            f_signal_pdfs.Close()
+
         signal_parameters = {}
         signal_pdfs = {}
         signal_norms = {}
@@ -205,13 +214,11 @@ def main():
         background_epdfs = {}
         models = {}
         fit_results = {}
+
         for fit_function in fit_functions:
             if args.fitSignal:
-                f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "cb_voigt"))
-                w_signal = f_signal_pdfs.Get("w_signal")
-                input_pdf = w_signal.pdf("signal")
-                signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("cb_voigt", input_pdf, mjj, tag=fit_funciton)
-                f_signal_pdfs.Close()
+                # Make a copy of the signal PDF, so that each fitTo call uses its own copy. 
+                signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("bukin", signal_pdf, mjj, tag=fit_function)
             else:
                 signal_pdfs[fit_function] = RooHistPdf('signal_' + fit_function,'signal_' + fit_function, RooArgSet(mjj), rooSigHist)
             signal_norms[fit_function] = RooRealVar('signal_norm_' + fit_function, 'signal_norm_' + fit_function, 0., 0., 1e+05)
@@ -222,7 +229,6 @@ def main():
             # Initial values
             if "trigbbh" in args.analysis:
                 if fit_function == "f3":
-                    print background_parameters[fit_function]
                     background_parameters[fit_function]["p1"].setVal(55.)
                     background_parameters[fit_function]["p2"].setVal(8.)
                 elif fit_function == "f4":
@@ -264,7 +270,7 @@ def main():
         signal_pdfs_syst = {}
         # JES and JER uncertainties
         if args.fitSignal:
-            f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "cb_voigt"))
+            f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses)))
             w_signal = f_signal_pdfs.Get("w_signal")
             if "jes" in systematics:
                 for variation in ["JESUp", "JESDown"]:
@@ -279,6 +285,7 @@ def main():
                 while var:
                     var.setConstant()
                     var = iter.Next()
+            f_signal_pdfs.Close()
         else:
             if "jes" in systematics or "jer" in systematics:
 
@@ -341,24 +348,22 @@ def main():
         wsName = 'workspace_' + args.final_state + '_m' + str(mass) + postfix + '.root'
 
         w = RooWorkspace('w','workspace')
-        getattr(w,'import')(rooSigHist,RooFit.Rename("signal"))
         if args.fitSignal:
-            pass
+            getattr(w,'import')(signal_pdf,RooFit.Rename("signal"))
+            if "jes" in systematics:
+                getattr(w,'import')(signal_pdfs_syst['JESUp'],RooFit.Rename("signal__JESUp"))
+                getattr(w,'import')(signal_pdfs_syst['JESDown'],RooFit.Rename("signal__JESDown"))
+            if "jer" in systematics:
+                getattr(w,'import')(signal_pdfs_syst['JERUp'],RooFit.Rename("signal__JERUp"))
+                getattr(w,'import')(signal_pdfs_syst['JERDown'],RooFit.Rename("signal__JERDown"))
         else:
-            if args.fitSignal:
-                if "jes" in systematics:
-                    getattr(w,'import')(signal_pdfs_syst['JESUp'],RooFit.Rename("signal__JESUp"))
-                    getattr(w,'import')(signal_pdfs_syst['JESDown'],RooFit.Rename("signal__JESDown"))
-                if "jer" in systematics:
-                    getattr(w,'import')(signal_pdfs_syst['JERUp'],RooFit.Rename("signal__JERUp"))
-                    getattr(w,'import')(signal_pdfs_syst['JERDown'],RooFit.Rename("signal__JERDown"))
-            else:
-                if "jes" in systematics:
-                    getattr(w,'import')(hSig_Syst_DataHist['JESUp'],RooFit.Rename("signal__JESUp"))
-                    getattr(w,'import')(hSig_Syst_DataHist['JESDown'],RooFit.Rename("signal__JESDown"))
-                if "jer" in systematics:
-                    getattr(w,'import')(hSig_Syst_DataHist['JERUp'],RooFit.Rename("signal__JERUp"))
-                    getattr(w,'import')(hSig_Syst_DataHist['JERDown'],RooFit.Rename("signal__JERDown"))
+            getattr(w,'import')(rooSigHist,RooFit.Rename("signal"))
+            if "jes" in systematics:
+                getattr(w,'import')(hSig_Syst_DataHist['JESUp'],RooFit.Rename("signal__JESUp"))
+                getattr(w,'import')(hSig_Syst_DataHist['JESDown'],RooFit.Rename("signal__JESDown"))
+            if "jer" in systematics:
+                getattr(w,'import')(hSig_Syst_DataHist['JERUp'],RooFit.Rename("signal__JERUp"))
+                getattr(w,'import')(hSig_Syst_DataHist['JERDown'],RooFit.Rename("signal__JERDown"))
         if args.decoBkg:
             getattr(w,'import')(background_deco,ROOT.RooCmdArg())
         else:
@@ -390,7 +395,7 @@ def main():
             datacard.write('jmax 1\n')
             datacard.write('kmax *\n')
             datacard.write('---------------\n')
-            if "jes" in systematics or "jer" in systematics and not args.fitSignal:
+            if "jes" in systematics or "jer" in systematics:
                 if args.output_path:
                     datacard.write('shapes * * '+wsName+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
                 else:
@@ -413,13 +418,10 @@ def main():
             datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
             datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
             datacard.write('bkg   lnN     -         1.03\n')
-            if args.fitSignal:
-                pass
-            else:
-                if "jes" in systematics:
-                    datacard.write('JES  shape   1          -\n')
-                if "jer" in systematics:
-                    datacard.write('JER  shape   1          -\n')
+            if "jes" in systematics:
+                datacard.write('JES  shape   1          -\n')
+            if "jer" in systematics:
+                datacard.write('JER  shape   1          -\n')
             # flat parameters --- flat prior
             datacard.write('background_' + fit_function + '_norm  flatParam\n')
             if args.decoBkg:

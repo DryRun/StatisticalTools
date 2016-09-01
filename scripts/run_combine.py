@@ -61,6 +61,7 @@ def main():
                         metavar="METHOD")
     parser.add_argument('analysis', type=str, help="Analysis name")
     parser.add_argument('model', type=str, help="Model name")
+    parser.add_argument('--fitSignal', action='store_true', help="Use fitted signal shapes, rather than histograms")
     parser.add_argument('--fit_function', type=str, default="f4", help="Name of central fit function")
     #parser.add_argument("-d", "--datacards_path", dest="datacards_path", required=True,
     #                    help="Path to datacards and workspaces",
@@ -232,7 +233,7 @@ def main():
 
         run_options = options + ' --name _%s_%s_m%i%s_%s --mass %i'%(args.analysis, args.model, int(mass),postfix,args.fit_function,int(mass))
 
-        cmd = "combine -M %s %s %s 2>&1 | tee %s"%(method,run_options,limit_config.get_datacard_filename(args.analysis, args.model, mass, args.fit_function),os.path.join(('' if args.condor else output_path),logName))
+        cmd = "combine -M %s %s %s 2>&1 | tee %s"%(method,run_options,limit_config.get_datacard_filename(args.analysis, args.model, mass, args.fit_function, fitSignal=args.fitSignal),os.path.join(('' if args.condor else output_path),logName))
 
         # if using Condor
         if args.condor:
