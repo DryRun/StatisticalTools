@@ -71,34 +71,51 @@ def make_signal_pdf(fit_function, mjj, tag=None, mass=750.):
 			var.SetName(var.GetName() + tag)
 	return signal_pdf, signal_vars
 
+systematics_floating_parameters = {}
+systematics_floating_parameters["JESUp"] = {
+	"voigt":["mean"],
+	"bukin":["xp"],
+	"cb":["mean", "alpha"],
+	"cb_voigt":["mean", "cb_alpha"]
+}
+systematics_floating_parameters["JESDown"] = copy.deepcopy(systematics_floating_parameters["JESUp"])
+
+systematics_floating_parameters["JERUp"] = {
+	"voigt":["width", "sigma"],
+	"bukin":["sigp", "xi", "rho1", "rho2"],
+	"cb":["sigma", "alpha", "n"],
+	"cb_voigt":["voigt_width", "voigt_sigma", "cb_sigma", "cb_alpha", "cb_n"]
+}
+systematics_floating_parameters["JERDown"] = copy.deepcopy(systematics_floating_parameters["JERUp"])
+
 def setfix_systematic_parameters(fit_function, systematic_name, central_parameters, systematic_parameters):
-	floating_parameters = {}
-	floating_parameters["JESUp"] = {
+	systematics_floating_parameters = {}
+	systematics_floating_parameters["JESUp"] = {
 		"voigt":["mean"],
 		"bukin":["xp"],
 		"cb":["mean", "alpha"],
 		"cb_voigt":["mean", "cb_alpha"]
 	}
-	floating_parameters["JESDown"] = copy.deepcopy(floating_parameters["JESUp"])
+	systematics_floating_parameters["JESDown"] = copy.deepcopy(systematics_floating_parameters["JESUp"])
 
-	floating_parameters["JERUp"] = {
+	systematics_floating_parameters["JERUp"] = {
 		"voigt":["width", "sigma"],
 		"bukin":["sigp", "xi", "rho1", "rho2"],
 		"cb":["sigma", "alpha", "n"],
 		"cb_voigt":["voigt_width", "voigt_sigma", "cb_sigma", "cb_alpha", "cb_n"]
 	}
-	floating_parameters["JERDown"] = copy.deepcopy(floating_parameters["JERUp"])
+	systematics_floating_parameters["JERDown"] = copy.deepcopy(systematics_floating_parameters["JERUp"])
 
 	# Add norm to all lists of floating parameters
-	for name1, map1 in floating_parameters.iteritems():
+	for name1, map1 in systematics_floating_parameters.iteritems():
 		for name2, list2 in map1.iteritems():
 			list2.append("norm")
 
-	if not systematic_name in floating_parameters:
+	if not systematic_name in systematics_floating_parameters:
 		raise ValueError("[setfix_systematic_parameters] ERROR : Systematic " + systematic_name + " not known.")
 
 	for parameter_name in central_parameters:
-		if not parameter_name in floating_parameters[systematic_name][fit_function]:
+		if not parameter_name in systematics_floating_parameters[systematic_name][fit_function]:
 			systematic_parameters[parameter_name].setVal(central_parameters[parameter_name].getVal())
 			systematic_parameters[parameter_name].setConstant()
 

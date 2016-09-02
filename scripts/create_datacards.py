@@ -219,6 +219,8 @@ def main():
             if args.fitSignal:
                 # Make a copy of the signal PDF, so that each fitTo call uses its own copy. 
                 signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("bukin", signal_pdf, mjj, tag=fit_function)
+                for name, parameter in signal_parameters[fit_function].iteritems():
+                    signal_parameters[fit_function].setConstant()
             else:
                 signal_pdfs[fit_function] = RooHistPdf('signal_' + fit_function,'signal_' + fit_function, RooArgSet(mjj), rooSigHist)
             signal_norms[fit_function] = RooRealVar('signal_norm_' + fit_function, 'signal_norm_' + fit_function, 0., 0., 1e+05)
@@ -395,16 +397,16 @@ def main():
             datacard.write('jmax 1\n')
             datacard.write('kmax *\n')
             datacard.write('---------------\n')
-            if "jes" in systematics or "jer" in systematics:
+            if ("jes" in systematics or "jer" in systematics) and not args.fitSignal:
                 if args.output_path:
                     datacard.write('shapes * * '+wsName+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
                 else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
+                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
             else:
                 if args.output_path:
                     datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
                 else:
-                    datacard.write('shapes * * '+os.patph.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass))+' w:$PROCESS\n')
+                    datacard.write('shapes * * '+os.patph.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal))+' w:$PROCESS\n')
             datacard.write('---------------\n')
             datacard.write('bin 1\n')
             datacard.write('observation -1\n')
@@ -418,10 +420,14 @@ def main():
             datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
             datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
             datacard.write('bkg   lnN     -         1.03\n')
-            if "jes" in systematics:
-                datacard.write('JES  shape   1          -\n')
-            if "jer" in systematics:
-                datacard.write('JER  shape   1          -\n')
+            if args.fitSignal:
+systematics_floating_parameters
+
+            else:
+                if "jes" in systematics:
+                    datacard.write('JES  shape   1          -\n')
+                if "jer" in systematics:
+                    datacard.write('JER  shape   1          -\n')
             # flat parameters --- flat prior
             datacard.write('background_' + fit_function + '_norm  flatParam\n')
             if args.decoBkg:
