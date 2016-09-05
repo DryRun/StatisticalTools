@@ -72,50 +72,34 @@ def make_signal_pdf(fit_function, mjj, tag=None, mass=750.):
 	return signal_pdf, signal_vars
 
 # Make signal PDFs for JER/JES variations, with nuisance parameter built in. 
-# delta_parameters = {systematic_name:{parameter_name, parameter_1sigma_fluctuation}}
-def make_signal_pdf_systematic(fit_function, central_pdf, delta_parameters, mjj):
-	central_parameters = central_pdf.getVariables()
-	nuisance_parameters = {}
-	for systematic in systematics:
-		nuisance_parameters[systematic] = RooRealVar("alpha_" + systematic, "alpha_" + systematic, 0., -20., 20.)
-
-	# Loop over parameters (p0). Fix p0. If variable is in delta_parameters, set to p0 + alpha*dp; otherwise, set to p0. 
-	final_vars = {}
-	iterator = central_parameters.createIterator()
-	central_parameter = iterator.Next()
-	while central_parameter:
-		parameter_name = central_parameter.GetName()
-		# Add "_0" to central parameter name, so there is no clobbering.
-		central_parameter.SetName(parameter_name + "_0")
-		central_parameter.setConstant()
-
-		# Find the systematics for this parameter
-		this_parameter_systematics = []
-		for systematic in delta_parameters:
-			if parameter_name in systematics[systematic]:
-				this_parameter_systematics.append(systematic)
-
-		# Make RooFormulaVar corresponding to p0 + sum(alpha_i * dp_i)
-		components = RooArgSet(central_parameter)
-		formula = parameter_name + "_0"
-		for systematic in this_parameter_systematics:
-			final_vars["d_" + parameter_name + "_" + systematic] = RooRealVar("d_" + parameter_name + "_" + systematic, "d_" + parameter_name + "_" + systematic, delta_parameters[systematic][parameter_name], delta_parameters[systematic][parameter_name] / 10., delta_parameters[systematic][parameter_name] * 10.)
-			final_vars["d_" + parameter_name + "_" + systematic].setConstant()
-			components.add(final_vars["d_" + parameter_name + "_" + systematic])
-			components.add(nuisance_parameters[systematic])
-			formula += " + (alpha_" + systematic + " * d_" + parameter_name + "_" + systematic + ")"
-		final_vars[parameter_name] = RooFormulaVar(parameter_name, parameter_name, formula, components)
-		central_parameter = iterator.Next()
-
-	# Make new PDF
-	pdf_name = central_pdf.GetName()
-	central_pdf.SetName(pdf_name + "_0")
+def make_signal_pdf_systematic(fit_function, mjj, tag=None, mass=750.):
 	if fit_function == "bukin":
-		signal_pdf = ROOT.RooBukinPdf(pdf_name, pdf_name, mjj, final_vars["xp"], final_vars["sigp"], final_vars["xi"], final_vars["rho1"], final_vars["rho2"])
+		# Bukin
+		signal_vars = {
+			"xp_0":RooRealVar("xp_0", "xp_0", mass, mass - 200., mass + 200.),
+			"sigp_0":RooRealVar("sigp_0", "sigp_0", 100., 1., 150.),
+			"xi_0":RooRealVar("xi_0", "xi_0", 0., -1.5, 0.),
+			"rho1_0":RooRealVar("rho1_0", "rho1_0", 0.5, 0., 10.),
+			"rho2_0":RooRealVar("rho2_0", "rho2_0", 0.5, 0., 10.),
+			"alpha_jes":RooRealVar("alpha_jes", "alpha_jes", 0., -20., 20.),
+			"alpha_jer":RooRealVar("alpha_jer", "alpha_jer", 0., -20., 20.),
+			"dsigp":RooRealVar("dsigp", "dsigp", 0., -1.e10, 1.e10),
+			"dxp":RooRealVar("dxp", "dxp", 0., -1.e10, 1.e10),
+		}
+		signal_vars["rho1_0"].setVal(0.)
+		signal_vars["rho1_0"].setConstant()
+		signal_vars["xp"] = ROOT.RooFormulaVar("xp", "xp", "xp_0 + (alpha_jes * dxp)", RooArgList(signal_vars["xp_0"], signal_vars["alpha_jes"], signal_vars["dxp"]))
+		signal_vars["sigp"] = ROOT.RooFormulaVar("sigp", "sigp", "sigp_0 + (alpha_jer * dsigp)", RooArgList(signal_vars["sigp_0"], signal_vars["alpha_jer"], signal_vars["dsigp"]))
+		signal_pdf = ROOT.RooBukinPdf("bukin", "bukin", mjj, signal_vars["xp"], signal_vars["sigp"], signal_vars["xi_0"], signal_vars["rho1_0"], signal_vars["rho2_0"])
 	else:
-		print "[make_signal_pdf_systematic] ERROR : Function {} not implemented".format(fit_function)
+		print "[make_signal_pdf_systematic] ERROR : Fit function " + fit_function + " not known."
 		sys.exit(1)
-	return signal_pdf, final_vars
+
+	if tag:
+		signal_pdf.SetName(signal_pdf.GetName() + tag)
+		for var_name, var in signal_vars.iteritems():
+			var.SetName(var.GetName() + tag)
+	return signal_pdf, signal_vars
 
 
 systematics_floating_parameters = {}
@@ -172,7 +156,8 @@ def fix_parameters(pdf):
 	parameter = iterator.Next()
 	while parameter:
 		parameter.setConstant()
-	
+		parameter = iterator.Next()
+
 def get_parameters(pdf):
 	parameters = {}
 	parameter_argset = pdf.getVariables()
@@ -186,8 +171,11 @@ def get_parameters(pdf):
 		parameter = iterator.Next()
 	return parameters
 
-def copy_signal_pdf(fit_function, input_function, mjj, tag=None):
-	copy_pdf, copy_vars = make_signal_pdf(fit_function, mjj, tag)
+def copy_signal_pdf(fit_function, input_function, mjj, tag=None, include_systematics=False):
+	if include_systematics:
+		copy_pdf, copy_vars = make_signal_pdf_systematic(fit_function, mjj, tag)
+	else:
+		copy_pdf, copy_vars = make_signal_pdf(fit_function, mjj, tag)
 	input_vars = input_function.getVariables()
 	input_var_values = {}
 	iterator = input_vars.createIterator()

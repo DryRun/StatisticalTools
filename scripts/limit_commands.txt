@@ -1,0 +1,160 @@
+# New: signal fits
+python create_datacards.py trigbbh_CSVTM Hbb --massMin 526 --massMax 1530 --massrange 600 1200 50 --fitSignal --runFit >& log_trigbbh_CSVTM_Hbb_fitSignal.txt &
+python create_datacards.py trigbbl_CSVTM Hbb --massMin 354 --massMax 1530 --massrange 400 800 50 --fitSignal --runFit >& log_trigbbl_CSVTM_Hbb_fitSignal.txt &
+python create_datacards.py trigbbh_CSVTM RSG --massMin 526 --massMax 1530 --massrange 600 1200 50 --fitSignal --runFit >& log_trigbbh_CSVTM_RSG_fitSignal.txt &
+python create_datacards.py trigbbl_CSVTM RSG --massMin 354 --massMax 1530 --massrange 400 800 50 --fitSignal --runFit >& log_trigbbl_CSVTM_RSG_fitSignal.txt &
+
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic --fitSignal -v2 --fit_function f4 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_Hbb_f4_fitSignal.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic --fitSignal -v2 --fit_function f4 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_Hbb_f4_fitSignal.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic --fitSignal -v2 --fit_function f4 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_RSG_f4_fitSignal.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic --fitSignal -v2 --fit_function f4 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_RSG_f4_fitSignal.txt &
+
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f4.root
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f4.root
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root
+
+python run_combine.py trigbbh_CSVTM Hbb -M HybridNew --fitSignal -v2 --fit_function f4 --massrange 600 1200 50 >& log_combhn_trigbbh_CSVTM_Hbb_f4_fitSignal.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M HybridNew --fitSignal -v2 --fit_function f4 --massrange 400 800 50 >& log_combhn_trigbbl_CSVTM_Hbb_f4_fitSignal.txt &
+python run_combine.py trigbbh_CSVTM RSG -M HybridNew --fitSignal -v2 --fit_function f4 --massrange 600 1200 50 >& log_combhn_trigbbh_CSVTM_RSG_f4_fitSignal.txt &
+python run_combine.py trigbbl_CSVTM RSG -M HybridNew --fitSignal -v2 --fit_function f4 --massrange 400 800 50 >& log_combhn_trigbbl_CSVTM_RSG_f4_fitSignal.txt &
+
+python plot_limits.py trigbbh_CSVTM Hbb -M HybridNew --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f4.root
+python plot_limits.py trigbbl_CSVTM Hbb -M HybridNew --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root
+python plot_limits.py trigbbh_CSVTM RSG -M HybridNew --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f4.root
+python plot_limits.py trigbbl_CSVTM RSG -M HybridNew --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root
+
+
+
+
+# No systematics
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic --fitSignal --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 -v2 --fit_function f4 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_Hbb_f4_fitSignal_noSyst.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic --fitSignal --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 -v2 --fit_function f4 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_Hbb_f4_fitSignal_noSyst.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic --fitSignal --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 -v2 --fit_function f4 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_RSG_f4_fitSignal_noSyst.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic --fitSignal --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 -v2 --fit_function f4 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_RSG_f4_fitSignal_noSyst.txt &
+
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --noSyst --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f4_noSyst.root
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --noSyst --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4_noSyst.root
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --noSyst --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f4_noSyst.root
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --noSyst --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4_noSyst.root
+
+
+
+
+
+
+# Old: signal HistPdfs
+
+python create_datacards.py trigbbh_CSVTM Hbb --massMin 526 --massMax 1530 --massrange 600 1200 50 --runFit >& log_trigbbh_CSVTM_Hbb.txt &
+python create_datacards.py trigbbl_CSVTM Hbb --massMin 354 --massMax 1530 --massrange 400 800 50 --runFit >& log_trigbbl_CSVTM_Hbb.txt &
+python create_datacards.py trigbbh_CSVTM RSG --massMin 526 --massMax 1530 --massrange 600 1200 50 --runFit >& log_trigbbh_CSVTM_RSG.txt &
+python create_datacards.py trigbbl_CSVTM RSG --massMin 354 --massMax 1530 --massrange 400 800 50 --runFit >& log_trigbbl_CSVTM_RSG.txt &
+
+python create_datacards.py trigbbh_CSVTM Hbb --fitBonly --massMin 526 --massMax 1530 --massrange 600 1200 50 --runFit >& log_trigbbh_CSVTM_Hbb_fitBonly.txt &
+python create_datacards.py trigbbl_CSVTM Hbb --fitBonly --massMin 354 --massMax 1530 --massrange 400 800 50 --runFit >& log_trigbbl_CSVTM_Hbb_fitBonly.txt &
+python create_datacards.py trigbbh_CSVTM RSG --fitBonly --massMin 526 --massMax 1530 --massrange 600 1200 50 --runFit >& log_trigbbh_CSVTM_RSG_fitBonly.txt &
+python create_datacards.py trigbbl_CSVTM RSG --fitBonly --massMin 354 --massMax 1530 --massrange 400 800 50 --runFit >& log_trigbbl_CSVTM_RSG_fitBonly.txt &
+
+
+# Run all normal
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic -v2 --fit_function f4 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic -v2 --fit_function f4 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic -v2 --fit_function f4 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_RSG_f4.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic -v2 --fit_function f4 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_RSG_f4.txt &
+
+
+
+# Run with tweaks to try to fix instabilities
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic --picky -v2 --fit_function f4 --massrange 650 1200 50 >& log_comba_trigbbh_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic --picky -v2 --fit_function f4 --massrange 400 550 50 >& log_comba_trigbbl_CSVTM_Hbb_f4_1.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic --picky -v2 --fit_function f4 --massrange 700 800 50 >& log_comba_trigbbl_CSVTM_Hbb_f4_2.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic --picky -v2 --fit_function f4 --massrange 650 1200 50 >& log_comba_trigbbh_CSVTM_RSG_f4.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic --picky -v2 --fit_function f4 --massrange 400 550 50 >& log_comba_trigbbl_CSVTM_RSG_f4_1.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic --picky -v2 --fit_function f4 --massrange 700 800 50 >& log_comba_trigbbl_CSVTM_RSG_f4_2.txt &
+
+
+# Rerun a few points with rMin/rMax
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic --toysH 5000 --rMin 0.005 --rMax 0.2 -v2 --fit_function f4 --mass 650 >& log_comba_trigbbh_CSVTM_Hbb_f4_650.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic --toysH 5000 --rMin 0.005 --rMax 0.2 -v2 --fit_function f4 --mass 400 >& log_comba_trigbbh_CSVTM_RSG_f4_400.txt &
+
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic --toysH 2000 --rMax 0.2 -v2 --fit_function f4 --mass 600 650 >& log_comba_trigbbl_CSVTM_Hbb_f4_rMax.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic --toysH 2000 --rMax 0.2 -v2 --fit_function f4 --mass 600 650 >& log_comba_trigbbl_CSVTM_RSG_f4_rMax.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic --toysH 5000 --rMax 0.2 -v2 --fit_function f4 --mass 400 >& log_comba_trigbbl_CSVTM_RSG_f4_400.txt &
+
+
+
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f4.root
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f4.root
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root
+
+
+
+# Without systematics
+
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 --fit_function f4 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_Hbb_noSyst.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 --fit_function f4 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_Hbb_noSyst.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 --fit_function f4 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_RSG_noSyst.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 --fit_function f4 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_RSG_noSyst.txt &
+
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --noSyst --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f4_noSyst.root
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --noSyst --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4_noSyst.root
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --noSyst --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f4_noSyst.root
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --noSyst --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4_noSyst.root
+
+
+# Fix some fit parameters
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic -v2 --fit_function f4 --freezeNuisances f4_p1,f4_p2,f4_p3 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic -v2 --fit_function f4 --freezeNuisances f4_p1,f4_p2,f4_p3 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic -v2 --fit_function f4 --freezeNuisances f4_p1,f4_p2,f4_p3 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_RSG_f4.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic -v2 --fit_function f4 --freezeNuisances f4_p1,f4_p2,f4_p3 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_RSG_f4.txt &
+
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --freezeNuisances f4_p1,f4_p2,f4_p3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f4_p2_f4.root
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --freezeNuisances f4_p1,f4_p2,f4_p3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4_p2_f4.root
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --freezeNuisances f4_p1,f4_p2,f4_p3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f4_p2_f4.root
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --freezeNuisances f4_p1,f4_p2,f4_p3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4_p2_f4.root
+
+
+
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic -v2 --fit_function f3 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_Hbb_f3.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic -v2 --fit_function f3 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_Hbb_f3.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic -v2 --fit_function f3 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_RSG_f3.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic -v2 --fit_function f3 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_RSG_f3.txt &
+
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f3 --massrange 600 1200 50
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f3 --massrange 400 800 50
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f3 --massrange 600 1200 50
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f3 --massrange 400 800 50
+
+
+python run_combine.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f1 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_Hbb_f1.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f1 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_Hbb_f1.txt &
+python run_combine.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f1 --massrange 600 1200 50 >& log_comba_trigbbh_CSVTM_RSG_f1.txt &
+python run_combine.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f1 --massrange 400 800 50 >& log_comba_trigbbl_CSVTM_RSG_f1.txt &
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f1 --massrange 600 1200 50
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f1 --massrange 400 800 50
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f1 --massrange 600 1200 50
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f1 --massrange 400 800 50
+
+
+
+
+# Debug weird fit results for f4
+python run_combine.py trigbbh_CSVTM Hbb -M MaxLikelihoodFit -v2 --fit_function f4 --massrange 600 1200 50 >& log_mlh_trigbbh_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M MaxLikelihoodFit -v2 --fit_function f4 --massrange 400 800 50 >& log_mlh_trigbbl_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbh_CSVTM RSG -M MaxLikelihoodFit -v2 --fit_function f4 --massrange 600 1200 50 >& log_mlh_trigbbh_CSVTM_RSG_f4.txt &
+python run_combine.py trigbbl_CSVTM RSG -M MaxLikelihoodFit -v2 --fit_function f4 --massrange 400 800 50 >& log_mlh_trigbbl_CSVTM_RSG_f4.txt &
+
+python run_combine.py trigbbl_CSVTM Hbb -M MaxLikelihoodFit -v2 --fit_function f4 --mass 400 450 >& log_mlh_trigbbl_CSVTM_Hbb_f4.txt &
+
+
+# Hybrid new
+python run_combine.py trigbbh_CSVTM Hbb -M HybridNew --toysH 2000 -v2 --fit_function f4 --massrange 600 1200 50 >& log_combhn_trigbbh_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbl_CSVTM Hbb -M HybridNew --toysH 2000 -v2 --fit_function f4 --massrange 400 800 50 >& log_combhn_trigbbl_CSVTM_Hbb_f4.txt &
+python run_combine.py trigbbh_CSVTM RSG -M HybridNew --toysH 2000 -v2 --fit_function f4 --massrange 600 1200 50 >& log_combhn_trigbbh_CSVTM_RSG_f4.txt &
+python run_combine.py trigbbl_CSVTM RSG -M HybridNew --toysH 2000 -v2 --fit_function f4 --massrange 400 800 50 >& log_combhn_trigbbl_CSVTM_RSG_f4.txt &
+
+python plot_limits.py trigbbh_CSVTM Hbb -M HybridNew --massrange 600 1200 50
+python plot_limits.py trigbbl_CSVTM Hbb -M HybridNew --massrange 400 800 50
+python plot_limits.py trigbbh_CSVTM RSG -M HybridNew --massrange 600 1200 50
+python plot_limits.py trigbbl_CSVTM RSG -M HybridNew --massrange 400 800 50

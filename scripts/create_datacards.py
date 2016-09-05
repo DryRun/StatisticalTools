@@ -3,6 +3,7 @@
 import sys, os, copy, re
 from argparse import ArgumentParser
 from array import array
+import math
 import ROOT
 ROOT.gROOT.SetBatch(True)
 
@@ -201,8 +202,27 @@ def main():
             print "[create_datacards] Loading fitted signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
             f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses)), "READ")
             w_signal = f_signal_pdfs.Get("w_signal")
-            signal_pdf = w_signal.pdf("signal")
-            signal_fits.fix_parameters(signal_pdf)
+            input_parameters = signal_fits.get_parameters(w_signal.pdf("signal"))
+
+            # Make a new PDF with nuisance parameters
+            signal_pdf, signal_vars = signal_fits.make_signal_pdf_systematic("bukin", mjj, mass=mass)
+
+            # Copy input parameter values
+            signal_vars["xp_0"].setVal(input_parameters["xp"][0])
+            signal_vars["xp_0"].setError(input_parameters["xp"][1])
+            signal_vars["xp_0"].setConstant()
+            signal_vars["sigp_0"].setVal(input_parameters["sigp"][0])
+            signal_vars["sigp_0"].setError(input_parameters["sigp"][1])
+            signal_vars["sigp_0"].setConstant()
+            signal_vars["xi_0"].setVal(input_parameters["xi"][0])
+            signal_vars["xi_0"].setError(input_parameters["xi"][1])
+            signal_vars["xi_0"].setConstant()
+            signal_vars["rho1_0"].setVal(input_parameters["rho1"][0])
+            signal_vars["rho1_0"].setError(input_parameters["rho1"][1])
+            signal_vars["rho1_0"].setConstant()
+            signal_vars["rho2_0"].setVal(input_parameters["rho2"][0])
+            signal_vars["rho2_0"].setError(input_parameters["rho2"][1])
+            signal_vars["rho2_0"].setConstant()
             f_signal_pdfs.Close()
 
         signal_parameters = {}
@@ -218,10 +238,15 @@ def main():
 
         for fit_function in fit_functions:
             if args.fitSignal:
-                # Make a copy of the signal PDF, so that each fitTo call uses its own copy. 
-                signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("bukin", signal_pdf, mjj, tag=fit_function)
-                for name, parameter in signal_parameters[fit_function].iteritems():
-                    parameter.setConstant()
+                # Make a copy of the signal PDF, so that each fitTo call uses its own copy.
+                # The copy should have all variables set constant.  
+                #signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("bukin", signal_pdf, mjj, tag=fit_function, include_systematics=True)
+                signal_pdfs[fit_function] = ROOT.RooBukinPdf(signal_pdf, signal_pdf.GetName() + "_" + fit_function)
+                iterator = signal_pdfs[fit_function].getVariables().createIterator()
+                this_parameter = iterator.Next()
+                while this_parameter:
+                    this_parameter.setConstant()
+                    this_parameter = iterator.Next()
             else:
                 signal_pdfs[fit_function] = RooHistPdf('signal_' + fit_function,'signal_' + fit_function, RooArgSet(mjj), rooSigHist)
             signal_norms[fit_function] = RooRealVar('signal_norm_' + fit_function, 'signal_norm_' + fit_function, 0., 0., 1e+05)
@@ -273,22 +298,38 @@ def main():
         #signal_pdfs_syst = {}
         # JES and JER uncertainties
         if args.fitSignal:
+            print "[create_datacards] INFO : Getting signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
             f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses)))
             w_signal = f_signal_pdfs.Get("w_signal")
             if "jes" in systematics:
-                xp_central = get_parameters(signal_pdf)["xp"]
-                xp_up = get_parameters(w_signal.pdf("signal__JESUp"))["xp"]
-                xp_down = get_parameters(w_signal.pdf("signal__JESDown"))["xp"]
-                dxp = max(TMath.Abs(xp_up - xp), TMath.Abs(xp_down - xp))
-                #for variation in ["JESUp", "JESDown"]:
-                    #signal_pdfs_syst[variation] = w_signal.pdf("signal__" + variation)
+                xp_central = signal_vars["xp_0"].getVal()
+                #print w_signal.pdf("signal__JESUp")
+                #print signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))
+                xp_up = signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))["xpJESUp"][0]
+                xp_down = signal_fits.get_parameters(w_signal.pdf("signal__JESDown"))["xpJESDown"][0]
+                signal_vars["dxp"].setVal(max(abs(xp_up - xp_central), abs(xp_down - xp_central)))
+                signal_vars["alpha_jes"].setVal(0.)
+                signal_vars["alpha_jes"].setConstant(False)
+            else:
+                signal_vars["dxp"].setVal(0.)
+                signal_vars["alpha_jes"].setVal(0.)
+                signal_vars["alpha_jes"].setConstant()
+            signal_vars["dxp"].setError(0.)
+            signal_vars["dxp"].setConstant()
 
             if "jer" in systematics:
-                sigp_central = get_parameters(signal_pdf)["sigp"]
-                sigp_up = get_parameters(w_signal.pdf("signal__JESUp"))["sigp"]
-                sigp_down = get_parameters(w_signal.pdf("signal__JESDown"))["sigp"]
-                dsigp = max(TMath.Abs(sigp_up - sigp), TMath.Abs(sigp_down - sigp))
-
+                sigp_central = signal_vars["sigp_0"].getVal()
+                sigp_up = signal_fits.get_parameters(w_signal.pdf("signal__JERUp"))["sigpJERUp"][0]
+                sigp_down = signal_fits.get_parameters(w_signal.pdf("signal__JERDown"))["sigpJERDown"][0]
+                signal_vars["dsigp"].setVal(max(abs(sigp_up - sigp_central), abs(sigp_down - sigp_central)))
+                signal_vars["alpha_jer"].setVal(0.)
+                signal_vars["alpha_jer"].setConstant(False)
+            else:
+                signal_vars["dsigp"].setVal(0.)
+                signal_vars["alpha_jer"].setVal(0.)
+                signal_vars["alpha_jer"].setConstant()
+            signal_vars["dsigp"].setError(0.)
+            signal_vars["dsigp"].setConstant()
                 #for variation in ["JERUp", "JERDown"]:
                 #    signal_pdfs_syst[variation] = w_signal.pdf("signal__" + variation)
             #for variation, pdf in signal_pdfs_syst.iteritems():
@@ -362,7 +403,15 @@ def main():
 
         w = RooWorkspace('w','workspace')
         if args.fitSignal:
+            signal_pdf.SetName("signal")
             getattr(w,'import')(signal_pdf,RooFit.Rename("signal"))
+            # Create a norm variable "signal_norm" which normalizes the PDF to unity.
+            #norm = signal_pdf.getNorm(RooArgSet(mjj))
+            #signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", 1. / norm, 0.1 / norm, 10. / norm)
+            signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", 1., 0.1, 10.)
+            print "[create_datacards] INFO : Set signal norm to {}".format(signal_norm.getVal())
+            signal_norm.setConstant()
+            getattr(w,'import')(signal_norm,ROOT.RooCmdArg())
             #if "jes" in systematics:
             #    getattr(w,'import')(signal_pdfs_syst['JESUp'],RooFit.Rename("signal__JESUp"))
             #    getattr(w,'import')(signal_pdfs_syst['JESDown'],RooFit.Rename("signal__JESDown"))
@@ -417,7 +466,7 @@ def main():
                 if args.output_path:
                     datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
                 else:
-                    datacard.write('shapes * * '+os.patph.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal))+' w:$PROCESS\n')
+                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal))+' w:$PROCESS\n')
             datacard.write('---------------\n')
             datacard.write('bin 1\n')
             datacard.write('observation -1\n')
@@ -433,9 +482,9 @@ def main():
             datacard.write('bkg   lnN     -         1.03\n')
             if args.fitSignal:
                 if "jes" in systematics:
-                    datacard.write("xp  param  0.0  {}".format(dxp))
+                    datacard.write("alpha_jes  param  0.0  1.0\n")
                 if "jer" in systematics:
-                    datacard.write("sigp  param  0.0  {}".format(dsigp))
+                    datacard.write("alpha_jer  param  0.0  1.0\n")
             else:
                 if "jes" in systematics:
                     datacard.write('JES  shape   1          -\n')
