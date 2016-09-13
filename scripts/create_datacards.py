@@ -406,9 +406,9 @@ def main():
             signal_pdf.SetName("signal")
             getattr(w,'import')(signal_pdf,RooFit.Rename("signal"))
             # Create a norm variable "signal_norm" which normalizes the PDF to unity.
-            #norm = signal_pdf.getNorm(RooArgSet(mjj))
+            norm = args.lumi
             #signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", 1. / norm, 0.1 / norm, 10. / norm)
-            signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", 1., 0.1, 10.)
+            signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm, norm / 10., norm * 10.)
             print "[create_datacards] INFO : Set signal norm to {}".format(signal_norm.getVal())
             signal_norm.setConstant()
             getattr(w,'import')(signal_norm,ROOT.RooCmdArg())
@@ -474,12 +474,15 @@ def main():
             datacard.write('bin          1          1\n')
             datacard.write('process      signal     background_' + fit_function + '\n')
             datacard.write('process      0          1\n')
-            datacard.write('rate         -1         1\n')
+            if args.fitSignal:
+                datacard.write('rate         1         1\n')
+            else:
+                datacard.write('rate         -1         1\n')
             datacard.write('------------------------------\n')
             datacard.write('lumi  lnN    %f         -\n'%(1.+systematics["luminosity"]))
             datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
             datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
-            datacard.write('bkg   lnN     -         1.03\n')
+            #datacard.write('bkg   lnN     -         1.03\n')
             if args.fitSignal:
                 if "jes" in systematics:
                     datacard.write("alpha_jes  param  0.0  1.0\n")

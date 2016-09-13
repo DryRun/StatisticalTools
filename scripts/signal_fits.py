@@ -36,7 +36,7 @@ def make_signal_pdf(fit_function, mjj, tag=None, mass=750.):
 			"sigp":RooRealVar("sigp", "sigp", 100., 1., 150.),
 			"xi":RooRealVar("xi", "xi", 0., -1.5, 0.),
 			"rho1":RooRealVar("rho1", "rho1", 0.5, 0., 10.),
-			"rho2":RooRealVar("rho2", "rho2", 0.5, 0., 10.),
+			"rho2":RooRealVar("rho2", "rho2", 0.5, 0.01, 10.),
 		}
 		signal_vars["rho1"].setVal(0.)
 		signal_vars["rho1"].setConstant()
@@ -221,7 +221,7 @@ def copy_signal_pdf(fit_function, input_function, mjj, tag=None, include_systema
 	#	sys.exit(1)
 	return copy_pdf, copy_vars
 
-def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_trigger = False):
+def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_trigger=False):
 	histogram_file = TFile(analysis_config.get_b_histogram_filename(analysis, analysis_config.simulation.get_signal_tag(model, mass, "FULLSIM")), "READ")
 	histogram = histogram_file.Get("BHistograms/h_pfjet_mjj")
 	#histogram_file = TFile(limit_config.get_resonance_shapes(analysis, model), "READ")
@@ -288,9 +288,11 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 
 	for fit_function in fit_functions:
 		if analysis == "trigbbh_CSVTM":
-			mjj = RooRealVar('mjj','mjj',354, 1530)
+			#mjj = RooRealVar('mjj','mjj',354, 1530)
+			mjj = RooRealVar('mjj','mjj',489, 1530)
 		elif analysis == "trigbbl_CSVTM":
-			mjj = RooRealVar('mjj','mjj',296, 1530)
+			#mjj = RooRealVar('mjj','mjj',296, 1530)
+			mjj = RooRealVar('mjj','mjj',325, 1530)
 
 		trigger_efficiency_pdfs = {}
 		trigger_efficiency_pdfs["trigbbl_CSVTM"] = RooGenericPdf("trigger_efficiency_trigbbl_CSVTM", 
@@ -308,6 +310,19 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 		else:
 			signal_pdf = signal_pdf_raw
 			signal_pdf.SetName("signal_" + fit_function + "_pdf")
+
+		# Some fits are special and need help
+		if analysis == "trigbbl_CSVTM" and model == "Hbb" and mass == 500:
+			signal_vars["xi"].setMax(-0.05)
+			signal_vars["xi"].setVal(-0.2)
+			signal_vars["rho2"].setMin(0.04)
+			signal_vars["rho2"].setVal(0.08)
+		elif analysis == "trigbbh_CSVTM" and model == "RSG" and mass == 750:
+			signal_vars["xi"].setMax(-0.1)
+			signal_vars["xi"].setVal(-0.3)
+			signal_vars["rho2"].setMin(0.07)
+			signal_vars["rho2"].setVal(0.15)
+
 
 		signal_vars["norm"] = RooRealVar(signal_pdf.GetName() + "_norm", signal_pdf.GetName() + "_norm", histogram.Integral(), histogram.Integral() / 50., histogram.Integral() * 50.)
 		signal_epdf = ROOT.RooExtendPdf("signal_" + fit_function + "_epdf", "signal_" + fit_function + "_epdf", signal_pdf, signal_vars["norm"])
@@ -615,6 +630,9 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 		output_shapes[output_mass] = {}
 		output_parameters[output_mass] = {}
 		output_shapes[output_mass]["nominal"], output_parameters[output_mass]["nominal"] = copy_signal_pdf(fit_function, input_shapes[input_masses[0]]["nominal"], mjj)
+		if "xp" in output_parameters[output_mass]["nominal"]:
+			output_parameters[output_mass]["nominal"]["xp"].setMin(output_mass - 200.)
+			output_parameters[output_mass]["nominal"]["xp"].setMax(output_mass + 200.)
 		for parameter_name in parameter_names["nominal"]:
 			if spline_interpolation:	
 				output_parameters[output_mass]["nominal"][parameter_name].setVal(input_parameter_splines["nominal"][parameter_name].Eval(output_mass))
@@ -658,6 +676,16 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 				input_parameter_splines[systematic_variation][parameter].SetLineColor(2)
 				input_parameter_splines[systematic_variation][parameter].Draw("same")
 			c.SaveAs(analysis_config.figure_directory + "/"+ c.GetName() + ".pdf")
+
+	# Draw all signal fits
+	frame_shapes = mjj.frame()
+	for input_mass in input_masses:
+		input_shapes[input_mass]["nominal"].plotOn(frame_shapes, RooFit.Name("{} GeV".format(input_mass)), RooFit.LineStyle(1), RooFit.LineWidth(2), RooFit.LineColor(seaborn.GetColorRoot("cubehelix", int(input_mass / 1200. * 20), 20)))
+	for output_mass in output_masses:
+		output_shapes[output_mass]["nominal"].plotOn(frame_shapes, RooFit.Name("{} GeV".format(output_mass)), RooFit.LineStyle(2), RooFit.LineWidth(2), RooFit.LineColor(seaborn.GetColorRoot("cubehelix", int(output_mass / 1200. * 20), 20)))
+	c_frame_shapes = TCanvas("c_signal_fits_all_{}_{}_{}".format(analysis, model, fit_function), "c_signal_fits_{}_{}_{}".format(analysis, model, fit_function), 800, 600)
+	frame_shapes.Draw()
+	c_frame_shapes.SaveAs(analysis_config.figure_directory + "/{}.pdf".format(c_frame_shapes.GetName()))
 
 if __name__ == "__main__":
 	from argparse import ArgumentParser

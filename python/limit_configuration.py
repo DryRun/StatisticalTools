@@ -1,3 +1,5 @@
+import glob
+
 paths = {}
 paths["limits"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/"
 paths["datacards"] = paths["limits"] + "/Datacards/"
@@ -5,6 +7,12 @@ paths["condor"] = paths["limits"] + "/condor/"
 paths["combine_logs"] = paths["limits"] + "/Logs/"
 paths["resonance_shapes"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/ResonanceShapes/"
 paths["limit_plots"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Results/figures/"
+paths["r_grid"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/Grid/"
+
+limit_signal_masses = {
+	"trigbbl_CSVTM":range(400, 850, 50),
+	"trigbbh_CSVTM":range(600, 1250, 50)
+}
 
 # Get the path to a workspace. 
 def get_workspace_filename(analysis_name, model, mass, fitBonly=False, fitSignal=False):
@@ -59,3 +67,12 @@ def get_resonance_shapes(analysis, model):
 		raise ValueError("[get_resonance_shapes] ERROR : Unknown model " + model)
 	path += ".root"
 	return path
+
+def get_hn_grid(analysis, model, mass, fit_function):
+	path = paths["r_grid"] + "/grid_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function + ".root" 
+	return path
+
+def get_hn_grid_subfiles(analysis, model, mass, fit_function):
+	pattern = paths["r_grid"] + "/grid_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function + "/higgsCombinegrid_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function + "_i*root"
+	return glob.glob(pattern)
+

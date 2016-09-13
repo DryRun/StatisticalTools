@@ -427,12 +427,13 @@ def main():
 
     if args.saveObjects:
         f = TFile(args.saveObjects, "RECREATE")
-        graph_exp_2sigma.SetName("graph_exp_2sigma")
-        graph_exp_2sigma.Write()
-        graph_exp_1sigma.SetName("graph_exp_1sigma")
-        graph_exp_1sigma.Write()
-        graph_exp.SetName("graph_exp")
-        graph_exp.Write()
+        if args.method == "Asymptotic":
+            graph_exp_2sigma.SetName("graph_exp_2sigma")
+            graph_exp_2sigma.Write()
+            graph_exp_1sigma.SetName("graph_exp_1sigma")
+            graph_exp_1sigma.Write()
+            graph_exp.SetName("graph_exp")
+            graph_exp.Write()
         graph_obs.SetName("graph_obs")
         graph_obs.Write()
         f.Close()
