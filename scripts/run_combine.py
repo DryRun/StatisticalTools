@@ -113,6 +113,8 @@ def main():
 
     parser.add_argument("--condor", dest="condor", default=False, action="store_true", help="Batch process using Condor")
 
+    parser.add_argument("--no_retar", dest='no_retar', action="store_true", help="If --condor is specified, this specifies no retar of src directory (use cached copy)")
+
     parser.add_argument("--postfix", dest="postfix", default='', help="Postfix for the input and output file names (default: %(default)s)")
 
     parser.add_argument("--hnsig", dest="hnsig", default=False, action="store_true", help="HybridNew Significance calc")
@@ -291,7 +293,7 @@ def main():
                     condor_command += " -s submit_combine_{}_{}_{}.jdl".format(analysis, model, mass)
                     condor_command += " -d " + submission_dir
                     condor_command += " --cmssw"
-                    if not first:
+                    if not first or args.no_retar:
                         condor_command += " --no_retar "
                     print ">> Submitting job for %s %s resonance with m = %i GeV..."%(analysis,model, int(mass))
                     print "Submission command: "

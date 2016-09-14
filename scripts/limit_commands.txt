@@ -4,11 +4,13 @@ python create_datacards.py trigbbl_CSVTM Hbb --massMin 354 --massMax 1530 --mass
 python create_datacards.py trigbbh_CSVTM RSG --massMin 526 --massMax 1530 --massrange 600 1200 50 --fitSignal --runFit >& log_trigbbh_CSVTM_RSG_fitSignal.txt &
 python create_datacards.py trigbbl_CSVTM RSG --massMin 354 --massMax 1530 --massrange 400 800 50 --fitSignal --runFit >& log_trigbbl_CSVTM_RSG_fitSignal.txt &
 
+
+
 # One-liners for limit setting
-python run_combine.py -M Asymptotic --toysH 5000 --rAbsAcc 0.0001 --rRelAcc 0.001 --rMin 0.005 --rMax 0.2 --fitSignal -v2 --fit_function f4 --condor
-python run_combine.py -M Asymptotic  --fitSignal -v2 --fit_function f3 --condor --toysH 5000 --rAbsAcc 0.0001 --rRelAcc 0.001
-python run_combine.py -M Asymptotic --fitSignal --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 -v2 --fit_function f4 --condor
-python run_combine.py -M Asymptotic --rAbsAcc 0.0001 --rRelAcc 0.001 --rMin 0.005 --rMax 0.2 --fitSignal --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2 -v2 --fit_function f3 --condor
+python run_combine.py -M Asymptotic --toysH 5000 --rAbsAcc 0.0001 --rRelAcc 0.001 --rMin 0.005 --rMax 0.2 --fitSignal -v5 --fit_function f4 --condor --no_retar
+python run_combine.py -M Asymptotic  --fitSignal -v5 --fit_function f3 --condor --no_retar --toysH 5000 --rAbsAcc 0.0001 --rRelAcc 0.001
+python run_combine.py -M Asymptotic --fitSignal --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 -v5 --fit_function f4 --condor --no_retar
+python run_combine.py -M Asymptotic --rAbsAcc 0.0001 --rRelAcc 0.001 --rMin 0.005 --rMax 0.2 --fitSignal --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2 -v5 --fit_function f3 --condor --no_retar
 python run_combine.py -M HybridNew --frequentist --fitSignal --toysH 500 --rAbsAcc 0.005 --rRelAcc 0.01 -v2 --fit_function f4 --condor
 python run_combine.py -M HybridNew --frequentist --fitSignal --toysH 500 --rAbsAcc 0.005 --rRelAcc 0.01 -v2 --fit_function f3 --condor
 
@@ -64,9 +66,10 @@ python plot_limits.py trigbbl_CSVTM Hbb -M HybridNew --fit_function f3 --massran
 python plot_limits.py trigbbh_CSVTM RSG -M HybridNew --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3.root
 python plot_limits.py trigbbl_CSVTM RSG -M HybridNew --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f3.root
 
-
-
-
+python plot_limits.py trigbbh_CSVTM Hbb -M HybridNewGrid --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root
+python plot_limits.py trigbbl_CSVTM Hbb -M HybridNewGrid --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f3.root
+python plot_limits.py trigbbh_CSVTM RSG -M HybridNewGrid --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3.root
+python plot_limits.py trigbbl_CSVTM RSG -M HybridNewGrid --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f3.root
 
 
 

@@ -40,6 +40,16 @@ def get_combine_log_path(analysis_name, model, mass, fit_function, method, syste
 	path = paths["combine_logs"] + "/limits_" + method + "_" + analysis_name + "_" + model + "_m" + str(mass) + postfix + "_" + fit_function + ".log"
 	return path
 
+# Example: limits_HybridNewGrid_trigbbh_CSVTM_Hbb_m1200_f3_exp2.log
+def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, method="HybridNewGrid", systematics=True, frozen_nps=None):
+	postfix = ""
+	if not systematics:
+		postfix += "_noSyst"
+	if frozen_nps:
+		postfix += "_" + frozen_nps.replace(",", "_")
+	path = paths["combine_logs"] + "/limits_" + method + "_" + analysis_name + "_" + model + "_m" + str(mass) + postfix + "_" + fit_function + "_" + what + ".log"
+	return path
+
 def get_data_input(analysis):
 	path = paths["resonance_shapes"] + "/tyler/databb"
 	if analysis == "trigbbh_CSVTM":

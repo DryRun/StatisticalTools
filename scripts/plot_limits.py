@@ -18,7 +18,7 @@ def main():
     parser.add_argument('model', type=str, help='Model name')
 
     parser.add_argument("-M", "--method", dest="method", required=True,
-                        choices=['ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC', 'theta'],
+                        choices=['ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC', 'theta', 'HybridNewGrid'],
                         help="Method to calculate upper limits",
                         metavar="METHOD")
     parser.add_argument('--fit_function', type=str, default="f4", help="Name of fit function used for background estimate")
@@ -101,7 +101,7 @@ def main():
     #trigger_correctionh.SetParameter(1,  3.16523e+01)
     #trigger_correctionh.SetParameter(2,  4.84357e-01)
     if args.timesAE:
-        ys = array.ones(len(xs))
+        ys = np.ones(len(xs))
     else:
         if args.analysis == "trigbbh_CSVTM" and args.model == "Hbb":
         	#ys = array('d',[188./19751.,1304./19993.,2697./49494.,881./19999.,534./19598.])
@@ -138,77 +138,128 @@ def main():
     for mass in input_masses:
         print ">> Reading results for %s %s resonance with m = %i GeV..."%(args.analysis, args.model, int(mass))
         masses.append(mass)
-        if args.method == 'Asymptotic': 
-            masses_exp.append(mass)
-        print "Reading log file from " + limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances)
-        log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances))
+        masses_exp.append(mass)
 
-        foundMethod = False
-        middle = 0
-        # read the log file
-        found_limit = {"obs":False, "exp":False, "exp+1":False, "exp+2":False, "exp-1":False, "exp-2":False}
-        for line in log_file:
-            if args.method == 'Asymptotic':
-                if re.search("^Observed Limit: r", line):
-                    xs_obs_limits.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass))
-                    found_limit["obs"] = True
-                if re.search("^Expected 50.0%: r", line):
-                    middle = float(line.split()[-1])
-                    found_limit["exp"] = True
-                    xs_exp_limits.append(middle/acceptance_times_efficiency.Eval(mass))
-                if re.search("^Expected 16.0%: r", line):
-                    xs_exp_limits_1sigma.append((float(line.split()[-1]))/acceptance_times_efficiency.Eval(mass))
-                    found_limit["exp-1"] = True
-                if re.search("^Expected 84.0%: r", line):
-                    xs_exp_limits_1sigma_up.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass))
-                    found_limit["exp+1"] = True
-                if re.search("^Expected  2.5%: r", line):
-                    xs_exp_limits_2sigma.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass))
-                    found_limit["exp-2"] = True
-                if re.search("^Expected 97.5%: r", line):
-                    xs_exp_limits_2sigma_up.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass))
-                    found_limit["exp+2"] = True
-            elif args.method == 'theta':
-                if re.search('^# x; y; yerror', line):
-                    foundMethod = True
-                if line.split()[0] == '0' and foundMethod:
-                    xs_obs_limits.append(float(line.split()[1])/acceptance_times_efficiency.Eval(mass))
-            else:
-                searchmethod = "Hybrid New"
-                if re.search(' -- ' + searchmethod, line):
-                    foundMethod = True
-                if re.search("^Limit: r", line) and foundMethod:
-                    xs_obs_limits.append(float(line.split()[3])/acceptance_times_efficiency.Eval(mass))
-                    found_limit["obs"] = True
-                    print "[debug] Found limit " + str(xs_obs_limits[-1])
+        if args.method == "HybridNewGrid":
+            found_limit = {"obs":False, "exp0":False, "exp1":False, "exp2":False, "exp-1":False, "exp-2":False}
+            for what in found_limit.keys():
+                log_file_path = limit_config.get_combine_log_path_grid(args.analysis, args.model, mass, args.fit_function, what, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances)
+                print "Reading log file from " + log_file_path
+                log_file = open(log_file_path, 'r')
+                for line in log_file:
+                    if re.search("^Limit: r <", line) and re.search("95%", line):
+                        found_limit[what] = True
+                        this_limit = float(line.split()[3])/acceptance_times_efficiency.Eval(mass)
+                        print "Found limit for " + what + " = " + str(this_limit)
+                        if what == "obs":
+                            xs_obs_limits.append(this_limit)
+                        elif what == "exp0":
+                            xs_exp_limits.append(this_limit)
+                        elif what == "exp1":
+                            xs_exp_limits_1sigma_up.append(this_limit)
+                        elif what == "exp2":
+                            xs_exp_limits_2sigma_up.append(this_limit)
+                        elif what == "exp-1":
+                            xs_exp_limits_1sigma.append(this_limit)
+                        elif what == "exp-2":
+                            xs_exp_limits_2sigma.append(this_limit)
+            if not found_limit["obs"]:
+                xs_obs_limits.append(0)
+            if not found_limit["exp0"]:
+                xs_exp_limits.append(0)
+            if not found_limit["exp1"]:
+                xs_exp_limits_1sigma.append(0)
+            if not found_limit["exp2"]:
+                xs_exp_limits_1sigma_up.append(0)
+            if not found_limit["exp-1"]:
+                xs_exp_limits_2sigma.append(0)
+            if not found_limit["exp-2"]:
+                xs_exp_limits_2sigma_up.append(0)
+            if len(masses) != len(xs_obs_limits):
+                print "** ERROR: ** Could not find observed limit for m =", int(mass), "GeV. Aborting."
+                sys.exit(1)
+        else:
+            print "Reading log file from " + limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances)
+            log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances))
 
-        if not found_limit["obs"]:
-            xs_obs_limits.append(0)
-        if not found_limit["exp"]:
-            xs_exp_limits.append(0)
-        if not found_limit["exp+1"]:
-            xs_exp_limits_1sigma.append(0)
-        if not found_limit["exp+2"]:
-            xs_exp_limits_1sigma_up.append(0)
-        if not found_limit["exp-1"]:
-            xs_exp_limits_2sigma.append(0)
-        if not found_limit["exp-2"]:
-            xs_exp_limits_2sigma_up.append(0)
-        if len(masses) != len(xs_obs_limits):
-            print "** ERROR: ** Could not find observed limit for m =", int(mass), "GeV. Aborting."
-            sys.exit(1)
+            foundMethod = False
+            middle = 0
+            # read the log file
+            found_limit = {"obs":False, "exp":False, "exp+1":False, "exp+2":False, "exp-1":False, "exp-2":False}
+            for line in log_file:
+                if args.method == 'Asymptotic':
+                    if re.search("^Observed Limit: r", line):
+                        xs_obs_limits.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass))
+                        found_limit["obs"] = True
+                    if re.search("^Expected 50.0%: r", line):
+                        middle = float(line.split()[-1])
+                        found_limit["exp"] = True
+                        xs_exp_limits.append(middle/acceptance_times_efficiency.Eval(mass))
+                    if re.search("^Expected 16.0%: r", line):
+                        xs_exp_limits_1sigma.append((float(line.split()[-1]))/acceptance_times_efficiency.Eval(mass))
+                        found_limit["exp-1"] = True
+                    if re.search("^Expected 84.0%: r", line):
+                        xs_exp_limits_1sigma_up.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass))
+                        found_limit["exp+1"] = True
+                    if re.search("^Expected  2.5%: r", line):
+                        xs_exp_limits_2sigma.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass))
+                        found_limit["exp-2"] = True
+                    if re.search("^Expected 97.5%: r", line):
+                        xs_exp_limits_2sigma_up.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass))
+                        found_limit["exp+2"] = True
+                elif args.method == 'theta':
+                    if re.search('^# x; y; yerror', line):
+                        foundMethod = True
+                    if line.split()[0] == '0' and foundMethod:
+                        xs_obs_limits.append(float(line.split()[1])/acceptance_times_efficiency.Eval(mass))
+                else:
+                    searchmethod = "Hybrid New"
+                    if re.search(' -- ' + searchmethod, line):
+                        foundMethod = True
+                    if re.search("^Limit: r", line) and foundMethod:
+                        xs_obs_limits.append(float(line.split()[3])/acceptance_times_efficiency.Eval(mass))
+                        found_limit["obs"] = True
+                        print "[debug] Found limit " + str(xs_obs_limits[-1])
 
-        if args.method == 'Asymptotic':
+            if not found_limit["obs"]:
+                xs_obs_limits.append(0)
+            if not found_limit["exp"]:
+                xs_exp_limits.append(0)
+            if not found_limit["exp+1"]:
+                xs_exp_limits_1sigma.append(0)
+            if not found_limit["exp+2"]:
+                xs_exp_limits_1sigma_up.append(0)
+            if not found_limit["exp-1"]:
+                xs_exp_limits_2sigma.append(0)
+            if not found_limit["exp-2"]:
+                xs_exp_limits_2sigma_up.append(0)
+            if len(masses) != len(xs_obs_limits):
+                print "** ERROR: ** Could not find observed limit for m =", int(mass), "GeV. Aborting."
+                sys.exit(1)
+
+        if args.method == 'Asymptotic' or args.method == 'HybridNewGrid':
             if len(masses) != len(xs_exp_limits):
                 print "** ERROR: ** Could not find expected limit for m =", int(mass), "GeV. Aborting."
+                print "masses = ",
+                print masses
+                print "xs_exp_limits = ",
+                print xs_exp_limits
                 sys.exit(1)
 
             if len(masses) != len(xs_exp_limits_1sigma):
                 print "** ERROR: ** Could not find expected 1 sigma down limit for m =", int(mass), "GeV. Aborting."
+                print "masses = ",
+                print masses
+                print "xs_exp_limits_1sigma = ",
+                print xs_exp_limits_1sigma
                 sys.exit(1)
 
             if len(masses) != len(xs_exp_limits_1sigma_up):
                 print "** ERROR: ** Could not find expected 1 sigma up limit for m =", int(mass), "GeV. Aborting."
+                print "masses = ",
+                print masses
+                print "xs_exp_limits_1sigma_up = ",
+                print xs_exp_limits_1sigma_up
                 sys.exit(1)
 
             if len(masses) != len(xs_exp_limits_2sigma):
@@ -218,7 +269,7 @@ def main():
             if len(masses) != len(xs_exp_limits_2sigma_up):
                 print "** ERROR: ** Could not find expected 2 sigma up limit for m =", int(mass), "GeV. Aborting."
                 sys.exit(1)
-    if args.method == 'Asymptotic':
+    if args.method == 'Asymptotic' or args.method == 'HybridNewGrid':
         # complete the expected limit arrays
         for i in range(0,len(masses)):
             masses_exp.append( masses[len(masses)-i-1] )
@@ -309,7 +360,7 @@ def main():
     graph_xsZprime.SetLineColor(38)
 
     # limits
-    if args.method == "Asymptotic":
+    if args.method == "Asymptotic" or args.method == "HybridNewGrid":
         graph_exp_2sigma = ( TGraph(len(masses_exp),masses_exp,xs_exp_limits_2sigma) if len(xs_exp_limits_2sigma) > 0 else TGraph(0) )
         graph_exp_2sigma.SetFillColor(kYellow)
 
@@ -339,7 +390,7 @@ def main():
     legend.SetTextSize(0.03)
     legend.SetHeader('95% CL upper limits')
 
-    if len(xs_exp_limits_2sigma) > 0 and args.method == "Asymptotic":
+    if len(xs_exp_limits_2sigma) > 0 and (args.method == "Asymptotic" or args.method == "HybridNewGrid"):
         frame = graph_exp_2sigma.GetHistogram().Clone()
     else:
         frame = graph_obs.GetHistogram().Clone()
@@ -353,7 +404,7 @@ def main():
     frame.GetYaxis().SetRangeUser(1e-03,1e+02)
     frame.Draw("axis")
 
-    if len(xs_exp_limits_2sigma) > 0 and args.method == "Asymptotic":
+    if len(xs_exp_limits_2sigma) > 0 and (args.method == "Asymptotic" or args.method == "HybridNewGrid"):
         graph_exp_2sigma.GetXaxis().SetTitle("Resonance mass [GeV]")
         graph_exp_2sigma.GetYaxis().SetTitle("#sigma #times #it{B} [pb]")
         graph_exp_2sigma.GetYaxis().SetTitleOffset(1.1)
@@ -422,12 +473,14 @@ def main():
     if args.freezeNuisances:
         postfix += "_" + args.freezeNuisances.replace(",", "_")
     fileName = limit_config.paths["limit_plots"] + '/xs_limit_%s_%s_%s_%s.%s'%(args.method,args.analysis, args.model + postfix, args.fit_function, args.fileFormat.lower())
+    if args.timesAE:
+        fileName = fileName.replace("xs_limit", "xsAE_limit")
     c.SaveAs(fileName)
     print "Plot saved to '%s'"%(fileName)
 
     if args.saveObjects:
         f = TFile(args.saveObjects, "RECREATE")
-        if args.method == "Asymptotic":
+        if args.method == "Asymptotic" or args.method == "HybridNewGrid":
             graph_exp_2sigma.SetName("graph_exp_2sigma")
             graph_exp_2sigma.Write()
             graph_exp_1sigma.SetName("graph_exp_1sigma")
