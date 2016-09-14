@@ -31,7 +31,7 @@ def setup_grid(name, datacard, workspace, r_values, run=False):
 	return submit_command
 
 def merge(analysis, model, mass, fit_function):
-	merge_command = "hadd " + limit_config.get_hn_grid(analysis, model, mass, args.fit_function) + " " + " ".join(limit_config.get_hn_grid_subfiles(analysis, model, mass, args.fit_function))
+	merge_command = "hadd " + limit_config.get_hn_grid(analysis, model, mass, fit_function) + " " + " ".join(limit_config.get_hn_grid_subfiles(analysis, model, mass, args.fit_function))
 	os.system(merge_command)
 
 
