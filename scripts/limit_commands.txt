@@ -66,10 +66,10 @@ python plot_limits.py trigbbl_CSVTM Hbb -M HybridNew --fit_function f3 --massran
 python plot_limits.py trigbbh_CSVTM RSG -M HybridNew --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3.root
 python plot_limits.py trigbbl_CSVTM RSG -M HybridNew --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f3.root
 
-python plot_limits.py trigbbh_CSVTM Hbb -M HybridNewGrid --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root
-python plot_limits.py trigbbl_CSVTM Hbb -M HybridNewGrid --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f3.root
-python plot_limits.py trigbbh_CSVTM RSG -M HybridNewGrid --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3.root
-python plot_limits.py trigbbl_CSVTM RSG -M HybridNewGrid --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f3.root
+python plot_limits.py trigbbh_CSVTM Hbb -M HybridNewGrid --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root --timesAE
+python plot_limits.py trigbbl_CSVTM Hbb -M HybridNewGrid --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f3.root --timesAE
+python plot_limits.py trigbbh_CSVTM RSG -M HybridNewGrid --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3.root --timesAE
+python plot_limits.py trigbbl_CSVTM RSG -M HybridNewGrid --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f3.root --timesAE
 
 
 

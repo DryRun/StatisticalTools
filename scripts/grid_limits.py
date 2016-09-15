@@ -16,7 +16,7 @@ def limits(analysis, model, mass, fit_function, noSyst=False, freezeNuisances=No
 
 	datacard = limit_config.get_datacard_filename(analysis, model, mass, fit_function, fitSignal=True)
 	log_base = limit_config.get_combine_log_path_grid(analysis, model, mass, fit_function, "HybridNewGrid", systematics=(not noSyst), frozen_nps=freezeNuisances)
-	command_base = "combine {} -M HybridNew --frequentist --grid={}".format(datacard, limit_config.get_hn_grid(analysis, model, mass, fit_function))
+	command_base = "combine {} -M HybridNew -v5 --frequentist --grid={}".format(datacard, limit_config.get_hn_grid(analysis, model, mass, fit_function))
 
 	# Observed
 	#log_observed = log_base.replace(".log", "_obs.log")
@@ -24,6 +24,7 @@ def limits(analysis, model, mass, fit_function, noSyst=False, freezeNuisances=No
 	log_observed = limit_config.get_combine_log_path_grid(analysis, model, mass, fit_function, "obs", method="HybridNewGrid", systematics=(not noSyst), frozen_nps=freezeNuisances)
 
 	command_observed = command_base + " 2>&1 | tee {}".format(log_observed)
+	print command_observed
 	os.system(command_observed)
 
 	# Expected
@@ -34,6 +35,7 @@ def limits(analysis, model, mass, fit_function, noSyst=False, freezeNuisances=No
 		log_expected = limit_config.get_combine_log_path_grid(analysis, model, mass, fit_function, "exp" + str(exp), method="HybridNewGrid", systematics=(not noSyst), frozen_nps=freezeNuisances)
 		print "[debug] Writing log file to " + log_expected
 		command_expected = command_base + " --expectedFromGrid {} 2>&1 | tee {}".format(expected_r[exp], log_expected)
+		print command_expected
 		os.system(command_expected)
 
 if __name__ == "__main__":
