@@ -76,7 +76,7 @@ if __name__ == "__main__":
 		#max_logr = log(args.r_max, 10)
 		#logr_values = [min_logr + ((max_logr - min_logr)*i/(args.n_points - 1)) for i in range(args.n_points)]
 		#r_values = [10**x for x in logr_values]
-		initial_r_values = pickle.load(open("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Grid/initial_r_values.p", "rb"))
+		#initial_r_values = pickle.load(open("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Grid/initial_r_values.p", "rb"))
 
 		postfix = args.fit_function
 		if args.noSyst:
@@ -91,22 +91,18 @@ if __name__ == "__main__":
 				for mass in masses:
 					print "{}/{}/{}".format(analysis, model, mass)
 					# Determine min/max r-values from first pass
-					print "Determining r-grid from initial values:"
-					print initial_r_values[analysis][model][mass]
+					print "Determining r-grid"
+					limit_p2sigma = limit_config.limit_p2sigma_estimates[analysis][model][mass]
+					limit_m2sigma = limit_config.limit_m2sigma_estimates[analysis][model][mass]
+					limit_range = limit_p2sigma - limit_m2sigma
 					if args.r_min:
 						r_min = args.r_min
 					else:
-						r_min = min(initial_r_values[analysis][model][mass].values()) / 2.
-						if r_min < 0.005:
-							print "WARNING : using restricted r_min=0.005 instead of first-pass {}".format(r_min)
-							r_min = 0.005
+						r_min = limit_m2sigma * 100 / 3.
 					if args.r_max:
 						r_max = args.r_max
 					else:
-						r_max = max(initial_r_values[analysis][model][mass].values()) * 2.
-						if r_max > 0.7:
-							print "WARNING : using restricted r_max=0.5 instead of first-pass {}".format(r_max)
-							r_max = 0.5
+						r_max = limit_p2sigma * 100 * 3.
 					print "Using r in [{}, {}]".format(r_min, r_max)
 					#min_logr = log(r_min, 10)
 					#max_logr = log(r_max, 10)

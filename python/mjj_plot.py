@@ -75,7 +75,7 @@ def make_background_tf1(fit_function, mjj_range):
 def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1, draw_chi2ndf=False, data_histogram=None):
 	print "Making plot " + save_tag
 	c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
-	l = TLegend(0.55, 0.6, 0.88, 0.88)
+	l = TLegend(0.5, 0.55, 0.88, 0.88)
 	l.SetFillColor(0)
 	l.SetBorderSize(0)
 	top = TPad("top", "top", 0., 0.5, 1., 1.)
@@ -92,7 +92,6 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 	ROOT.SetOwnership(top, False)
 	ROOT.SetOwnership(bottom, False)
 	top.cd()
-
 
 	background_histograms = {}
 	background_histograms_fitted_range = {}
@@ -222,6 +221,7 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 	f_workspace.Close()
 
 	l.Draw()
+	Root.CMSLabel()
 	
 	# Pull histogram
 	c.cd()
@@ -258,8 +258,8 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 if __name__ == "__main__":
 	import argparse
 	parser = argparse.ArgumentParser(description="Run and plot fits")
-	parser.add_argument("analysis", type=str, help='Analysis name (see analysis_configuration_8TeV.py)')
-	parser.add_argument("model", type=str, help='Model name')
+	parser.add_argument("--analyses", type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help='Analysis name (see analysis_configuration_8TeV.py)')
+	parser.add_argument("--models", type=str, default="Hbb,RSG", help='Model name')
 	parser.add_argument("--plot", action="store_true", help="Plot mjj spectra and fits. Background fit is always plotted; signal fits are plotted if --signal is specified.")
 	parser.add_argument("--x_range", type=int, nargs=2, help="Plot xrange")
 	# Fit options
@@ -269,6 +269,9 @@ if __name__ == "__main__":
 						metavar="LUMI")
 
 	args = parser.parse_args()
+
+	analyses = args.analyses.split(",")
+	models = args.models.split(",")
 
 	if args.plot:
 		print "Plotting"
@@ -283,14 +286,16 @@ if __name__ == "__main__":
 
 		fit_functions = ["f1", "f2", "f3", "f4", "f5"]
 		mass_bins = array("d", [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8000])
-		background_workspace = limit_config.get_workspace_filename(args.analysis, args.model, 750, fitBonly=True)
 		if args.x_range:
 			x_range = args.x_range
 		else:
 			x_range = [0., 2000.]
 
-		histogram_file = TFile(analysis_config.get_b_histogram_filename(args.analysis, "BJetPlusX_2012"), "READ")
-		data_histogram = histogram_file.Get("BHistograms/h_pfjet_mjj")
-		data_histogram.SetDirectory(0)
-		rooplot("mjj_combinefits_" + args.analysis + "_" + args.model, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2ndf=True) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
+		for analysis in analyses:
+			histogram_file = TFile(analysis_config.get_b_histogram_filename(analysis, "BJetPlusX_2012"), "READ")
+			data_histogram = histogram_file.Get("BHistograms/h_pfjet_mjj")
+			data_histogram.SetDirectory(0)
+			for model in models:
+				background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=False, fitSignal=True)
+				rooplot("mjj_combinefits_" + analysis + "_" + model, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2ndf=True) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
 

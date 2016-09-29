@@ -258,6 +258,7 @@ def main():
             if "trigbbh" in args.analysis:
                 if fit_function == "f3":
                     background_parameters[fit_function]["p1"].setVal(55.)
+                    background_parameters[fit_function]["p1"].setMin(40.)
                     background_parameters[fit_function]["p2"].setVal(8.)
                 elif fit_function == "f4":
                     background_parameters[fit_function]["p1"].setVal(28.)
@@ -266,6 +267,7 @@ def main():
             elif "trigbbl" in args.analysis:
                 if fit_function == "f3":
                     background_parameters[fit_function]["p1"].setVal(82.)
+                    background_parameters[fit_function]["p1"].setMin(60.)
                     background_parameters[fit_function]["p2"].setVal(8.)
                 elif fit_function == "f4":
                     background_parameters[fit_function]["p1"].setVal(41.)
@@ -308,6 +310,8 @@ def main():
                 xp_up = signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))["xpJESUp"][0]
                 xp_down = signal_fits.get_parameters(w_signal.pdf("signal__JESDown"))["xpJESDown"][0]
                 signal_vars["dxp"].setVal(max(abs(xp_up - xp_central), abs(xp_down - xp_central)))
+                if signal_vars["dxp"].getVal() > 2 * mass * 0.1:
+                    print "[create_datacards] WARNING : Large dxp value. dxp = {}, xp_down = {}, xp_central = {}, xp_up = {}".format(signal_vars["dxp"].getVal(), xp_down, xp_central, xp_up)
                 signal_vars["alpha_jes"].setVal(0.)
                 signal_vars["alpha_jes"].setConstant(False)
             else:
@@ -408,7 +412,10 @@ def main():
             # Create a norm variable "signal_norm" which normalizes the PDF to unity.
             norm = args.lumi
             #signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", 1. / norm, 0.1 / norm, 10. / norm)
-            signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm, norm / 10., norm * 10.)
+            #if args.analysis == "trigbbh_CSVTM" and mass >= 1100:
+            signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm/100., norm/100. / 10., norm * 10.)
+            #else:
+            #    signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm, norm / 10., norm * 10.)
             print "[create_datacards] INFO : Set signal norm to {}".format(signal_norm.getVal())
             signal_norm.setConstant()
             getattr(w,'import')(signal_norm,ROOT.RooCmdArg())

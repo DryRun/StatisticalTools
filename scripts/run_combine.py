@@ -80,6 +80,8 @@ def main():
 
     parser.add_argument("--rMax", dest="rMax", type=float, help="Maximum value for the signal strength")
 
+    parser.add_argument("--rPrior", action="store_true", help="Take rMin and rMax from a previous iteration of limit setting.")
+
     parser.add_argument("--rRelAcc", dest="rRelAcc", type=float, help="rRelAcc")
 
     parser.add_argument("--rAbsAcc", dest="rAbsAcc", type=float, help="rAbsAcc")
@@ -88,7 +90,11 @@ def main():
 
     parser.add_argument("--toysH", dest="toysH", type=int, help="Number of Toy MC extractions for HybridNew")
 
+    parser.add_argument("--toys", dest="toys", type=int, help="Number of Toy MC extractions, not for HybridNew")
+
     parser.add_argument("--tries", dest="tries", type=int, default=10, help="Number of times to run the MCMC (default: %(default)i)")
+
+    parser.add_argument("--robustFit", dest="robustFit", action='store_true', help="combine robustFit option")
 
     parser.add_argument("--proposal", dest="proposal", default='ortho', help="Proposal function for MCMC (default: %(default)s)")
 
@@ -100,10 +106,12 @@ def main():
 
     parser.add_argument("--strictBounds", dest="strictBounds", default=False, action="store_true", help="Strict bounds on rMax")
 
+    parser.add_argument("--testStat", type=str, help="Test statistics: LEP, TEV, LHC (previously known as Atlas), Profile.")
+
     parser.add_argument("--freezeNuisances", dest="freezeNuisances", type=str, help="Freeze nuisance parameters")
     parser.add_argument("--noHint", dest="noHint", default=False, action="store_true", help="Do not run the hint method")
 
-    parser.add_argument("--signif", dest="signif", default=False, action="store_true", help="Calculate significance instead of limits")
+    parser.add_argument("--significance", dest="significance", default=False, action="store_true", help="Calculate significance instead of limits")
 
     parser.add_argument("--frequentist", dest="freq", default=False, action="store_true", help="Frequentist hybridnew")
 
@@ -174,23 +182,25 @@ def main():
         masses = limit_config.limit_signal_masses
     method = args.method
 
-    if args.signif and method != 'ProfileLikelihood' and method != 'HybridNew':
+    if args.significance and method != 'ProfileLikelihood' and method != 'HybridNew':
         print "** ERROR: ** For significance calculation the ProfileLikelihood or HybridNew method has to be used. Aborting."
         sys.exit(1)
 
     options = ''
-    if args.signif:
-        options = options + ' --signif'
+    if args.significance:
+        options = options + ' --significance'
     if args.freq:
-	   options = options + ' --frequentist'
+        options = options + ' --frequentist'
     if args.hnsig:
-	   options = options + ' --significance --saveToys --fullBToys --saveHybridResult -T 500 -i 100 -s 123457'
+        options = options + ' --significance --saveToys --fullBToys --saveHybridResult -T 500 -i 100 -s 123457'
     if args.hnsig2:
         options = options + ' --significance --readHybridResult --toysFile=input.root --expectedFromGrid=0.5'
     if args.forkvar:
-	   options = options + ' --fork 4'
+        options = options + ' --fork 4'
+    if args.testStat:
+        options = options + ' --testStat ' + args.testStat
     if args.level != None:
-	   options = options + ' --expectedFromGrid=%f'%(args.level)
+        options = options + ' --expectedFromGrid=%f'%(args.level)
     if args.fitStrategy:
         options = options + ' --minimizerStrategy %i'%(args.fitStrategy)
     if args.noSyst:
@@ -209,19 +219,27 @@ def main():
         options = options + " --rRelAcc " + str(args.rRelAcc) + " "
     if args.verbose:
         options = options + ' -v' + str(args.verbose)
-    if method != 'ProfileLikelihood' and method != 'MaxLikelihoodFit' and args.rMax == None and not args.noHint and not args.signif:
+    if method != 'ProfileLikelihood' and method != 'MaxLikelihoodFit' and args.rMax == None and not args.noHint and not args.significance:
         options = options + ' --hintMethod ProfileLikelihood'
     if method == 'HybridNew' and args.toysH != None:
         options = options + ' --toysH %i'%(args.toysH)
-    if args.rMin != None:
-        options = options + ' --rMin %f'%(args.rMin)
-    if args.rMax != None:
-        options = options + ' --rMax %f'%(args.rMax)
+    if args.toys:
+        options = options + ' --toys ' + str(args.toys)
+    if args.robustFit:
+        options = options + ' --robustFit 1'
+    if args.rPrior:
+        # Take rMin and rMax from +/-2 sigma estimates from a previous iteration. This has to be done per-job, so do it later.
+        pass
+    else:
+        if args.rMin != None:
+            options = options + ' --rMin %f'%(args.rMin)
+        if args.rMax != None:
+            options = options + ' --rMax %f'%(args.rMax)
     if method == 'MarkovChainMC':
         options = options + ' --tries %i --proposal %s'%(args.tries, args.proposal)
 
     prefix = 'limits'
-    if args.signif:
+    if args.significance:
         prefix = 'significance'
     elif method == 'MaxLikelihoodFit':
         prefix = 'signal_xs'
@@ -251,6 +269,10 @@ def main():
                 logName = '%s_%s_%s_%s_m%i%s_%s.log'%(prefix, method, analysis, model, int(mass), postfix,args.fit_function)
 
                 run_options = options + ' --name _%s_%s_m%i%s_%s --mass %i'%(analysis, model, int(mass),postfix,args.fit_function,int(mass))
+
+                if args.rPrior:
+                    run_options += " --rMin " + str(limit_config.limit_m2sigma_estimates[analysis][model][mass] / 5. * 100.)
+                    run_options += " --rMax " + str(limit_config.limit_p2sigma_estimates[analysis][model][mass] * 5. * 100.)
 
                 if args.condor:
                     cmd = "combine -M %s %s %s 2>&1 | tee %s"%(
