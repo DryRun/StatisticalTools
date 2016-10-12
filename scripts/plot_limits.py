@@ -6,6 +6,8 @@ from array import array
 import numpy as np
 import CMS_lumi
 import CMSDIJET.StatisticalTools.limit_configuration as limit_config
+sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python/CMSDIJET/QCDAnalysis")
+import analysis_configuration_8TeV as analysis_config
 
 
 def main():
@@ -89,7 +91,16 @@ def main():
     from ROOT import kTRUE, kFALSE, gROOT, gStyle, gPad, TGraph, TCanvas, TLegend, TF1, TFile
     from ROOT import kGreen, kYellow, kWhite
 
-    xs = array('d',[250,300,400,500,600,750,900,1200])
+    # Make acc*eff TGraph
+    ae_x = array('d',[400, 500, 600, 750, 900, 1200])
+    if args.timesAE:
+        ae_y = np.ones(len(ae_x))
+    else:
+        ae_y = array('d', [])
+        for mass in ae_x:
+            ae_y.append(analysis_config.simulation.get_signal_AE(args.analysis, args.model, int(mass)))
+    acceptance_times_efficiency = TGraph(len(ae_x), ae_x, ae_y)
+    #xs = array('d',[250,300,400,500,600,750,900,1200])
 
     #trigger_correctionl = TF1("trigbbl_efficiency", "(1. / (1. + TMath::Exp(-1. * (x - [0]) / [1])))**[2]", 175, 400)
     #trigger_correctionl.SetParameter(0, 1.82469e+02)
@@ -100,29 +111,29 @@ def main():
     #trigger_correctionh.SetParameter(0, 3.61785e+02)
     #trigger_correctionh.SetParameter(1,  3.16523e+01)
     #trigger_correctionh.SetParameter(2,  4.84357e-01)
-    if args.timesAE:
-        ys = np.ones(len(xs))
-    else:
-        if args.analysis == "trigbbh_CSVTM" and args.model == "Hbb":
-        	#ys = array('d',[188./19751.,1304./19993.,2697./49494.,881./19999.,534./19598.])
-    		ys = array('d',[24./19737.,188./19751.,1171./19984.,1419./19992.,1304./19993.,2697./49494.,881./19999.,534./19598.])
-    		#graphMod = trigger_correctionh
-        elif args.analysis == "trigbbl_CSVTM" and args.model == "Hbb":
-    		#ys = array('d',[30./2797.,1583./19995.,1295./19996.,999./19996.,528./19999.])
-    		ys = array('d',[574./19737.,763./39502.,651./19984.,583./19992.,984./39986.,1905./98988.,656./39998.,369./39196.])
-    		#graphMod = trigger_correctionh
-        elif args.analysis == "trigbbh_CSVTM" and args.model == "RSG":
-    		#ys = array('d',[109./19751.,488./19993.,954./49494.,328./19999.,182./19598.])
-    		ys = array('d',[40./19977.,30./2797.,1522./19991.,1640./19396.,1583./19995.,1295./19996.,999./19996.,528./19999.])
-    		#graphMod = trigger_correctionl
-        elif args.analysis == "trigbbl_CSVTM" and args.model == "RSG":
-    		#ys = array('d',[23./2797.,599./19995.,448./19996.,338./19996.,190./19999.])
-    		ys = array('d',[696./19977.,137./5594.,797./19991.,652./19396.,1206./39990.,891./39992.,675./39992.,379./39998.])
-    		#graphMod = trigger_correctionl
+    #if args.timesAE:
+    #    ys = np.ones(len(xs))
+    #else:
+    #    if args.analysis == "trigbbh_CSVTM" and args.model == "Hbb":
+    #    	#ys = array('d',[188./19751.,1304./19993.,2697./49494.,881./19999.,534./19598.])
+    #		ys = array('d',[24./19737.,188./19751.,1171./19984.,1419./19992.,1304./19993.,2697./49494.,881./19999.,534./19598.])
+    #		#graphMod = trigger_correctionh
+    #    elif args.analysis == "trigbbl_CSVTM" and args.model == "Hbb":
+    #		#ys = array('d',[30./2797.,1583./19995.,1295./19996.,999./19996.,528./19999.])
+    #		ys = array('d',[574./19737.,763./39502.,651./19984.,583./19992.,984./39986.,1905./98988.,656./39998.,369./39196.])
+    #		#graphMod = trigger_correctionh
+    #    elif args.analysis == "trigbbh_CSVTM" and args.model == "RSG":
+    #		#ys = array('d',[109./19751.,488./19993.,954./49494.,328./19999.,182./19598.])
+    #		ys = array('d',[40./19977.,30./2797.,1522./19991.,1640./19396.,1583./19995.,1295./19996.,999./19996.,528./19999.])
+    #		#graphMod = trigger_correctionl
+    #    elif args.analysis == "trigbbl_CSVTM" and args.model == "RSG":
+    #		#ys = array('d',[23./2797.,599./19995.,448./19996.,338./19996.,190./19999.])
+    #		ys = array('d',[696./19977.,137./5594.,797./19991.,652./19396.,1206./39990.,891./39992.,675./39992.,379./39998.])
+    #		#graphMod = trigger_correctionl
 
-    #ys = array('d',[1,1,1,1,1,1,1,1,])   
+    ##ys = array('d',[1,1,1,1,1,1,1,1,])   
 
-    acceptance_times_efficiency = TGraph(len(xs),xs,ys)
+    #acceptance_times_efficiency = TGraph(len(xs),xs,ys)
 
 
     # arrays holding results
