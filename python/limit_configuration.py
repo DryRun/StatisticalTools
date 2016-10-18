@@ -11,7 +11,9 @@ paths["r_grid"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/Grid/"
 
 limit_signal_masses = {
 	"trigbbl_CSVTM":range(400, 850, 50),
-	"trigbbh_CSVTM":range(600, 1250, 50)
+	"trigbbh_CSVTM":range(600, 1250, 50),
+	"trigbbl_CSVM":range(400, 850, 50),
+	"trigbbh_CSVM":range(600, 1250, 50)
 }
 
 # Estimates of 2-sigma expected limits, in pb

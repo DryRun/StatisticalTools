@@ -297,10 +297,10 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 	# End making systematic variation histograms
 
 	for fit_function in fit_functions:
-		if analysis == "trigbbh_CSVTM":
+		if "trigbbh" in analysis:
 			#mjj = RooRealVar('mjj','mjj',354, 1530)
 			mjj = RooRealVar('mjj','mjj',489, 1945)
-		elif analysis == "trigbbl_CSVTM":
+		elif "trigbbl" in analysis:
 			#mjj = RooRealVar('mjj','mjj',296, 1530)
 			mjj = RooRealVar('mjj','mjj',325, 1945)
 
@@ -309,6 +309,12 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 				"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(1.82469e+02, 2.87768e+01, 9.11659e-01), 
 				RooArgList(mjj))
 		trigger_efficiency_pdfs["trigbbh_CSVTM"] = RooGenericPdf("trigger_efficiency_trigbbh_CSVTM", 
+				"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(3.61785e+02, 3.16523e+01,4.84357e-01), 
+				RooArgList(mjj))
+		trigger_efficiency_pdfs["trigbbl_CSVM"] = RooGenericPdf("trigger_efficiency_trigbbl_CSVM", 
+				"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(1.82469e+02, 2.87768e+01, 9.11659e-01), 
+				RooArgList(mjj))
+		trigger_efficiency_pdfs["trigbbh_CSVM"] = RooGenericPdf("trigger_efficiency_trigbbh_CSVM", 
 				"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(3.61785e+02, 3.16523e+01,4.84357e-01), 
 				RooArgList(mjj))
 
@@ -880,7 +886,7 @@ if __name__ == "__main__":
 	parser.add_argument("--analyses", type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help="List of analyses to run (comma-separated)")
 	parser.add_argument("--models", type=str, default="Hbb,RSG", help="List of models to run")
 	parser.add_argument("--mass", type=int, help="Manually specify mass (otherwise, script runs all mass points)")
-	parser.add_argument("--fit_functions", type=str, default="bukin", help="List of fit functions (default=cb_voigt)")
+	parser.add_argument("--fit_functions", type=str, default="bukin", help="List of fit functions")
 	parser.add_argument("--no_systematics", action="store_true", help="Run without systematics")
 	args = parser.parse_args()
 
@@ -892,7 +898,7 @@ if __name__ == "__main__":
 			masses[analysis] = [args.mass]
 	else:
 		# No need for limited masses, Tyler's files have all the interpolations
-		masses = {"trigbbl_CSVTM":[400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200]}
+		masses = {"trigbbl_CSVTM":[400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200], "trigbbl_CSVM":[400, 500, 600, 750, 900], "trigbbh_CSVM":[600, 750, 900, 1200]}
 		#masses = {"trigbbl_CSVTM":range(400, 950, 50), "trigbbh_CSVTM":range(600, 1200, 50)}
 	fit_functions = args.fit_functions.split(",")
 	if args.no_systematics:
@@ -925,7 +931,9 @@ if __name__ == "__main__":
 			sys.exit(1)
 		output_masses = {
 			"trigbbl_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVTM"])),
-			"trigbbh_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVTM"]))
+			"trigbbh_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVTM"])),
+			"trigbbl_CSVM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVM"])),
+			"trigbbh_CSVM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVM"]))
 		}
 		for analysis in analyses:
 			for model in models:
