@@ -267,8 +267,8 @@ def plot_all_averages(model, analysis, injected_mu=0):
 if __name__ == "__main__":
 	import argparse
 	parser = argparse.ArgumentParser(description = 'Run bias studies and plot output')
-	parser.add_argument('--model', type=str, help='Model name')
-	parser.add_argument('--analysis', type=str, help='Analysis name')
+	parser.add_argument('--model', type=str, default="Hbb,RSG", help='Model name')
+	parser.add_argument('--analysis', type=str, default="trigbbl_CSVTM,trigbbh_CSVTM", help='Analysis name')
 	parser.add_argument('--run', action='store_true', help='Run bias studies')
 	parser.add_argument('--run2', action='store_true', help='Run bias studies')
 	parser.add_argument('--retry2', action='store_true', help='Rerun failed bias studies')
@@ -279,14 +279,8 @@ if __name__ == "__main__":
 	parser.add_argument('--plots', action='store_true', help='Plot results')
 	args = parser.parse_args()
 
-	if args.model:
-		models = args.model.split(",")
-	else:
-		models = ["Hbb", "RSG"]
-	if args.analysis:
-		analyses = args.analysis.split(",")
-	else:
-		analyses = ["trigbbl_CSVTM", "trigbbh_CSVTM"]
+	models = args.model.split(",")
+	analyses = args.analysis.split(",")
 	masses = {"trigbbl_CSVTM":range(400, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
 
 	job_mu_values = {}

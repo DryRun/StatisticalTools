@@ -165,14 +165,18 @@ def main():
         RooMsgService.instance().setStreamStatus(1,kFALSE)
 
     # input data file
-    inputData = TFile(limit_config.get_data_input(args.analysis))
+    #inputData = TFile(limit_config.get_data_input(args.analysis))
     # input data histogram
-    hData = inputData.Get(args.dataHistname)
+    #hData = inputData.Get(args.dataHistname)
+    #hData.SetDirectory(0)
+    data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis, "BJetPlusX_2012"))
+    hData = data_file.Get("BHistograms/h_pfjet_mjj")
     hData.SetDirectory(0)
 
     # input sig file
-    print "[create_datacards] INFO : Opening resonance shapes file at " + limit_config.get_resonance_shapes(args.analysis, args.model)
-    inputSig = TFile(limit_config.get_resonance_shapes(args.analysis, args.model), "READ")
+    if not args.fitSignal:
+        print "[create_datacards] INFO : Opening resonance shapes file at " + limit_config.get_resonance_shapes(args.analysis, args.model)
+        inputSig = TFile(limit_config.get_resonance_shapes(args.analysis, args.model), "READ")
 
     sqrtS = args.sqrtS
 
@@ -189,13 +193,14 @@ def main():
         
         rooDataHist = RooDataHist('rooDatahist','rooDathist',RooArgList(mjj),hData)
 
-        hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
-        if not hSig:
-            raise Exception("Couldn't find histogram " + "h_" + args.final_state + "_" + str(int(mass)) + " in file " + limit_config.get_resonance_shapes(args.analysis, args.model))
-        # normalize signal shape to the expected event yield (works even if input shapes are not normalized to unity)
-        hSig.Scale(signalCrossSection*lumi/hSig.Integral()) # divide by a number that provides roughly an r value of 1-10
-        rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
-        print 'Signal acceptance:', (rooSigHist.sumEntries()/hSig.Integral())
+        if not args.fitSignal:
+            hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
+            if not hSig:
+                raise Exception("Couldn't find histogram " + "h_" + args.final_state + "_" + str(int(mass)) + " in file " + limit_config.get_resonance_shapes(args.analysis, args.model))
+            # normalize signal shape to the expected event yield (works even if input shapes are not normalized to unity)
+            hSig.Scale(signalCrossSection*lumi/hSig.Integral()) # divide by a number that provides roughly an r value of 1-10
+            rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
+            print 'Signal acceptance:', (rooSigHist.sumEntries()/hSig.Integral())
 
         # If using fitted signal shapes, load the signal PDF
         if args.fitSignal:
@@ -293,10 +298,6 @@ def main():
                     par.setConstant()
 
         # -----------------------------------------
-        # dictionaries holding systematic variations of the signal shape
-        hSig_Syst = {}
-        hSig_Syst_DataHist = {}
-        sigCDF = TGraph(hSig.GetNbinsX()+1)
         #signal_pdfs_syst = {}
         # JES and JER uncertainties
         if args.fitSignal:
@@ -345,6 +346,11 @@ def main():
             #        var = iter.Next()
             f_signal_pdfs.Close()
         else:
+            # dictionaries holding systematic variations of the signal shape
+            hSig_Syst = {}
+            hSig_Syst_DataHist = {}
+            sigCDF = TGraph(hSig.GetNbinsX()+1)
+
             if "jes" in systematics or "jer" in systematics:
 
                 sigCDF.SetPoint(0,0.,0.)
