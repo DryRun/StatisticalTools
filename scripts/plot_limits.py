@@ -142,9 +142,9 @@ def main():
 
         # For masses above 1100, you scaled down the signal by 10 by hand, to help the limit setting.
         #if args.analysis == "trigbbh_CSVTM" and mass >= 1100:
-        hack_factor = 1./100.
+        input_xs = 1./100.
         #else:
-        #    hack_factor = 1.
+        #    input_xs = 1.
 
         if args.method == "HybridNewGrid":
             found_limit = {"obs":False, "exp0":False, "exp1":False, "exp2":False, "exp-1":False, "exp-2":False}
@@ -158,17 +158,17 @@ def main():
                         this_limit = float(line.split()[3])/acceptance_times_efficiency.Eval(mass)
                         print "Found limit for " + what + " = " + str(this_limit)
                         if what == "obs":
-                            xs_obs_limits.append(this_limit * hack_factor)
+                            xs_obs_limits.append(this_limit * input_xs)
                         elif what == "exp0":
-                            xs_exp_limits.append(this_limit * hack_factor)
+                            xs_exp_limits.append(this_limit * input_xs)
                         elif what == "exp1":
-                            xs_exp_limits_1sigma_up.append(this_limit * hack_factor)
+                            xs_exp_limits_1sigma_up.append(this_limit * input_xs)
                         elif what == "exp2":
-                            xs_exp_limits_2sigma_up.append(this_limit * hack_factor)
+                            xs_exp_limits_2sigma_up.append(this_limit * input_xs)
                         elif what == "exp-1":
-                            xs_exp_limits_1sigma.append(this_limit * hack_factor)
+                            xs_exp_limits_1sigma.append(this_limit * input_xs)
                         elif what == "exp-2":
-                            xs_exp_limits_2sigma.append(this_limit * hack_factor)
+                            xs_exp_limits_2sigma.append(this_limit * input_xs)
             if not found_limit["obs"]:
                 xs_obs_limits.append(0)
             if not found_limit["exp0"]:
@@ -195,35 +195,35 @@ def main():
             for line in log_file:
                 if args.method == 'Asymptotic':
                     if re.search("^Observed Limit: r", line):
-                        xs_obs_limits.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * hack_factor)
+                        xs_obs_limits.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * input_xs)
                         found_limit["obs"] = True
                     if re.search("^Expected 50.0%: r", line):
                         middle = float(line.split()[-1])
                         found_limit["exp"] = True
-                        xs_exp_limits.append(middle/acceptance_times_efficiency.Eval(mass) * hack_factor)
+                        xs_exp_limits.append(middle/acceptance_times_efficiency.Eval(mass) * input_xs)
                     if re.search("^Expected 16.0%: r", line):
-                        xs_exp_limits_1sigma.append((float(line.split()[-1]))/acceptance_times_efficiency.Eval(mass) * hack_factor)
+                        xs_exp_limits_1sigma.append((float(line.split()[-1]))/acceptance_times_efficiency.Eval(mass) * input_xs)
                         found_limit["exp-1"] = True
                     if re.search("^Expected 84.0%: r", line):
-                        xs_exp_limits_1sigma_up.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * hack_factor)
+                        xs_exp_limits_1sigma_up.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * input_xs)
                         found_limit["exp+1"] = True
                     if re.search("^Expected  2.5%: r", line):
-                        xs_exp_limits_2sigma.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * hack_factor)
+                        xs_exp_limits_2sigma.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * input_xs)
                         found_limit["exp-2"] = True
                     if re.search("^Expected 97.5%: r", line):
-                        xs_exp_limits_2sigma_up.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * hack_factor)
+                        xs_exp_limits_2sigma_up.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * input_xs)
                         found_limit["exp+2"] = True
                 elif args.method == 'theta':
                     if re.search('^# x; y; yerror', line):
                         foundMethod = True
                     if line.split()[0] == '0' and foundMethod:
-                        xs_obs_limits.append(float(line.split()[1])/acceptance_times_efficiency.Eval(mass) * hack_factor)
+                        xs_obs_limits.append(float(line.split()[1])/acceptance_times_efficiency.Eval(mass) * input_xs)
                 else:
                     searchmethod = "Hybrid New"
                     if re.search(' -- ' + searchmethod, line):
                         foundMethod = True
                     if re.search("^Limit: r", line) and foundMethod:
-                        xs_obs_limits.append(float(line.split()[3])/acceptance_times_efficiency.Eval(mass) * hack_factor)
+                        xs_obs_limits.append(float(line.split()[3])/acceptance_times_efficiency.Eval(mass) * input_xs)
                         found_limit["obs"] = True
                         print "[debug] Found limit " + str(xs_obs_limits[-1])
 
