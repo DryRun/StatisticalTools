@@ -13,6 +13,7 @@ seaborn = Root.SeabornInterface()
 seaborn.Initialize()
 from CMSDIJET.StatisticalTools.systematics import *
 import CMSDIJET.StatisticalTools.limit_configuration as limit_config
+import CMSDIJET.StatisticalTools.trigger_efficiency as trigger_efficiency
 
 sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python/CMSDIJET/QCDAnalysis")
 import analysis_configuration_8TeV as analysis_config
@@ -303,32 +304,39 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 		elif "trigbbl" in analysis:
 			#mjj = RooRealVar('mjj','mjj',296, 1530)
 			mjj = RooRealVar('mjj','mjj',325, 1945)
+		elif "trigbbll" in analysis:
+			#mjj = RooRealVar('mjj','mjj',296, 1530)
+			mjj = RooRealVar('mjj','mjj',296, 1945)
+		elif "trigbbhl" in analysis:
+			#mjj = RooRealVar('mjj','mjj',296, 1530)
+			mjj = RooRealVar('mjj','mjj',354, 1945)
 
-		trigger_efficiency_pdfs = {}
-		trigger_efficiency_pdfs["trigbbl_CSVTM"] = RooGenericPdf("trigger_efficiency_trigbbl_CSVTM", 
-				"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(1.82469e+02, 2.87768e+01, 9.11659e-01), 
-				RooArgList(mjj))
-		trigger_efficiency_pdfs["trigbbh_CSVTM"] = RooGenericPdf("trigger_efficiency_trigbbh_CSVTM", 
-				"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(3.61785e+02, 3.16523e+01,4.84357e-01), 
-				RooArgList(mjj))
-		trigger_efficiency_pdfs["trigbbl_CSVM"] = RooGenericPdf("trigger_efficiency_trigbbl_CSVM", 
-				"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(1.82469e+02, 2.87768e+01, 9.11659e-01), 
-				RooArgList(mjj))
-		trigger_efficiency_pdfs["trigbbh_CSVM"] = RooGenericPdf("trigger_efficiency_trigbbh_CSVM", 
-				"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(3.61785e+02, 3.16523e+01,4.84357e-01), 
-				RooArgList(mjj))
+		# Edit 10/23/2016: moved this to an independent module, to enforce consistency across scripts.
+		#trigger_efficiency_pdfs = {}
+		#trigger_efficiency_pdfs["trigbbl_CSVTM"] = RooGenericPdf("trigger_efficiency_trigbbl_CSVTM", 
+		#		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(1.82469e+02, 2.87768e+01, 9.11659e-01), 
+		#		RooArgList(mjj))
+		#trigger_efficiency_pdfs["trigbbh_CSVTM"] = RooGenericPdf("trigger_efficiency_trigbbh_CSVTM", 
+		#		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(3.61785e+02, 3.16523e+01,4.84357e-01), 
+		#		RooArgList(mjj))
+		#trigger_efficiency_pdfs["trigbbl_CSVM"] = RooGenericPdf("trigger_efficiency_trigbbl_CSVM", 
+		#		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(1.82469e+02, 2.87768e+01, 9.11659e-01), 
+		#		RooArgList(mjj))
+		#trigger_efficiency_pdfs["trigbbh_CSVM"] = RooGenericPdf("trigger_efficiency_trigbbh_CSVM", 
+		#		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(3.61785e+02, 3.16523e+01,4.84357e-01), 
+		#		RooArgList(mjj))
 
 		signal_rdh = RooDataHist(histogram.GetName() + "_rdh", histogram.GetName() + "_rdh", ROOT.RooArgList(mjj), histogram)
 		signal_pdf_raw, signal_vars = make_signal_pdf(fit_function, mjj, mass=mass)
 		signal_pdf_raw.SetName("signal_" + fit_function + "_pdf_raw")
 		if correct_trigger:
-			signal_pdf = RooProdPdf("signal_" + fit_function + "_pdf", "signal_" + fit_function + "_pdf", signal_pdf_raw, trigger_efficiency_pdfs[analysis])
+			signal_pdf = RooProdPdf("signal_" + fit_function + "_pdf", "signal_" + fit_function + "_pdf", signal_pdf_raw, trigger_efficiency.trigger_efficiency_pdfs[analysis])
 		else:
 			signal_pdf = signal_pdf_raw
 			signal_pdf.SetName("signal_" + fit_function + "_pdf")
 
 		# Some fits are special and need help
-		if analysis == "trigbbl_CSVTM" and model == "Hbb":
+		if (analysis == "trigbbl_CSVTM" or analysis == "trigbbll_CSVTM") and model == "Hbb":
 			xi_initial = -0.1 + (-0.45 + 0.1) / (900 - 400) * (mass - 400)
 			signal_vars["xi"].setMax(-0.05)
 			signal_vars["xi"].setVal(xi_initial)
@@ -339,7 +347,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 			signal_vars["xi"].setVal(-0.3)
 			signal_vars["rho2"].setMin(0.07)
 			signal_vars["rho2"].setVal(0.15)
-		elif analysis == "trigbbl_CSVTM" and model == "RSG":
+		elif (analysis == "trigbbl_CSVTM" or analysis == "trigbbll_CSVTM") and model == "RSG":
 			rho2_initial = 0.03 + (0.135 - 0.03) / (900 - 400) * (mass - 400)
 			signal_vars["rho2"].setMin(0.01)
 			signal_vars["rho2"].setMax(0.2)
@@ -379,7 +387,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 				signal_pdfs_raw_syst[variation_name], signal_vars_syst[variation_name] = make_signal_pdf(fit_function, mjj, tag=variation_name, mass=mass)
 				signal_pdfs_raw_syst[variation_name].SetName("signal_" + fit_function + "_pdf__" + variation_name + "_raw")
 				if correct_trigger:
-					signal_pdfs_syst[variation_name] = RooProdPdf("signal_" + fit_function + "_pdf__" + variation_name, "signal_" + fit_function + "_pdf__" + variation_name, signal_pdfs_raw_syst[variation_name], trigger_efficiency_pdfs[analysis])
+					signal_pdfs_syst[variation_name] = RooProdPdf("signal_" + fit_function + "_pdf__" + variation_name, "signal_" + fit_function + "_pdf__" + variation_name, signal_pdfs_raw_syst[variation_name], trigger_efficiency.trigger_efficiency_pdfs[analysis])
 				else:
 					signal_pdfs_syst[variation_name] = signal_pdfs_raw_syst[variation_name]
 					signal_pdfs_syst[variation_name].SetName("signal_" + fit_function + "_pdf__" + variation_name)
@@ -898,7 +906,7 @@ if __name__ == "__main__":
 			masses[analysis] = [args.mass]
 	else:
 		# No need for limited masses, Tyler's files have all the interpolations
-		masses = {"trigbbl_CSVTM":[400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200], "trigbbl_CSVM":[400, 500, 600, 750, 900], "trigbbh_CSVM":[600, 750, 900, 1200]}
+		masses = {"trigbbl_CSVTM":[400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200], "trigbbl_CSVM":[400, 500, 600, 750, 900], "trigbbh_CSVM":[600, 750, 900, 1200], "trigbbhl_CSVTM":[600, 750, 900, 1200], "trigbbll_CSVTM":[400, 500, 600, 750, 900]}
 		#masses = {"trigbbl_CSVTM":range(400, 950, 50), "trigbbh_CSVTM":range(600, 1200, 50)}
 	fit_functions = args.fit_functions.split(",")
 	if args.no_systematics:
@@ -930,7 +938,9 @@ if __name__ == "__main__":
 			print "[signal_fits] ERROR : Argument mass not supported for interpolation. The input/output masses are too complicated for the command line, and are written into the code."
 			sys.exit(1)
 		output_masses = {
+			"trigbbll_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbll_CSVTM"])),
 			"trigbbl_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVTM"])),
+			"trigbbhl_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbhl_CSVTM"])),
 			"trigbbh_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVTM"])),
 			"trigbbl_CSVM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVM"])),
 			"trigbbh_CSVM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVM"]))

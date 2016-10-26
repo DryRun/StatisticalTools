@@ -8,6 +8,7 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 
 import CMSDIJET.StatisticalTools.limit_configuration as limit_config
+import CMSDIJET.StatisticalTools.trigger_efficiency as trigger_efficiency
 from CMSDIJET.StatisticalTools.systematics import *
 from CMSDIJET.StatisticalTools.roofit_functions import *
 import signal_fits
@@ -55,6 +56,10 @@ def main():
     parser.add_argument("-o", "--output_path", dest="output_path",
                         help="Output path where datacards and workspaces will be stored. If not specified, this is derived from limit_configuration.",
                         metavar="OUTPUT_PATH")
+
+    parser.add_argument("--correctTrigger", dest="correctTrigger",
+                        action='store_true',
+                        help="Include trigger correction in PDF")
 
     parser.add_argument("-l", "--lumi", dest="lumi",
                         default=19700., type=float,
@@ -157,7 +162,7 @@ def main():
 
     # import ROOT stuff
     from ROOT import gStyle, TFile, TH1F, TH1D, TGraph, kTRUE, kFALSE, TCanvas, TLegend, TPad, TLine
-    from ROOT import RooHist, RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, RooExtendPdf
+    from ROOT import RooHist, RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooProdPdf, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, RooExtendPdf
 
     if not args.debug:
         RooMsgService.instance().setSilentMode(kTRUE)
@@ -239,6 +244,7 @@ def main():
         signal_epdfs = {}
         background_epdfs = {}
         models = {}
+        trigger_efficiency_pdfs = {}
         fit_results = {}
 
         for fit_function in fit_functions:
@@ -285,9 +291,18 @@ def main():
             signal_epdfs[fit_function] = RooExtendPdf('esignal_' + fit_function, 'esignal_' + fit_function, signal_pdfs[fit_function], signal_norms[fit_function])
             background_epdfs[fit_function] = RooExtendPdf('ebackground_' + fit_function, 'ebackground_' + fit_function, background_pdfs[fit_function], background_norms[fit_function])
 
-            models[fit_function] = RooAddPdf('model_' + fit_function, 's+b', RooArgList(background_epdfs[fit_function], signal_epdfs[fit_function]))
+            if args.correctTrigger:
+                models[fit_function + "_notrigeff"] = RooAddPdf('model_' + fit_function + '_notrig', 's+b', RooArgList(background_epdfs[fit_function], signal_epdfs[fit_function]))
+                trigger_efficiency_pdfs[fit_function] = trigger_efficiency.get_pdf(args.analysis, mjj)
+                print "[debug] Making RooProdPdf from "
+                print models[fit_function + "_notrigeff"]
+                print trigger_efficiency_pdfs[fit_function]
+                models[fit_function] = RooProdPdf('model_' + fit_function, 's+b', models[fit_function + "_notrigeff"], trigger_efficiency_pdfs[fit_function])
+            else:
+                models[fit_function] = RooAddPdf('model_' + fit_function, 's+b', RooArgList(background_epdfs[fit_function], signal_epdfs[fit_function]))
 
             if args.runFit:
+                print "[create_datacards] INFO : Starting fit with function {}".format(fit_function)
                 fit_results[fit_function] = models[fit_function].fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Extended(kTRUE), RooFit.Strategy(args.fitStrategy))
                 fit_results[fit_function].Print()
 
@@ -454,7 +469,7 @@ def main():
                 os.mkdir( os.path.join(os.getcwd(),args.output_path) )
             w.writeToFile(os.path.join(args.output_path,wsName))
         else:
-            w.writeToFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal))
+            w.writeToFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))
 
 
         beffUnc = 0.3
@@ -465,7 +480,7 @@ def main():
                 dcName = 'datacard_' + args.final_state + '_m' + str(mass) + postfix + '_' + fit_function + '.txt'
                 datacard = open(os.path.join(args.output_path,dcName),'w')
             else:
-                datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal), 'w')
+                datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger), 'w')
             datacard.write('imax 1\n')
             datacard.write('jmax 1\n')
             datacard.write('kmax *\n')
@@ -474,12 +489,12 @@ def main():
                 if args.output_path:
                     datacard.write('shapes * * '+wsName+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
                 else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
+                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
             else:
                 if args.output_path:
                     datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
                 else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal))+' w:$PROCESS\n')
+                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))+' w:$PROCESS\n')
             datacard.write('---------------\n')
             datacard.write('bin 1\n')
             datacard.write('observation -1\n')
