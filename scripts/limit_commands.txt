@@ -1,7 +1,7 @@
 # New: signal fits
-python create_datacards.py trigbbh_CSVTM Hbb --massMin 453 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_Hbb_fitSignal.txt &
+python create_datacards.py trigbbh_CSVTM Hbb --massMin 419 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_Hbb_fitSignal.txt &
 python create_datacards.py trigbbl_CSVTM Hbb --massMin 354 --massMax 1607 --massrange 400 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_Hbb_fitSignal.txt &
-python create_datacards.py trigbbh_CSVTM RSG --massMin 453 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_RSG_fitSignal.txt &
+python create_datacards.py trigbbh_CSVTM RSG --massMin 419 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_RSG_fitSignal.txt &
 python create_datacards.py trigbbl_CSVTM RSG --massMin 354 --massMax 1607 --massrange 400 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_RSG_fitSignal.txt &
 
 

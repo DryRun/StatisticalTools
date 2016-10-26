@@ -146,23 +146,26 @@ def main():
     # mass points for which resonance shapes will be produced
     masses = []
 
-    if args.massrange != None:
-        MIN, MAX, STEP = args.massrange
-        masses = range(MIN, MAX+STEP, STEP)
-    elif args.masslist != None:
-        # A mass list was provided
-        print  "Will create mass list according to", args.masslist
-        masslist = __import__(args.masslist.replace(".py",""))
-        masses = masslist.masses
+    if args.fitBonly:
+        masses.append(750)
     else:
-        masses = args.mass
+        if args.massrange != None:
+            MIN, MAX, STEP = args.massrange
+            masses = range(MIN, MAX+STEP, STEP)
+        elif args.masslist != None:
+            # A mass list was provided
+            print  "Will create mass list according to", args.masslist
+            masslist = __import__(args.masslist.replace(".py",""))
+            masses = masslist.masses
+        else:
+            masses = args.mass
 
     # sort masses
     masses.sort()
 
     # import ROOT stuff
     from ROOT import gStyle, TFile, TH1F, TH1D, TGraph, kTRUE, kFALSE, TCanvas, TLegend, TPad, TLine
-    from ROOT import RooHist, RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooProdPdf, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, RooExtendPdf
+    from ROOT import RooHist, RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooProdPdf, RooEffProd, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, RooExtendPdf
 
     if not args.debug:
         RooMsgService.instance().setSilentMode(kTRUE)
@@ -192,6 +195,13 @@ def main():
     lumi = args.lumi
     signalCrossSection = 1. # set to 1. so that the limit on r can be interpreted as a limit on the signal cross section
 
+    if args.correctTrigger:
+        trigger_efficiency_pdf = trigger_efficiency.get_pdf(args.analysis, mjj)
+        trigger_efficiency_formula = trigger_efficiency.get_formula(args.analysis, mjj)
+    else:
+        trigger_efficiency_pdf = trigger_efficiency.get_trivial_pdf(mjj)
+        trigger_efficiency_formula = trigger_efficiency.get_trivial_formula(mjj)
+
     for mass in masses:
 
         print ">> Creating datacard and workspace for %s resonance with m = %i GeV..."%(args.final_state, int(mass))
@@ -215,7 +225,11 @@ def main():
             input_parameters = signal_fits.get_parameters(w_signal.pdf("signal"))
 
             # Make a new PDF with nuisance parameters
-            signal_pdf, signal_vars = signal_fits.make_signal_pdf_systematic("bukin", mjj, mass=mass)
+            signal_pdf_notrig, signal_vars = signal_fits.make_signal_pdf_systematic("bukin", mjj, mass=mass)
+            signal_pdf_name = signal_pdf_notrig.GetName()
+            signal_pdf_notrig.SetName(signal_pdf_name + "_notrig")
+            #signal_pdf = RooProdPdf(signal_pdf_name, signal_pdf_name, signal_pdf_notrig, trigger_efficiency_pdf) 
+            signal_pdf = RooEffProd(signal_pdf_name, signal_pdf_name, signal_pdf_notrig, trigger_efficiency_formula)
 
             # Copy input parameter values
             signal_vars["xp_0"].setVal(input_parameters["xp"][0])
@@ -236,24 +250,29 @@ def main():
             f_signal_pdfs.Close()
 
         signal_parameters = {}
+        signal_pdfs_notrig = {}
         signal_pdfs = {}
         signal_norms = {}
         background_pdfs = {}
+        background_pdfs_notrig = {}
         background_parameters = {}
         background_norms = {}
         signal_epdfs = {}
         background_epdfs = {}
         models = {}
-        trigger_efficiency_pdfs = {}
         fit_results = {}
 
         for fit_function in fit_functions:
+            print "[create_datacards] INFO : On fit function {}".format(fit_function)
+
             if args.fitSignal:
                 # Make a copy of the signal PDF, so that each fitTo call uses its own copy.
                 # The copy should have all variables set constant.  
                 #signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("bukin", signal_pdf, mjj, tag=fit_function, include_systematics=True)
-                signal_pdfs[fit_function] = ROOT.RooBukinPdf(signal_pdf, signal_pdf.GetName() + "_" + fit_function)
-                iterator = signal_pdfs[fit_function].getVariables().createIterator()
+                signal_pdfs_notrig[fit_function] = ROOT.RooBukinPdf(signal_pdf_notrig, signal_pdf_notrig.GetName() + "_" + fit_function)
+                signal_pdfs[fit_function] = RooEffProd(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigger_efficiency_formula) 
+                #signal_pdfs[fit_function] = RooProdPdf(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigger_efficiency_pdf) 
+                iterator = signal_pdfs_notrig[fit_function].getVariables().createIterator()
                 this_parameter = iterator.Next()
                 while this_parameter:
                     this_parameter.setConstant()
@@ -263,8 +282,14 @@ def main():
             signal_norms[fit_function] = RooRealVar('signal_norm_' + fit_function, 'signal_norm_' + fit_function, 0., 0., 1e+05)
             if args.fitBonly: 
                 signal_norms[fit_function].setConstant()
-            background_pdfs[fit_function], background_parameters[fit_function] = make_background_pdf(fit_function, mjj, collision_energy=8000.)
-
+            background_pdfs_notrig[fit_function], background_parameters[fit_function] = make_background_pdf(fit_function, mjj, collision_energy=8000.)
+            background_pdf_name = background_pdfs_notrig[fit_function].GetName()
+            background_pdfs_notrig[fit_function].SetName(background_pdf_name + "_notrig")
+            background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigger_efficiency_formula)
+            #background_pdfs[fit_function] = RooProdPdf(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigger_efficiency_pdf)
+            #background_pdfs[fit_function] = background_pdfs_notrig[fit_function]
+            #background_pdfs[fit_function].SetName(background_pdf_name)
+            
             # Initial values
             if "trigbbh" in args.analysis:
                 if fit_function == "f3":
@@ -291,20 +316,14 @@ def main():
             signal_epdfs[fit_function] = RooExtendPdf('esignal_' + fit_function, 'esignal_' + fit_function, signal_pdfs[fit_function], signal_norms[fit_function])
             background_epdfs[fit_function] = RooExtendPdf('ebackground_' + fit_function, 'ebackground_' + fit_function, background_pdfs[fit_function], background_norms[fit_function])
 
-            if args.correctTrigger:
-                models[fit_function + "_notrigeff"] = RooAddPdf('model_' + fit_function + '_notrig', 's+b', RooArgList(background_epdfs[fit_function], signal_epdfs[fit_function]))
-                trigger_efficiency_pdfs[fit_function] = trigger_efficiency.get_pdf(args.analysis, mjj)
-                print "[debug] Making RooProdPdf from "
-                print models[fit_function + "_notrigeff"]
-                print trigger_efficiency_pdfs[fit_function]
-                models[fit_function] = RooProdPdf('model_' + fit_function, 's+b', models[fit_function + "_notrigeff"], trigger_efficiency_pdfs[fit_function])
-            else:
-                models[fit_function] = RooAddPdf('model_' + fit_function, 's+b', RooArgList(background_epdfs[fit_function], signal_epdfs[fit_function]))
+            models[fit_function] = RooAddPdf('model_' + fit_function, 's+b', RooArgList(background_epdfs[fit_function], signal_epdfs[fit_function]))
 
             if args.runFit:
                 print "[create_datacards] INFO : Starting fit with function {}".format(fit_function)
-                fit_results[fit_function] = models[fit_function].fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Extended(kTRUE), RooFit.Strategy(args.fitStrategy))
+                fit_results[fit_function] = models[fit_function].fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Extended(kTRUE), RooFit.Strategy(args.fitStrategy), RooFit.Verbose(0))
+                print "[create_datacards] INFO : Done with fit {}. Printing results.".format(fit_function)
                 fit_results[fit_function].Print()
+                print "[create_datacards] DEBUG : End args.runFit if block."
 
             # needed if want to evaluate limits without background systematics
             if args.fixBkg:
@@ -458,79 +477,129 @@ def main():
             getattr(w,'import')(background_deco,ROOT.RooCmdArg())
         else:
             for fit_function in fit_functions:
-                getattr(w,'import')(background_pdfs[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function))
+                print "Importing background PDF"
+                print background_pdfs[fit_function]
+                background_pdfs[fit_function].Print()
+                getattr(w,'import')(background_pdfs[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function), RooFit.RecycleConflictNodes())
+                w.pdf("background_" + fit_function).Print()
                 getattr(w,'import')(background_norms[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function + "_norm"))
                 getattr(w,'import')(fit_results[fit_function])
                 getattr(w,'import')(signal_norms[fit_function],ROOT.RooCmdArg())
+                if args.fitBonly:
+                    getattr(w,'import')(models[fit_function],ROOT.RooCmdArg(),RooFit.RecycleConflictNodes())
         getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
+
         w.Print()
+        print "Starting save"
         if args.output_path:
             if not os.path.isdir( os.path.join(os.getcwd(),args.output_path) ):
                 os.mkdir( os.path.join(os.getcwd(),args.output_path) )
+            print "[create_datacards] INFO : Writing workspace to file {}".format(os.path.join(args.output_path,wsName))
             w.writeToFile(os.path.join(args.output_path,wsName))
         else:
+            print "[create_datacards] INFO : Writing workspace to file {}".format(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))
             w.writeToFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))
 
+        # Clean up
+        for name, obj in signal_norms.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, obj in background_pdfs.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, obj in background_pdfs_notrig.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, obj in background_norms.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, obj in signal_pdfs.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, obj in signal_pdfs_notrig.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, obj in signal_epdfs.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, obj in background_epdfs.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, obj in fit_results.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        for name, dict_l2 in background_parameters.iteritems():
+            for name2, obj in dict_l2.iteritems():
+                if obj:
+                    obj.IsA().Destructor(obj)
+        for name, obj in models.iteritems():
+            if obj:
+                obj.IsA().Destructor(obj)
+        rooDataHist.IsA().Destructor(rooDataHist)
+        w.IsA().Destructor(w)
 
-        beffUnc = 0.3
-        boffUnc = 0.06
-
-        for fit_function in fit_functions:
-            if args.output_path:
-                dcName = 'datacard_' + args.final_state + '_m' + str(mass) + postfix + '_' + fit_function + '.txt'
-                datacard = open(os.path.join(args.output_path,dcName),'w')
-            else:
-                datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger), 'w')
-            datacard.write('imax 1\n')
-            datacard.write('jmax 1\n')
-            datacard.write('kmax *\n')
-            datacard.write('---------------\n')
-            if ("jes" in systematics or "jer" in systematics) and not args.fitSignal:
+        # Make datacards only if S+B fitted
+        if not args.fitBonly:
+            beffUnc = 0.3
+            boffUnc = 0.06
+            for fit_function in fit_functions:
                 if args.output_path:
-                    datacard.write('shapes * * '+wsName+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
+                    dcName = 'datacard_' + args.final_state + '_m' + str(mass) + postfix + '_' + fit_function + '.txt'
+                    print "[create_datacards] INFO : Writing datacard to file {}".format(os.path.join(args.output_path,dcName)) 
+                    datacard = open(os.path.join(args.output_path,dcName),'w')
                 else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
-            else:
-                if args.output_path:
-                    datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
+                    print "[create_datacards] INFO : Writing datacard to file {}".format(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger)) 
+                    datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger), 'w')
+                datacard.write('imax 1\n')
+                datacard.write('jmax 1\n')
+                datacard.write('kmax *\n')
+                datacard.write('---------------\n')
+                if ("jes" in systematics or "jer" in systematics) and not args.fitSignal:
+                    if args.output_path:
+                        datacard.write('shapes * * '+wsName+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
+                    else:
+                        datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
                 else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))+' w:$PROCESS\n')
-            datacard.write('---------------\n')
-            datacard.write('bin 1\n')
-            datacard.write('observation -1\n')
-            datacard.write('------------------------------\n')
-            datacard.write('bin          1          1\n')
-            datacard.write('process      signal     background_' + fit_function + '\n')
-            datacard.write('process      0          1\n')
-            if args.fitSignal:
-                datacard.write('rate         1         1\n')
-            else:
-                datacard.write('rate         -1         1\n')
-            datacard.write('------------------------------\n')
-            datacard.write('lumi  lnN    %f         -\n'%(1.+systematics["luminosity"]))
-            datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
-            datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
-            #datacard.write('bkg   lnN     -         1.03\n')
-            if args.fitSignal:
-                if "jes" in systematics:
-                    datacard.write("alpha_jes  param  0.0  1.0\n")
-                if "jer" in systematics:
-                    datacard.write("alpha_jer  param  0.0  1.0\n")
-            else:
-                if "jes" in systematics:
-                    datacard.write('JES  shape   1          -\n')
-                if "jer" in systematics:
-                    datacard.write('JER  shape   1          -\n')
-            # flat parameters --- flat prior
-            datacard.write('background_' + fit_function + '_norm  flatParam\n')
-            if args.decoBkg:
-                datacard.write('deco_eig1  flatParam\n')
-                datacard.write('deco_eig2  flatParam\n')
-            else:
-                for par_name, par in background_parameters[fit_function].iteritems():
-                    datacard.write(fit_function + "_" + par_name + '  flatParam\n')
-            datacard.close()
-
+                    if args.output_path:
+                        datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
+                    else:
+                        datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))+' w:$PROCESS\n')
+                datacard.write('---------------\n')
+                datacard.write('bin 1\n')
+                datacard.write('observation -1\n')
+                datacard.write('------------------------------\n')
+                datacard.write('bin          1          1\n')
+                datacard.write('process      signal     background_' + fit_function + '\n')
+                datacard.write('process      0          1\n')
+                if args.fitSignal:
+                    datacard.write('rate         1         1\n')
+                else:
+                    datacard.write('rate         -1         1\n')
+                datacard.write('------------------------------\n')
+                datacard.write('lumi  lnN    %f         -\n'%(1.+systematics["luminosity"]))
+                datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
+                datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
+                #datacard.write('bkg   lnN     -         1.03\n')
+                if args.fitSignal:
+                    if "jes" in systematics:
+                        datacard.write("alpha_jes  param  0.0  1.0\n")
+                    if "jer" in systematics:
+                        datacard.write("alpha_jer  param  0.0  1.0\n")
+                else:
+                    if "jes" in systematics:
+                        datacard.write('JES  shape   1          -\n')
+                    if "jer" in systematics:
+                        datacard.write('JER  shape   1          -\n')
+                # flat parameters --- flat prior
+                datacard.write('background_' + fit_function + '_norm  flatParam\n')
+                if args.decoBkg:
+                    datacard.write('deco_eig1  flatParam\n')
+                    datacard.write('deco_eig2  flatParam\n')
+                else:
+                    for par_name, par in background_parameters[fit_function].iteritems():
+                        datacard.write(fit_function + "_" + par_name + '  flatParam\n')
+                datacard.close()
+                print "[create_datacards] INFO : Done with this datacard"
 
     #print '>> Datacards and workspaces created and stored in %s/'%( os.path.join(os.getcwd(),args.output_path) )
     print "All done."

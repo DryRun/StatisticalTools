@@ -21,6 +21,9 @@ gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so
 seaborn = Root.SeabornInterface()
 seaborn.Initialize()
 
+import CMSDIJET.StatisticalTools.trigger_efficiency as trigger_efficiency
+
+
 def BackgroundFit_f1(x, par):
 	return par[0] * (1. - (x[0] / 8.e3))**par[1] / ((x[0] / 8.e3)**(par[2] + par[3] * TMath.Log((x[0] / 8.e3))))
 
@@ -39,11 +42,48 @@ def BackgroundFit_f4(x, par):
 def BackgroundFit_f5(x, par):
 	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3)**(1./3.))**par[2]
 
-def make_background_tf1_from_roofitresult(fit_function, roofitresult, mjj_range=None):
+def BackgroundFit_f1_trigcorr_bbl(x, par):
+	return par[0] * (1. - (x[0] / 8.e3))**par[1] / ((x[0] / 8.e3)**(par[2] + par[3] * TMath.Log((x[0] / 8.e3)))) * trigger_efficiency.trigger_efficiency_bbl(x[0])
+
+def BackgroundFit_f2_trigcorr_bbl(x, par):
+	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3))**par[2] * trigger_efficiency.trigger_efficiency_bbl(x[0])
+
+def BackgroundFit_f3_trigcorr_bbl(x, par):
+	return par[0] / (1 + par[1] * (x[0] / 8.e3))**par[2] * trigger_efficiency.trigger_efficiency_bbl(x[0])
+
+def BackgroundFit_f4_trigcorr_bbl(x, par):
+	if 1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2 <= 0:
+		return 0
+	else:
+		return par[0] / ((1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2)**par[3]) * trigger_efficiency.trigger_efficiency_bbl(x[0])
+
+def BackgroundFit_f5_trigcorr_bbl(x, par):
+	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3)**(1./3.))**par[2] * trigger_efficiency.trigger_efficiency_bbl(x[0])
+
+def BackgroundFit_f1_trigcorr_bbh(x, par):
+	return par[0] * (1. - (x[0] / 8.e3))**par[1] / ((x[0] / 8.e3)**(par[2] + par[3] * TMath.Log((x[0] / 8.e3)))) * trigger_efficiency.trigger_efficiency_bbh(x[0])
+
+def BackgroundFit_f2_trigcorr_bbh(x, par):
+	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3))**par[2] * trigger_efficiency.trigger_efficiency_bbh(x[0])
+
+def BackgroundFit_f3_trigcorr_bbh(x, par):
+	return par[0] / (1 + par[1] * (x[0] / 8.e3))**par[2] * trigger_efficiency.trigger_efficiency_bbh(x[0])
+
+def BackgroundFit_f4_trigcorr_bbh(x, par):
+	if 1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2 <= 0:
+		return 0
+	else:
+		return par[0] / ((1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2)**par[3]) * trigger_efficiency.trigger_efficiency_bbh(x[0])
+
+def BackgroundFit_f5_trigcorr_bbh(x, par):
+	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3)**(1./3.))**par[2] * trigger_efficiency.trigger_efficiency_bbh(x[0])
+
+
+def make_background_tf1_from_roofitresult(fit_function, roofitresult, mjj_range=None, trigger_correction=None):
 	print "[make_background_tf1_from_roofitresult] INFO : make_background_tf1_from_roofitresult for fit function " + fit_function
 	print mjj_range
 	roofitresult.Print()
-	function = make_background_tf1(fit_function, mjj_range)
+	function = make_background_tf1(fit_function, mjj_range, trigger_correction=trigger_correction)
 	function.SetParameter(0, roofitresult.floatParsFinal().find("background_" + fit_function + "_norm").getVal())
 	function.SetParError(0, roofitresult.floatParsFinal().find("background_" + fit_function + "_norm").getError())
 
@@ -53,27 +93,56 @@ def make_background_tf1_from_roofitresult(fit_function, roofitresult, mjj_range=
 
 	return function
 
-def make_background_tf1(fit_function, mjj_range):
+def make_background_tf1(fit_function, mjj_range, trigger_correction=None):
 	mjj_min = mjj_range[0]
 	mjj_max = mjj_range[1]
 
-	if fit_function == "f1":
-		background_tf1 = TF1('background_tf1_f1',BackgroundFit_f1, mjj_min, mjj_max, 4)
-	elif fit_function == "f2":
-		background_tf1 = TF1('background_tf1_f2',BackgroundFit_f2, mjj_min, mjj_max, 3)
-	elif fit_function == "f3":
-		background_tf1 = TF1('background_tf1_f3',BackgroundFit_f3, mjj_min, mjj_max, 3)
-	elif fit_function == "f4":
-		background_tf1 = TF1('background_tf1_f4',BackgroundFit_f4, mjj_min, mjj_max, 4)
-	elif fit_function == "f5":
-		background_tf1 = TF1('background_tf1_f5',BackgroundFit_f5, mjj_min, mjj_max, 3)
-	else:
-		print "[make_background_tf1] ERROR : Unrecognized fit function " + fit_function
-		sys.exit(1)
+	if not trigger_correction:
+		if fit_function == "f1":
+			background_tf1 = TF1('background_tf1_f1',BackgroundFit_f1, mjj_min, mjj_max, 4)
+		elif fit_function == "f2":
+			background_tf1 = TF1('background_tf1_f2',BackgroundFit_f2, mjj_min, mjj_max, 3)
+		elif fit_function == "f3":
+			background_tf1 = TF1('background_tf1_f3',BackgroundFit_f3, mjj_min, mjj_max, 3)
+		elif fit_function == "f4":
+			background_tf1 = TF1('background_tf1_f4',BackgroundFit_f4, mjj_min, mjj_max, 4)
+		elif fit_function == "f5":
+			background_tf1 = TF1('background_tf1_f5',BackgroundFit_f5, mjj_min, mjj_max, 3)
+		else:
+			print "[make_background_tf1] ERROR : Unrecognized fit function " + fit_function
+			sys.exit(1)
+	elif trigger_correction == "bbl":
+		if fit_function == "f1":
+			background_tf1 = TF1('background_tf1_f1',BackgroundFit_f1_trigcorr_bbl, mjj_min, mjj_max, 4)
+		elif fit_function == "f2":
+			background_tf1 = TF1('background_tf1_f2',BackgroundFit_f2_trigcorr_bbl, mjj_min, mjj_max, 3)
+		elif fit_function == "f3":
+			background_tf1 = TF1('background_tf1_f3',BackgroundFit_f3_trigcorr_bbl, mjj_min, mjj_max, 3)
+		elif fit_function == "f4":
+			background_tf1 = TF1('background_tf1_f4',BackgroundFit_f4_trigcorr_bbl, mjj_min, mjj_max, 4)
+		elif fit_function == "f5":
+			background_tf1 = TF1('background_tf1_f5',BackgroundFit_f5_trigcorr_bbl, mjj_min, mjj_max, 3)
+		else:
+			print "[make_background_tf1] ERROR : Unrecognized fit function " + fit_function
+			sys.exit(1)
+	elif trigger_correction == "bbh":
+		if fit_function == "f1":
+			background_tf1 = TF1('background_tf1_f1',BackgroundFit_f1_trigcorr_bbh, mjj_min, mjj_max, 4)
+		elif fit_function == "f2":
+			background_tf1 = TF1('background_tf1_f2',BackgroundFit_f2_trigcorr_bbh, mjj_min, mjj_max, 3)
+		elif fit_function == "f3":
+			background_tf1 = TF1('background_tf1_f3',BackgroundFit_f3_trigcorr_bbh, mjj_min, mjj_max, 3)
+		elif fit_function == "f4":
+			background_tf1 = TF1('background_tf1_f4',BackgroundFit_f4_trigcorr_bbh, mjj_min, mjj_max, 4)
+		elif fit_function == "f5":
+			background_tf1 = TF1('background_tf1_f5',BackgroundFit_f5_trigcorr_bbh, mjj_min, mjj_max, 3)
+		else:
+			print "[make_background_tf1] ERROR : Unrecognized fit function " + fit_function
+			sys.exit(1)
 	return background_tf1
 
 
-def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1, draw_chi2ndf=False, draw_chi2prob=False, data_histogram=None):
+def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1, draw_chi2ndf=False, draw_chi2prob=False, data_histogram=None, trigger_correction=None):
 	print "Making plot " + save_tag
 	c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
 	l = TLegend(0.5, 0.55, 0.88, 0.88)
@@ -157,7 +226,7 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 		fitresult_name = "fitresult_model_" + fit_function + "_rooDatahist"
 		fitresult = workspace.genobj(fitresult_name)
 		fitresult.Print()
-		fit = make_background_tf1_from_roofitresult(fit_function, fitresult, mjj_range=x_range)
+		fit = make_background_tf1_from_roofitresult(fit_function, fitresult, mjj_range=x_range, trigger_correction=trigger_correction)
 
 		# Normalize fit
 		scale_factor = workspace.var("background_" + fit_function + "_norm").getVal() / fit.Integral(mjj.getMin(), mjj.getMax())
@@ -297,8 +366,12 @@ if __name__ == "__main__":
 		histogram_file = TFile(analysis_config.get_b_histogram_filename(analysis, "BJetPlusX_2012"), "READ")
 		data_histogram = histogram_file.Get("BHistograms/h_pfjet_mjj")
 		print "Data integral = {}".format(data_histogram.Integral())
+		if "trigbbh" in analysis:
+			trigger_correction = "bbh"
+		elif "trigbbl" in analysis:
+			trigger_correction = "bbl"
 		data_histogram.SetDirectory(0)
 		for model in models:
-			background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=False, fitSignal=True, correctTrigger=True)
-			rooplot("mjj_combinefits_" + analysis + "_" + model, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2prob=True) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
+			background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, fitSignal=True, correctTrigger=True)
+			rooplot("mjj_combinefits_" + analysis + "_" + model, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2prob=True, trigger_correction=trigger_correction) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
 
