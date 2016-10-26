@@ -418,7 +418,10 @@ def main():
     else:
         frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) [pb]")
     frame.GetYaxis().SetTitleOffset(1.1)
-    frame.GetYaxis().SetRangeUser(1e-03,1e+02)
+    if args.timesAE:
+        frame.GetYaxis().SetRangeUser(1e-03,1e+01)
+    else:
+        frame.GetYaxis().SetRangeUser(1e-02,1e+02)
     frame.Draw("axis")
 
     if len(xs_exp_limits_2sigma) > 0 and (args.method == "Asymptotic" or args.method == "HybridNewGrid"):
