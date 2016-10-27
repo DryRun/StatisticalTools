@@ -294,7 +294,7 @@ def main():
             if "trigbbh" in args.analysis:
                 if fit_function == "f3":
                     background_parameters[fit_function]["p1"].setVal(55.)
-                    background_parameters[fit_function]["p1"].setMin(40.)
+                    background_parameters[fit_function]["p1"].setMin(20.)
                     background_parameters[fit_function]["p2"].setVal(8.)
                 elif fit_function == "f4":
                     background_parameters[fit_function]["p1"].setVal(28.)

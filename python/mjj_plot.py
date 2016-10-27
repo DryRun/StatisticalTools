@@ -36,6 +36,8 @@ def BackgroundFit_f3(x, par):
 def BackgroundFit_f4(x, par):
 	if 1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2 <= 0:
 		return 0
+	elif ((1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2)**par[3]) < 1.e-15:
+		return 0
 	else:
 		return par[0] / ((1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2)**par[3])
 
@@ -70,7 +72,9 @@ def BackgroundFit_f3_trigcorr_bbh(x, par):
 	return par[0] / (1 + par[1] * (x[0] / 8.e3))**par[2] * trigger_efficiency.trigger_efficiency_bbh(x[0])
 
 def BackgroundFit_f4_trigcorr_bbh(x, par):
-	if 1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2 <= 0:
+	if (1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2) <= 0.:
+		return 0
+	elif ((1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2)**par[3]) < 1.e-15:
 		return 0
 	else:
 		return par[0] / ((1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2)**par[3]) * trigger_efficiency.trigger_efficiency_bbh(x[0])
@@ -142,7 +146,7 @@ def make_background_tf1(fit_function, mjj_range, trigger_correction=None):
 	return background_tf1
 
 
-def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1, draw_chi2ndf=False, draw_chi2prob=False, data_histogram=None, trigger_correction=None):
+def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspaces=None, expected_signal_workspaces=None, log=False, x_range=None, data_binning=None, normalization_bin_width=1, draw_chi2ndf=False, draw_chi2prob=False, data_histogram=None, trigger_correction=None, draw_trigeff=False):
 	print "Making plot " + save_tag
 	c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
 	l = TLegend(0.5, 0.55, 0.88, 0.88)
@@ -242,6 +246,20 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 			up_edge = background_histograms[fit_function].GetXaxis().GetBinUpEdge(bin)
 			background_histograms[fit_function].SetBinContent(bin, fit.Integral(low_edge, up_edge) / (up_edge - low_edge) * normalization_bin_width)
 
+		if draw_trigeff:
+			fit_notrigcorr = make_background_tf1_from_roofitresult(fit_function, fitresult, mjj_range=x_range, trigger_correction=None)
+			scale_factor = workspace.var("background_" + fit_function + "_norm").getVal() / fit_notrigcorr.Integral(mjj.getMin(), mjj.getMax())
+			fit_notrigcorr.SetParameter(0, fit_notrigcorr.GetParameter(0) * scale_factor)
+			fit_notrigcorr.SetParError(0, fit_notrigcorr.GetParError(0) * scale_factor)
+			background_histograms[fit_function + "_notrigcorr"] = data_histogram.Clone()
+			background_histograms[fit_function + "_notrigcorr"].Reset()
+			background_histograms[fit_function + "_notrigcorr"].SetDirectory(0)
+			background_histograms[fit_function + "_notrigcorr"].SetName(fit_function)
+			for bin in xrange(1, background_histograms[fit_function + "_notrigcorr"].GetNbinsX() + 1):
+				low_edge = background_histograms[fit_function + "_notrigcorr"].GetXaxis().GetBinLowEdge(bin)
+				up_edge = background_histograms[fit_function + "_notrigcorr"].GetXaxis().GetBinUpEdge(bin)
+				background_histograms[fit_function + "_notrigcorr"].SetBinContent(bin, fit_notrigcorr.Integral(low_edge, up_edge) / (up_edge - low_edge) * normalization_bin_width)
+
 		chi2s[fit_function] = 0.
 		chi2ndfs[fit_function] = 0.
 		ndfs[fit_function] = -1 * fit.GetNpar()
@@ -262,13 +280,22 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 		background_histograms[fit_function].SetLineStyle(1)
 		background_histograms[fit_function].Draw("hist same")
 		if draw_chi2ndf:
-			legend_entry = "Background " + fit_function + " (#chi^{2}/NDF=" + str(round(chi2ndfs[fit_function], 2)) + ")"
+			legend_entry = fit_function + " (#chi^{2}/NDF=" + str(round(chi2ndfs[fit_function], 2)) + ")"
 		elif draw_chi2prob:
-			legend_entry = "Background " + fit_function + " (#chi^{2}/NDF=" + str(round(ROOT.TMath.Prob(chi2s[fit_function], ndfs[fit_function]), 2)) + ")"
+			legend_entry = fit_function + " (p=" + str(round(ROOT.TMath.Prob(chi2s[fit_function], ndfs[fit_function]), 2)) + ")"
 		else:
-			legend_entry = "Background " + fit_function
+			legend_entry = fit_function
 		l.AddEntry(background_histograms[fit_function], legend_entry, "l")
 		background_histograms[fit_function].SetDirectory(0)
+
+		if draw_trigeff:
+			background_histograms[fit_function + "_notrigcorr"].SetLineColor(seaborn.GetColorRoot("pastel", style_counter))
+			background_histograms[fit_function + "_notrigcorr"].SetLineWidth(1)
+			background_histograms[fit_function + "_notrigcorr"].SetLineStyle(3)
+			background_histograms[fit_function + "_notrigcorr"].Draw("hist same")
+			legend_entry = fit_function + ", no trig corr"
+			l.AddEntry(background_histograms[fit_function + "_notrigcorr"], legend_entry, "l")
+			background_histograms[fit_function + "_notrigcorr"].SetDirectory(0)
 
 		pull_histograms[fit_function] = data_histogram.Clone()
 		pull_histograms[fit_function].Reset()
@@ -282,6 +309,19 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 			pull_histograms[fit_function].SetBinContent(bin, pull)
 			pull_histograms[fit_function].SetBinError(bin, 0.)
 
+		if draw_trigeff:
+			pull_histograms[fit_function + "_notrigcorr"] = data_histogram.Clone()
+			pull_histograms[fit_function + "_notrigcorr"].Reset()
+			pull_histograms[fit_function + "_notrigcorr"].SetDirectory(0)
+			for bin in xrange(1, data_histogram.GetNbinsX() + 1):
+				if data_histogram.GetBinError(bin) > 0:
+					pull = (data_histogram.GetBinContent(bin) - background_histograms[fit_function + "_notrigcorr"].GetBinContent(bin)) / (data_histogram.GetBinError(bin))
+				else:
+					pull = 0.
+				#print "[debug] Pull = " + str(pull)
+				pull_histograms[fit_function + "_notrigcorr"].SetBinContent(bin, pull)
+				pull_histograms[fit_function + "_notrigcorr"].SetBinError(bin, 0.)
+
 		pull_histograms_fitted_range[fit_function] = pull_histograms[fit_function].Clone()
 		pull_histograms_fitted_range[fit_function].SetDirectory(0)
 		for bin in xrange(1, pull_histograms_fitted_range[fit_function].GetNbinsX() + 1):
@@ -294,7 +334,7 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 	f_workspace.Close()
 
 	l.Draw()
-	Root.CMSLabel(0.2, 0.8, "Preliminary", 1, 0.75)
+	Root.CMSLabel(0.2, 0.8, "Preliminary", 1, 0.5)
 	# Pull histogram
 	c.cd()
 	bottom.cd()
@@ -315,6 +355,12 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 		pull_histograms[fit_function].SetLineStyle(2)
 		pull_histograms[fit_function].Draw("hist same")
 
+		if draw_trigeff:
+			pull_histograms[fit_function].SetLineColor(seaborn.GetColorRoot("pastel", style_counter))
+			pull_histograms[fit_function].SetLineWidth(1)
+			pull_histograms[fit_function].SetLineStyle(3)
+			pull_histograms[fit_function].Draw("hist same")
+
 		pull_histograms_fitted_range[fit_function].SetLineColor(seaborn.GetColorRoot("dark", style_counter))
 		pull_histograms_fitted_range[fit_function].SetLineWidth(2)
 		pull_histograms_fitted_range[fit_function].SetLineStyle(1)
@@ -334,6 +380,7 @@ if __name__ == "__main__":
 	parser.add_argument("--models", type=str, default="Hbb,RSG", help='Model name')
 	parser.add_argument("--fit_functions", type=str, default="f1,f2,f3,f4,f5", help="Fit functions")
 	parser.add_argument("--x_range", type=int, nargs=2, help="Plot xrange")
+	parser.add_argument("--draw_trigeff", action="store_true", help="Plot with and without trigger efficiency (assumes create_datacards with run with correctTrigger)")
 	# Fit options
 	parser.add_argument("-l", "--lumi", dest="lumi",
 						default=19700., type=float,
@@ -373,5 +420,5 @@ if __name__ == "__main__":
 		data_histogram.SetDirectory(0)
 		for model in models:
 			background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, fitSignal=True, correctTrigger=True)
-			rooplot("mjj_combinefits_" + analysis + "_" + model, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2prob=True, trigger_correction=trigger_correction) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
+			rooplot("mjj_combinefits_" + analysis + "_" + model, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2prob=True, trigger_correction=trigger_correction, draw_trigeff=args.draw_trigeff) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
 
