@@ -62,6 +62,7 @@ def main():
     parser.add_argument('--analyses', type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help="Analysis names")
     parser.add_argument('--models', type=str, default="Hbb,RSG", help="Model names")
     parser.add_argument('--fitSignal', action='store_true', help="Use fitted signal shapes, rather than histograms")
+    parser.add_argument('--correctTrigger', action='store_true', help="Use model with trigger correction (has to have been specified in create_datacards.py)")
     parser.add_argument('--fit_function', type=str, default="f4", help="Name of central fit function")
     #parser.add_argument("-d", "--datacards_path", dest="datacards_path", required=True,
     #                    help="Path to datacards and workspaces",
@@ -278,13 +279,13 @@ def main():
                     cmd = "combine -M %s %s %s 2>&1 | tee %s"%(
                         method,
                         run_options,
-                        os.path.basename(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, fitSignal=args.fitSignal)),
+                        os.path.basename(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger)),
                         os.path.basename(os.path.join(('' if args.condor else output_path),logName)))
                 else:
                     cmd = "combine -M %s %s %s 2>&1 | tee %s"%(
                         method,
                         run_options,
-                        limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, fitSignal=args.fitSignal),
+                        limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger),
                         os.path.join(('' if args.condor else output_path),logName))
 
                 # if using Condor
@@ -308,8 +309,8 @@ def main():
                     condor_command = "csub " + bash_script_path
                     files_to_transfer = []
                     files_to_transfer.append(bash_script_path)
-                    files_to_transfer.append(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, fitSignal=args.fitSignal))
-                    files_to_transfer.append(limit_config.get_workspace_filename(analysis, model, mass, fitSignal=args.fitSignal))
+                    files_to_transfer.append(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))
+                    files_to_transfer.append(limit_config.get_workspace_filename(analysis, model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))
                     condor_command += " -F " + ",".join(files_to_transfer)
                     condor_command += " -l combine_{}_\$\(Cluster\)_\$\(Process\).log".format(logName)
                     condor_command += " -s submit_combine_{}_{}_{}.jdl".format(analysis, model, mass)
