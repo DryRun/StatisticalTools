@@ -296,12 +296,12 @@ def run_single_mass(args, mass):
         # Initial values
         if "trigbbh" in args.analysis:
             if fit_function == "f3":
-                background_parameters[fit_function]["p1"].setVal(55.)
+                background_parameters[fit_function]["p1"].setVal(78.)
                 background_parameters[fit_function]["p1"].setMin(20.)
                 background_parameters[fit_function]["p2"].setVal(8.)
             elif fit_function == "f4":
-                background_parameters[fit_function]["p1"].setVal(28.)
-                background_parameters[fit_function]["p2"].setVal(-22.)
+                background_parameters[fit_function]["p1"].setVal(35.)
+                background_parameters[fit_function]["p2"].setVal(-28.)
                 background_parameters[fit_function]["p3"].setVal(10.)
         elif "trigbbl" in args.analysis:
             if fit_function == "f3":
