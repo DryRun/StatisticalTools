@@ -381,6 +381,7 @@ if __name__ == "__main__":
 	parser.add_argument("--fit_functions", type=str, default="f1,f2,f3,f4,f5", help="Fit functions")
 	parser.add_argument("--x_range", type=int, nargs=2, help="Plot xrange")
 	parser.add_argument("--draw_trigeff", action="store_true", help="Plot with and without trigger efficiency (assumes create_datacards with run with correctTrigger)")
+	parser.add_argumetn("--central", action="store_true", help="Draw central value of fit only")
 	# Fit options
 	parser.add_argument("-l", "--lumi", dest="lumi",
 						default=19700., type=float,
@@ -420,5 +421,8 @@ if __name__ == "__main__":
 		data_histogram.SetDirectory(0)
 		for model in models:
 			background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, fitSignal=True, correctTrigger=True)
-			rooplot("mjj_combinefits_" + analysis + "_" + model, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2prob=True, trigger_correction=trigger_correction, draw_trigeff=args.draw_trigeff) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
+			save_tag = "mjj_combinefits_" + analysis + "_" + model
+			if len(fit_functions) == 1:
+				save_tag += "_" + fit_functions[0]
+			rooplot(save_tag, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2prob=True, trigger_correction=trigger_correction, draw_trigeff=args.draw_trigeff) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
 
