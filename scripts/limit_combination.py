@@ -87,10 +87,17 @@ dm_y = array('d', [57.269239965262344,26.146418729332762,10.943588903119819,4.99
 dm_sigma_times_BRjj = TGraph(len(dm_x), dm_x, dm_y)
 
 # Parton luminosity ratio 8/13
-def PartonLuminosityRatio(x, initial_state="gg"):
+parton_lumi_qq_x = array('d', [212.44114380327838,256.61539097505755,189.6759157071346,166.63007851997236,148.77397175424056,129.29446527108541,231.60316570875963,293.6875978919667,281.275999744092,356.6759221822652,370.4099179447112,395.1955101394775,408.20347685923906,330.71672989214755,318.45447138645915,459.6711606703674,495.7524682412154,561.2799896042493,621.896007068797,621.896007068797,707.9075738492571,731.2085424206072,775.9371322362275,810.176171052523,869.066435119888,897.6719910415933,994.6170133018367,1078.4937378238508,1126.0834038140092,1207.936402435694,1268.06383234535,1360.2371356456406,1405.0097075435822,1507.1373628002914,1556.745195264016,1678.9399444796177,1743.5884184831468,1840.2852206152222])
+parton_lumi_qq_y = array('d', [1. / x for x in [1.9084845217716158,1.9701099766065029,1.8782550849899042,1.8483835132927056,1.8191060463151,1.7900970823130031,1.938989007634503,2.017576452165467,2.0016431192325372,2.09898276099542,2.115644783157695,2.149272912557035,2.1662868937909714,2.0660513546505883,2.049779911668458,2.235602848865901,2.2889166804078145,2.380596053538979,2.47573150572491,2.47573150572491,2.615193824659969,2.656414604730997,2.7407557944954624,2.805749111310745,2.9174930594233572,2.98654717428537,3.203741702660958,3.409888265666115,3.54530646023206,3.773266592268887,3.9537405526141987,4.273729358185959,4.443259768096302,4.840253677824623,5.071429377205673,5.6546923942954574,5.971016709192964,6.554715672402531]])
+parton_lumi_qq = TGraph(len(parton_lumi_qq_x), parton_lumi_qq_x, parton_lumi_qq_y)
+
+
+def PartonLuminosityRatio(x, initial_state):
 	ratio = -1.
 	if initial_state == "gg":
 		ratio = (1.43368e-21*(x**6)+-2.037e-17*(x**5)+1.14943e-13*(x**4)+-3.31131e-10*(x**3)+5.43977e-07*x*x+-0.000607347*x+0.483842)
+	elif initial_state == "qq":
+		ratio = parton_lumi_qq.Eval(x)
 	else:
 		print "[PartonLuminosityRatio] ERROR : initial_state={} not known.".format(initial_state)
 		sys.exit(1)
@@ -212,10 +219,10 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 		c.SetLogx()
 	if logy:
 		c.SetLogy()
-	if what == "gB":
-		l = TLegend(0.17, 0.6, 0.37, 0.9)
-	else:
-		l = TLegend(0.64, 0.6, 0.9, 0.9)
+	#if what == "gB":
+	#	l = TLegend(0.17, 0.6, 0.37, 0.9)
+	#else:
+	l = TLegend(0.64, 0.6, 0.9, 0.9)
 	l.SetFillColor(0)
 	l.SetBorderSize(0)
 
@@ -236,8 +243,6 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 				this_y = limit_graphs[name].GetXS().GetY()[i]
 			elif what == "xsBR":
 				this_y = limit_graphs[name].GetXSBR().GetY()[i]
-			if this_x > x_max:
-				x_max = this_x
 			if this_y > y_max:
 				y_max = this_y
 			if this_y < y_min:
@@ -278,6 +283,7 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 			frame.GetYaxis().SetTitle("#sigma [pb]")
 		elif what == "xsBR":
 			frame.GetYaxis().SetTItle("#sigma #times BR [pb]")
+	print "[debug] frame min/max = {}/{}".format(frame.GetXaxis().GetXmin(), frame.GetXaxis().GetXmax())
 	frame.Draw("axis")
 
 	style_counter = 0
@@ -318,6 +324,14 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 	c.SaveAs("{}/{}.pdf".format(analysis_config.figure_directory, c.GetName()))
 
 if __name__ == "__main__":
+	import argparse
+	parser = argparse.ArgumentParser(description = 'Dijet mass spectrum fits')
+	parser.add_argument('--bb_comparison', action='store_true', help='Compare 8 TeV and 13 TeV bb analyses')
+	parser.add_argument('--gB', action='store_true', help='Compare all analyses with gB')
+
+	args = parser.parse_args()
+
+
 	limit_names = []
 	limit_collection = {}
 
@@ -361,44 +375,6 @@ if __name__ == "__main__":
 	limit_collection["CMS bb, 2015 exp"] = LimitGraph()
 	limit_collection["CMS bb, 2015 exp"].LoadXSBR(gr_Xbb_13TeV_exp, BR_bb_13TeV)
 
-	# 8 TeV bb
-	f_Xbb_8TeVl = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root", "READ")
-	gr_Xbb_8TeVl_exp = f_Xbb_8TeVl.Get("graph_exp")
-	BR_bb_8TeVl = []
-	for i in xrange(gr_Xbb_8TeVl_exp.GetN()):
-		mass = gr_Xbb_8TeVl_exp.GetX()[i]
-		gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i] / PartonLuminosityRatio(mass)) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
-		BR_bb_8TeVl.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
-	limit_collection["CMS bb, 2012 low exp"] = LimitGraph()
-	limit_collection["CMS bb, 2012 low exp"].LoadXSBR(gr_Xbb_8TeVl_exp, BR_bb_8TeVl)
-
-	gr_Xbb_8TeVl_obs = f_Xbb_8TeVl.Get("graph_obs")
-	for i in xrange(gr_Xbb_8TeVl_obs.GetN()):
-		mass = gr_Xbb_8TeVl_obs.GetX()[i]
-		gr_Xbb_8TeVl_obs.SetPoint(i, mass, gr_Xbb_8TeVl_obs.GetY()[i] / PartonLuminosityRatio(mass))
-	limit_collection["CMS bb, 2012 low obs"] = LimitGraph()
-	limit_collection["CMS bb, 2012 low obs"].LoadXSBR(gr_Xbb_8TeVl_obs, BR_bb_8TeVl)
-
-	f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root", "READ")
-	gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
-	BR_bb_8TeVh = []
-	for i in xrange(gr_Xbb_8TeVh_exp.GetN()):
-		mass = gr_Xbb_8TeVh_exp.GetX()[i]
-		gr_Xbb_8TeVh_exp.SetPoint(i, mass, gr_Xbb_8TeVh_exp.GetY()[i] / PartonLuminosityRatio(mass))
-		BR_bb_8TeVh.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
-	limit_collection["CMS bb, 2012 high exp"] = LimitGraph()
-	limit_collection["CMS bb, 2012 high exp"].LoadXSBR(gr_Xbb_8TeVh_exp, BR_bb_8TeVh)
-
-	gr_Xbb_8TeVh_obs = f_Xbb_8TeVh.Get("graph_obs")
-	for i in xrange(gr_Xbb_8TeVh_obs.GetN()):
-		mass = gr_Xbb_8TeVh_obs.GetX()[i]
-		gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i] / PartonLuminosityRatio(mass))
-	limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
-	limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
-
-
-	limit_names = ["CMS bb, 2015 exp", "CMS bb, 2015 obs","CMS bb, 2012 low exp", "CMS bb, 2012 low obs","CMS bb, 2012 high exp", "CMS bb, 2012 high obs"]
-	#limit_names = ["UA2","CDFRun1","CDFRun2","ATLAS jj","CMS jj","CMS bb, 2015","CMS bb (exp), 2012 low","CMS bb (exp), 2012 high"]
 	line_styles = {
 		"UA2":2,
 		"CDFRun1":2,
@@ -426,10 +402,84 @@ if __name__ == "__main__":
 		"CMS bb, 2012 high obs":seaborn.GetColorRoot("default", 3),
 	}
 
-	#MakeLimitPlot(limit_names, limit_collection, "gB_combination", what="gB", line_styles=line_styles)
-	#MakeLimitPlot(limit_names, limit_collection, "gB_combination_log", what="gB", logy=True, line_styles=line_styles)
-	#MakeLimitPlot(limit_names, limit_collection, "xs_combination", what="xs", line_styles=line_styles, line_colors=line_colors, x_range=[0,1500])
+	if args.bb_comparison:
+		# 8 TeV bb
+		f_Xbb_8TeVl = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root", "READ")
+		gr_Xbb_8TeVl_exp = f_Xbb_8TeVl.Get("graph_exp")
+		BR_bb_8TeVl = []
+		for i in xrange(gr_Xbb_8TeVl_exp.GetN()):
+			mass = gr_Xbb_8TeVl_exp.GetX()[i]
+			gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i] / PartonLuminosityRatio(mass, "gg")) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
+			BR_bb_8TeVl.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
+		limit_collection["CMS bb, 2012 low exp"] = LimitGraph()
+		limit_collection["CMS bb, 2012 low exp"].LoadXSBR(gr_Xbb_8TeVl_exp, BR_bb_8TeVl)
 
-	# Comparison of CMS bb limits
-	limit_names = ["CMS bb, 2015 exp", "CMS bb, 2015 obs","CMS bb, 2012 low exp", "CMS bb, 2012 low obs","CMS bb, 2012 high exp", "CMS bb, 2012 high obs"]
-	MakeLimitPlot(limit_names, limit_collection, "xs_combination_log", what="xsBR", x_title="m_{X} [GeV]", y_title="#sigma_{13 TeV} #times BR(b#bar{b}) [pb]", logy=True, line_styles=line_styles, line_colors=line_colors, x_range=[0,1500])
+		gr_Xbb_8TeVl_obs = f_Xbb_8TeVl.Get("graph_obs")
+		for i in xrange(gr_Xbb_8TeVl_obs.GetN()):
+			mass = gr_Xbb_8TeVl_obs.GetX()[i]
+			gr_Xbb_8TeVl_obs.SetPoint(i, mass, gr_Xbb_8TeVl_obs.GetY()[i] / PartonLuminosityRatio(mass, "gg"))
+		limit_collection["CMS bb, 2012 low obs"] = LimitGraph()
+		limit_collection["CMS bb, 2012 low obs"].LoadXSBR(gr_Xbb_8TeVl_obs, BR_bb_8TeVl)
+
+		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root", "READ")
+		gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
+		BR_bb_8TeVh = []
+		for i in xrange(gr_Xbb_8TeVh_exp.GetN()):
+			mass = gr_Xbb_8TeVh_exp.GetX()[i]
+			gr_Xbb_8TeVh_exp.SetPoint(i, mass, gr_Xbb_8TeVh_exp.GetY()[i] / PartonLuminosityRatio(mass, "gg"))
+			BR_bb_8TeVh.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
+		limit_collection["CMS bb, 2012 high exp"] = LimitGraph()
+		limit_collection["CMS bb, 2012 high exp"].LoadXSBR(gr_Xbb_8TeVh_exp, BR_bb_8TeVh)
+
+		gr_Xbb_8TeVh_obs = f_Xbb_8TeVh.Get("graph_obs")
+		for i in xrange(gr_Xbb_8TeVh_obs.GetN()):
+			mass = gr_Xbb_8TeVh_obs.GetX()[i]
+			gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i] / PartonLuminosityRatio(mass, "gg"))
+		limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
+		limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
+
+		limit_names = ["CMS bb, 2015 exp", "CMS bb, 2015 obs","CMS bb, 2012 low exp", "CMS bb, 2012 low obs","CMS bb, 2012 high exp", "CMS bb, 2012 high obs"]
+		MakeLimitPlot(limit_names, limit_collection, "xs_combination_log", what="xsBR", x_title="m_{X} [GeV]", y_title="#sigma_{13 TeV} #times BR(b#bar{b}) [pb]", logy=True, line_styles=line_styles, line_colors=line_colors, x_range=[0,1500])
+
+	elif args.gB:
+		# 8 TeV bb
+		f_Xbb_8TeVl = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root", "READ")
+		gr_Xbb_8TeVl_exp = f_Xbb_8TeVl.Get("graph_exp")
+		BR_bb_8TeVl = []
+		for i in xrange(gr_Xbb_8TeVl_exp.GetN()):
+			mass = gr_Xbb_8TeVl_exp.GetX()[i]
+			gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i] / PartonLuminosityRatio(mass, "qq")) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
+			BR_bb_8TeVl.append(ZpBranchingRatio(mass, selected_decays=["b"]))
+			print "[debug] BR(Z-->bb, M={} GeV) = {}".format(mass, BR_bb_8TeVl[-1])
+		limit_collection["CMS bb, 2012 low exp"] = LimitGraph()
+		limit_collection["CMS bb, 2012 low exp"].LoadXSBR(gr_Xbb_8TeVl_exp, BR_bb_8TeVl)
+
+		gr_Xbb_8TeVl_obs = f_Xbb_8TeVl.Get("graph_obs")
+		for i in xrange(gr_Xbb_8TeVl_obs.GetN()):
+			mass = gr_Xbb_8TeVl_obs.GetX()[i]
+			gr_Xbb_8TeVl_obs.SetPoint(i, mass, gr_Xbb_8TeVl_obs.GetY()[i] / PartonLuminosityRatio(mass, "qq"))
+		limit_collection["CMS bb, 2012 low obs"] = LimitGraph()
+		limit_collection["CMS bb, 2012 low obs"].LoadXSBR(gr_Xbb_8TeVl_obs, BR_bb_8TeVl)
+
+		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root", "READ")
+		gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
+		BR_bb_8TeVh = []
+		for i in xrange(gr_Xbb_8TeVh_exp.GetN()):
+			mass = gr_Xbb_8TeVh_exp.GetX()[i]
+			gr_Xbb_8TeVh_exp.SetPoint(i, mass, gr_Xbb_8TeVh_exp.GetY()[i] / PartonLuminosityRatio(mass, "qq"))
+			BR_bb_8TeVh.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
+		limit_collection["CMS bb, 2012 high exp"] = LimitGraph()
+		limit_collection["CMS bb, 2012 high exp"].LoadXSBR(gr_Xbb_8TeVh_exp, BR_bb_8TeVh)
+
+		gr_Xbb_8TeVh_obs = f_Xbb_8TeVh.Get("graph_obs")
+		for i in xrange(gr_Xbb_8TeVh_obs.GetN()):
+			mass = gr_Xbb_8TeVh_obs.GetX()[i]
+			gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i] / PartonLuminosityRatio(mass, "qq"))
+		limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
+		limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
+
+		limit_names = ["UA2","CDFRun1","CDFRun2","ATLAS jj","CMS jj","CMS bb, 2015 obs","CMS bb, 2012 low obs", "CMS bb, 2012 low exp","CMS bb, 2012 high obs", "CMS bb, 2012 high exp"]
+
+		#MakeLimitPlot(limit_names, limit_collection, "gB_combination_log", what="gB", logy=True, line_styles=line_styles)
+		#MakeLimitPlot(limit_names, limit_collection, "xs_combination", what="xs", line_styles=line_styles, line_colors=line_colors, x_range=[0,1500])
+		MakeLimitPlot(limit_names, limit_collection, "gB_combination", what="gB", line_styles=line_styles, line_colors=line_colors, x_title="m_{Z'} [GeV]", y_title="g_{B}", x_range=[0,1000])
