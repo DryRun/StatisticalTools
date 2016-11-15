@@ -381,7 +381,7 @@ if __name__ == "__main__":
 	parser.add_argument("--fit_functions", type=str, default="f1,f2,f3,f4,f5", help="Fit functions")
 	parser.add_argument("--x_range", type=int, nargs=2, help="Plot xrange")
 	parser.add_argument("--draw_trigeff", action="store_true", help="Plot with and without trigger efficiency (assumes create_datacards with run with correctTrigger)")
-	parser.add_argumetn("--central", action="store_true", help="Draw central value of fit only")
+	parser.add_argument("--central", action="store_true", help="Draw central value of fit only")
 	# Fit options
 	parser.add_argument("-l", "--lumi", dest="lumi",
 						default=19700., type=float,

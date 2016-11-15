@@ -111,12 +111,16 @@ def plot_all_averages(model, analysis, injected_mu=0):
 	h_rms_pull = TH2D("h_rms_pull", "h_rms_pull", 25, -0.5, 25.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
 	h_avg_centered_pull_single_fit = {}
 	x_bin = 1
-	for f_fit in ["f1", "f2", "f3", "f4", "f5"]:
-		h_avg_centered_pull_single_fit[f_fit] = TH2D("h_avg_centered_pull_" + f_fit, "h_avg_pull_" + f_fit, 5, -0.5, 5.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
+	if analysis == "trigbbl_CSVTM":
+		fit_functions = ["f1", "f3", "f4", "f5"]
+	else:
+		fit_functions = ["f1", "f2", "f3", "f4", "f5"]
+	for f_fit in fit_functions:
+		h_avg_centered_pull_single_fit[f_fit] = TH2D("h_avg_centered_pull_" + f_fit, "h_avg_pull_" + f_fit, len(fit_functions), -0.5, len(fit_functions) + 0.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
 		h_avg_centered_pull_single_fit[f_fit].SetDirectory(0)
 		x_bin_single_fit = 1
 		#containers["f_fit"][0] = int(f_fit[1:])
-		for f_gen in ["f1", "f2", "f3", "f4", "f5"]:
+		for f_gen in fit_functions:
 			#containers["f_gen"][0] = int(f_gen[1:])
 			h_avg_mu.GetXaxis().SetBinLabel(x_bin, "Gen " + f_gen + " / Fit " + f_fit)
 			h_avg_pull.GetXaxis().SetBinLabel(x_bin, "Gen " + f_gen + " / Fit " + f_fit)
@@ -126,6 +130,7 @@ def plot_all_averages(model, analysis, injected_mu=0):
 			y_bin = 1
 			for mass in analysis_config.simulation.limit_signal_masses[analysis]:
 				#containers["mass"][0] = mass
+				#print "[plot_all_averages] INFO : Opening " + analysis_config.get_bias_study_results(model, analysis, mass, injected_mu, f_gen, f_fit)
 				results_file = TFile(analysis_config.get_bias_study_results(model, analysis, mass, injected_mu, f_gen, f_fit), "READ")
 				if not results_file.IsOpen():
 					print "[plot_all_averages] WARNING : Results file not found for model={}, analysis={}, mass={}, injected_mu={}, f_gen={}, f_fit={}".format(model, analysis, mass, injected_mu, f_gen, f_fit)
@@ -161,14 +166,24 @@ def plot_all_averages(model, analysis, injected_mu=0):
 					centered_pull_sum += (containers["mu"][0] - injected_mu) / containers["muErr"][0]
 					centered_pull2_sum += ((containers["mu"][0] - injected_mu) / containers["muErr"][0])**2
 					weights += 1
-				mu_avg = mu_sum / weights
-				mu2_avg = mu2_sum / weights
-				pull_avg = pull_sum / weights
-				pull2_avg = pull2_sum / weights
-				centered_pull_avg = centered_pull_sum / weights
-				centered_pull2_avg = centered_pull2_sum / weights
-				mu_rms = (mu2_avg - (mu_avg**2))**0.5
-				pull_rms = (pull2_avg - (pull_avg**2))**0.5
+				if weights > 0:
+					mu_avg = mu_sum / weights
+					mu2_avg = mu2_sum / weights
+					pull_avg = pull_sum / weights
+					pull2_avg = pull2_sum / weights
+					centered_pull_avg = centered_pull_sum / weights
+					centered_pull2_avg = centered_pull2_sum / weights
+					mu_rms = (mu2_avg - (mu_avg**2))**0.5
+					pull_rms = (pull2_avg - (pull_avg**2))**0.5
+				else:
+					mu_avg = 1.e20
+					mu2_avg = 1.e20
+					pull_avg = 1.e20
+					pull2_avg = 1.e20
+					centered_pull_avg = 1.e20
+					centered_pull2_avg = 1.e20
+					mu_rms = 1.e20
+					pull_rms = 1.e20
 
 				h_avg_mu.SetBinContent(x_bin, y_bin, mu_avg)
 				h_avg_pull.SetBinContent(x_bin, y_bin, pull_avg)
@@ -237,7 +252,7 @@ def plot_all_averages(model, analysis, injected_mu=0):
 	h_rms_pull.Draw("colz")
 	c_rms_pull.SaveAs(analysis_config.figure_directory + "/" + c_rms_pull.GetName() + ".pdf")
 
-	for f_fit in ["f1", "f2", "f3", "f4", "f5"]:
+	for f_fit in fit_functions:
 		c_avg_centered_pull_single_fit = TCanvas("c_avg_centered_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(injected_mu) + "_" + f_fit, "c_avg_centered_pull_f_vs_mass", 800, 600)
 		c_avg_centered_pull_single_fit.SetRightMargin(0.2)
 		c_avg_centered_pull_single_fit.SetBottomMargin(0.15)
