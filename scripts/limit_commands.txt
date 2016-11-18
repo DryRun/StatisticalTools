@@ -1,7 +1,7 @@
 # New: signal fits
-python create_datacards_parallel.py trigbbh_CSVTM Hbb --massMin 419 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_Hbb_fitSignal.txt &
+python create_datacards_parallel.py trigbbh_CSVTM Hbb --massMin 526 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_Hbb_fitSignal.txt &
 python create_datacards_parallel.py trigbbl_CSVTM Hbb --massMin 296 --massMax 1607 --massrange 400 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_Hbb_fitSignal.txt &
-python create_datacards_parallel.py trigbbh_CSVTM RSG --massMin 419 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_RSG_fitSignal.txt &
+python create_datacards_parallel.py trigbbh_CSVTM RSG --massMin 526 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_RSG_fitSignal.txt &
 python create_datacards_parallel.py trigbbl_CSVTM RSG --massMin 296 --massMax 1607 --massrange 400 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_RSG_fitSignal.txt &
 
 
@@ -18,9 +18,9 @@ python run_combine.py -M HybridNew --frequentist --significance --fitSignal --to
 
 # Plots
 python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root --extraText Preliminary --postfix preliminary --timesAE
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root --extraText Preliminary --postfix preliminary
 python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root --extraText Preliminary --postfix preliminary --timesAE
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root --extraText Preliminary --postfix preliminary
 
 python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f3 --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2,alpha_jer,alpha_jes --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3_noSyst.root --extraText Preliminary --postfix preliminary --timesAE
 python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f3 --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2,alpha_jer,alpha_jes --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f3_noSyst.root --extraText Preliminary --postfix preliminary --timesAE
