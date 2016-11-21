@@ -373,9 +373,170 @@ def rooplot(save_tag, fit_functions, background_workspace, fitted_signal_workspa
 
 	c.SaveAs("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures/c_" + save_tag + ".pdf")
 
+def PlotAllSB(save_tag, fit_function, sb_names, sb_workspace_files, b_workspace_file, log=False, x_range=None, data_binning=None, normalization_bin_width=1, draw_chi2ndf=False, draw_chi2prob=False, data_histogram=None, trigger_correction=None, draw_trigeff=False):
+	print "Making plot " + save_tag
+	c = TCanvas("c_" + save_tag, "c_" + save_tag, 800, 1200)
+	l = TLegend(0.5, 0.55, 0.88, 0.88)
+	l.SetFillColor(0)
+	l.SetBorderSize(0)
+	top = TPad("top", "top", 0., 0.5, 1., 1.)
+	top.SetBottomMargin(0.03)
+	top.Draw()
+	if log:
+		top.SetLogy()
+	c.cd()
+	bottom = TPad("bottom", "bottom", 0., 0., 1., 0.5)
+	bottom.SetTopMargin(0.02)
+	bottom.SetBottomMargin(0.2)
+	bottom.Draw()
+	ROOT.SetOwnership(c, False)
+	ROOT.SetOwnership(top, False)
+	ROOT.SetOwnership(bottom, False)
+	top.cd()
+
+	fit_histograms = {}
+	f = TFile(b_workspace_file, "READ")
+	workspace_b = f.Get("w")
+
+	mjj = workspace_b.var("mjj")
+	fitresult_name = "fitresult_model_" + fit_function + "_rooDatahist"
+	if x_range:
+		x_min = x_range[0]
+		x_max = x_range[1]
+	else:
+		x_min = mjj.GetMin()
+		x_max = mjj.GetMax()
+
+	# Data histogram
+	fine_bins_array = array('d', range(int(x_min), int(x_max + 1)))
+	fine_roobinning = RooBinning(len(fine_bins_array) - 1, fine_bins_array, "data_fine_binning")
+	if data_binning:
+		roobinning = RooBinning(len(data_binning) - 1, data_binning, "data_binning")
+	else:
+		roobinning = RooBinning(len(fine_bins_array) - 1, fine_bins_array, "data_binning")
+	data_histogram = workspace_b.data("data_obs").createHistogram("data", mjj, RooFit.Binning(roobinning))
+	data_histogram.SetDirectory(0)
+
+	frame_top = TH1D("frame_top", "frame_top", 100, x_min, x_max)
+	frame_top.SetDirectory(0)
+	if log:
+		frame_top.SetMaximum(data_histogram.GetMaximum() * 1000.)
+		frame_top.SetMinimum(0.1)
+	else:
+		frame_top.SetMaximum(data_histogram.GetMaximum() * 1.3)
+		frame_top.SetMinimum(0.)
+	frame_top.GetYaxis().SetTitle("Events / " + str(normalization_bin_width) + " GeV")
+	frame_top.GetXaxis().SetTitleSize(0)
+	frame_top.GetXaxis().SetLabelSize(0)
+	frame_top.Draw()
+
+	data_histogram.SetMarkerStyle(20)
+	data_histogram.SetMarkerColor(1)
+	data_histogram.SetMarkerSize(1)
+	data_histogram.Draw("p same")
+	l.AddEntry(data_histogram, "Data", "pl")
+
+	# Background-only fit histogram
+	fitresult_b = workspace_b.genobj(fitresult_name)
+	#fitresult.Print()
+	fit_b = make_background_tf1_from_roofitresult(fit_function, fitresult_b, mjj_range=x_range, trigger_correction=trigger_correction)
+	fit_b.SetName("fit_Bonly")
+	scale_factor = workspace_b.var("background_" + fit_function + "_norm").getVal() / fit_b.Integral(mjj.getMin(), mjj.getMax())
+	fit_b.SetParameter(0, fit_b.GetParameter(0) * scale_factor)
+	fit_b.SetParError(0, fit_b.GetParError(0) * scale_factor)
+	fit_histograms["Background"] = data_histogram.Clone()
+	fit_histograms["Background"].Reset()
+	fit_histograms["Background"].SetDirectory(0)
+	fit_histograms["Background"].SetName(fit_function)
+	for bin in xrange(1, fit_histograms["Background"].GetNbinsX() + 1):
+		low_edge = fit_histograms["Background"].GetXaxis().GetBinLowEdge(bin)
+		up_edge = fit_histograms["Background"].GetXaxis().GetBinUpEdge(bin)
+		fit_histograms["Background"].SetBinContent(bin, fit_b.Integral(low_edge, up_edge) / (up_edge - low_edge) * normalization_bin_width)
+	fit_histograms["Background"].SetLineStyle(1)
+	fit_histograms["Background"].SetLineColor(seaborn.GetColorRoot("cubehelix", 1, len(sb_names) + 1))
+	fit_histograms["Background"].Draw("l same")
+	l.AddEntry(fit_histograms["Background"], "Background only", "l")
+
+	#S+B fit histograms
+	style_counter = 2
+	for sb_name in sb_names:
+		f = TFile(sb_workspace_files[sb_name], "READ")
+		workspace_sb = f.Get("w")
+		fitresult_sb = workspace_sb.genobj(fitresult_name)
+		#mjj = workspaces[sb_name].var("mjj")
+		fit = make_background_tf1_from_roofitresult(fit_function, fitresult_sb, mjj_range=x_range, trigger_correction=trigger_correction)
+		fit.SetName("fit_" + sb_name)
+		scale_factor = (workspace_sb.var("background_" + fit_function + "_norm").getVal() + workspace_sb.var("signal_norm_" + fit_function).getVal()) / fit.Integral(mjj.getMin(), mjj.getMax())
+		fit.SetParameter(0, fit.GetParameter(0) * scale_factor)
+		fit.SetParError(0, fit.GetParError(0) * scale_factor)
+		fit_histograms[sb_name] = data_histogram.Clone()
+		fit_histograms[sb_name].Reset()
+		fit_histograms[sb_name].SetDirectory(0)
+		fit_histograms[sb_name].SetName("fit_hist_" + fit_function + "_" + sb_name)
+		for bin in xrange(1, fit_histograms[sb_name].GetNbinsX() + 1):
+			low_edge = fit_histograms[sb_name].GetXaxis().GetBinLowEdge(bin)
+			up_edge = fit_histograms[sb_name].GetXaxis().GetBinUpEdge(bin)
+			fit_histograms[sb_name].SetBinContent(bin, fit.Integral(low_edge, up_edge) / (up_edge - low_edge) * normalization_bin_width)
+		fit_histograms[sb_name].SetLineStyle(style_counter % 10)
+		fit_histograms[sb_name].SetLineColor(seaborn.GetColorRoot("cubehelix", style_counter, len(sb_names) + 1))
+		fit_histograms[sb_name].Draw("l same")
+		l.AddEntry(fit_histograms[sb_name], sb_name, "l")
+		f.Close()
+		style_counter += 1
+	l.Draw()
+	Root.CMSLabel(0.2, 0.8, "Preliminary", 1, 0.5)
+
+	# Pull histogram
+	c.cd()
+	bottom.cd()
+
+	#pull_histogram = frame_top.pullHist("Data", "B Fit")
+	frame_bottom = TH1D("frame_bottom", "frame_bottom", 100, x_min, x_max)
+	frame_bottom.SetMinimum(-5.)
+	frame_bottom.SetMaximum(5.)
+	#pull_histogram.plotOn(frame_bottom, RooFit.Name(fit_pdf_name))
+	frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
+	frame_bottom.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Data)}")
+	frame_bottom.Draw()
+
+	style_counter = 2
+	pull_histograms = {}
+	for sb_name in sb_names:
+		pull_histograms[sb_name] = data_histogram.Clone()
+		pull_histograms[sb_name].SetName("pulls_" + sb_name)
+		pull_histograms[sb_name].Reset()
+		pull_histograms[sb_name].SetDirectory(0)
+		for bin in xrange(1, pull_histograms[sb_name].GetNbinsX() + 1):
+			data_int = data_histogram.GetBinContent(bin)
+			data_err = data_histogram.GetBinError(bin)
+			fit_int = fit_histograms[sb_name].GetBinContent(bin)
+			if data_err > 0:
+				pull_histograms[sb_name].SetBinContent(bin, (data_int - fit_int) / data_err)
+				pull_histograms[sb_name].SetBinError(bin, 0.)
+			else:
+				pull_histograms[sb_name].SetBinContent(bin, 0.)
+				pull_histograms[sb_name].SetBinError(bin, 0.)
+
+		pull_histograms[sb_name].SetLineColor(seaborn.GetColorRoot("default", style_counter))
+		pull_histograms[sb_name].SetLineWidth(2)
+		pull_histograms[sb_name].SetLineStyle(2)
+		pull_histograms[sb_name].Draw("hist same")
+
+		style_counter += 1
+	#pull_histogram.GetXaxis().SetTitle("m_{jj} [GeV]")
+	#pull_histogram.GetYaxis().SetTitle("#frac{Data - Fit}{#sigma(Fit)}")
+	#pull_histogram.Draw("same")
+	c.cd()
+
+	c.SaveAs("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures/c_" + save_tag + ".pdf")
+
+
+
+
 if __name__ == "__main__":
 	import argparse
 	parser = argparse.ArgumentParser(description="Run and plot fits")
+	parser.add_argument("--what", type=str, default="mjj", help="mjj = normal fit+data plot, sb = all s+b fits plus b only")
 	parser.add_argument("--analyses", type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help='Analysis name (see analysis_configuration_8TeV.py)')
 	parser.add_argument("--models", type=str, default="Hbb,RSG", help='Model name')
 	parser.add_argument("--fit_functions", type=str, default="f1,f2,f3,f4,f5", help="Fit functions")
@@ -387,7 +548,6 @@ if __name__ == "__main__":
 						default=19700., type=float,
 						help="Integrated luminosity in pb-1 (default: %(default).1f)",
 						metavar="LUMI")
-
 	args = parser.parse_args()
 
 	analyses = args.analyses.split(",")
@@ -410,19 +570,44 @@ if __name__ == "__main__":
 	else:
 		x_range = [0., 2000.]
 
-	for analysis in analyses:
-		histogram_file = TFile(analysis_config.get_b_histogram_filename(analysis, "BJetPlusX_2012"), "READ")
-		data_histogram = histogram_file.Get("BHistograms/h_pfjet_mjj")
-		print "Data integral = {}".format(data_histogram.Integral())
-		if "trigbbh" in analysis:
-			trigger_correction = "bbh"
-		elif "trigbbl" in analysis:
-			trigger_correction = "bbl"
-		data_histogram.SetDirectory(0)
-		for model in models:
-			background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, fitSignal=True, correctTrigger=True)
-			save_tag = "mjj_combinefits_" + analysis + "_" + model
-			if len(fit_functions) == 1:
-				save_tag += "_" + fit_functions[0]
-			rooplot(save_tag, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2prob=True, trigger_correction=trigger_correction, draw_trigeff=args.draw_trigeff) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
-
+	if args.what == "mjj":
+		for analysis in analyses:
+			histogram_file = TFile(analysis_config.get_b_histogram_filename(analysis, "BJetPlusX_2012"), "READ")
+			data_histogram = histogram_file.Get("BHistograms/h_pfjet_mjj")
+			print "Data integral = {}".format(data_histogram.Integral())
+			if "trigbbh" in analysis:
+				trigger_correction = "bbh"
+			elif "trigbbl" in analysis:
+				trigger_correction = "bbl"
+			data_histogram.SetDirectory(0)
+			for model in models:
+				background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, fitSignal=True, correctTrigger=True)
+				save_tag = "mjj_combinefits_" + analysis + "_" + model
+				if len(fit_functions) == 1:
+					save_tag += "_" + fit_functions[0]
+				rooplot(save_tag, fit_functions, background_workspace, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1., data_histogram=data_histogram, draw_chi2prob=True, trigger_correction=trigger_correction, draw_trigeff=args.draw_trigeff) # fitted_signal_workspaces=fitted_signal_workspaces, expected_signal_workspaces=expected_signal_workspaces, 
+	elif args.what == "sb":
+		for analysis in analyses:
+			for fit_function in fit_functions:
+				histogram_file = TFile(analysis_config.get_b_histogram_filename(analysis, "BJetPlusX_2012"), "READ")
+				data_histogram = histogram_file.Get("BHistograms/h_pfjet_mjj")
+				print "Data integral = {}".format(data_histogram.Integral())
+				if "trigbbh" in analysis:
+					trigger_correction = "bbh"
+				elif "trigbbl" in analysis:
+					trigger_correction = "bbl"
+				data_histogram.SetDirectory(0)
+				for model in models:
+					b_workspace_file = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, fitSignal=True, correctTrigger=True)
+					sb_names = []
+					sb_workspaces = {}
+					if "bbl" in analysis:
+						signal_masses = xrange(400, 650, 50)
+					else:
+						signal_masses = xrange(600, 1200, 50)
+					for signal_mass in signal_masses:
+						sb_name = "m_{X}=" + str(signal_mass) + " [GeV]"
+						sb_names.append(sb_name)
+						sb_workspaces[sb_name] = limit_config.get_workspace_filename(analysis, model, signal_mass, fitBonly=False, fitSignal=True, correctTrigger=True)
+					save_tag = "mjj_sbfits_" + analysis + "_" + model + "_" + fit_function
+					PlotAllSB(save_tag=save_tag, fit_function=fit_function, sb_names=sb_names, sb_workspace_files=sb_workspaces, b_workspace_file=b_workspace_file, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1, draw_chi2ndf=False, draw_chi2prob=False, data_histogram=data_histogram, trigger_correction=None, draw_trigeff=False)

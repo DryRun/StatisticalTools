@@ -225,7 +225,7 @@ def run_single_mass(args, mass):
         print "[create_datacards] Loading fitted signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
         f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses)), "READ")
         w_signal = f_signal_pdfs.Get("w_signal")
-        input_parameters = signal_fits.get_parameters(w_signal.pdf("signal"))
+        input_parameters = signal_fits.get_parameters(w_signal.pdf("signal_raw"))
 
         # Make a new PDF with nuisance parameters
         signal_pdf_notrig, signal_vars = signal_fits.make_signal_pdf_systematic("bukin", mjj, mass=mass)

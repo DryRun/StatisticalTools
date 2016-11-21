@@ -21,7 +21,7 @@ python run_combine.py -M HybridNew --frequentist --significance --fitSignal --to
 
 # Plots
 python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root --extraText Preliminary --postfix preliminary --timesAE
 python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3.root --extraText Preliminary --postfix preliminary --timesAE
 python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root --extraText Preliminary --postfix preliminary
 

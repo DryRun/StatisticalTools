@@ -28,30 +28,30 @@ sigmoid_parameters = {
 }
 
 
-def get_pdf(analysis, mjj_var):
+def get_pdf(analysis, mjj_var, name_tag=""):
 	if analysis == "trigbbl_CSVTM":
-		return RooGenericPdf("trigger_efficiency_trigbbl_CSVTM", 
+		return RooGenericPdf("trigger_efficiency_trigbbl_CSVTM" + name_tag, 
 		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(sigmoid_parameters["trigbbl_CSVTM"]["p0"], sigmoid_parameters["trigbbl_CSVTM"]["p1"], sigmoid_parameters["trigbbl_CSVTM"]["p2"]), 
 		RooArgList(mjj_var))
 	elif analysis == "trigbbh_CSVTM":
-		return RooGenericPdf("trigger_efficiency_trigbbh_CSVTM", 
+		return RooGenericPdf("trigger_efficiency_trigbbh_CSVTM" + name_tag, 
 		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(sigmoid_parameters["trigbbh_CSVTM"]["p0"], sigmoid_parameters["trigbbh_CSVTM"]["p1"],sigmoid_parameters["trigbbh_CSVTM"]["p2"]), 
 		RooArgList(mjj_var))
 	elif analysis == "trigbbl_CSVM":
-		return RooGenericPdf("trigger_efficiency_trigbbl_CSVM", 
+		return RooGenericPdf("trigger_efficiency_trigbbl_CSVM" + name_tag, 
 		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(sigmoid_parameters["trigbbl_CSVTM"]["p0"], sigmoid_parameters["trigbbl_CSVTM"]["p1"], sigmoid_parameters["trigbbl_CSVTM"]["p2"]), 
 		RooArgList(mjj_var))
 	elif analysis == "trigbbh_CSVM":
-		return RooGenericPdf("trigger_efficiency_trigbbh_CSVM", 
+		return RooGenericPdf("trigger_efficiency_trigbbh_CSVM" + name_tag, 
 		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(sigmoid_parameters["trigbbh_CSVTM"]["p0"], sigmoid_parameters["trigbbh_CSVTM"]["p1"],sigmoid_parameters["trigbbh_CSVTM"]["p2"]), 
 		RooArgList(mjj_var))
 	elif analysis == "trigbbll_CSVTM":
 		# This is just the trigbbl trigger efficiency. Consider calculating this properly; hopefully this is close enough.
-		return RooGenericPdf("trigger_efficiency_trigbbll_CSVTM", 
+		return RooGenericPdf("trigger_efficiency_trigbbll_CSVTM" + name_tag, 
 		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(sigmoid_parameters["trigbbl_CSVTM"]["p0"], sigmoid_parameters["trigbbl_CSVTM"]["p1"], sigmoid_parameters["trigbbl_CSVTM"]["p2"]), 
 		RooArgList(mjj_var))
 	elif analysis == "trigbbhl_CSVTM":
-		return RooGenericPdf("trigger_efficiency_trigbbhl_CSVTM", 
+		return RooGenericPdf("trigger_efficiency_trigbbhl_CSVTM" + name_tag, 
 		"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(sigmoid_parameters["trigbbh_CSVTM"]["p0"], sigmoid_parameters["trigbbh_CSVTM"]["p1"],sigmoid_parameters["trigbbh_CSVTM"]["p2"]), 
 		RooArgList(mjj_var))
 
@@ -61,7 +61,7 @@ def get_formula(analysis, mjj_var):
 			"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(sigmoid_parameters["trigbbl_CSVTM"]["p0"], sigmoid_parameters["trigbbl_CSVTM"]["p1"], sigmoid_parameters["trigbbl_CSVTM"]["p2"]), 
 			RooArgList(mjj_var))
 	elif "bbh" in analysis:
-		return RooFormulaVar("trigger_efficiency_trigbbhl_CSVTM", 
+		return RooFormulaVar("trigger_efficiency_trigbbh_CSVTM", 
 			"pow(1. / (1. + exp(-1. * (@0 - %.1f) / %.1f)), %.1f)"%(sigmoid_parameters["trigbbh_CSVTM"]["p0"], sigmoid_parameters["trigbbh_CSVTM"]["p1"],sigmoid_parameters["trigbbh_CSVTM"]["p2"]), 
 			RooArgList(mjj_var))
 
