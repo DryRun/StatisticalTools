@@ -1,39 +1,53 @@
 # New: signal fits
 python create_datacards_parallel.py trigbbh_CSVTM Hbb --massMin 526 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_Hbb_fitSignal.txt &
-python create_datacards_parallel.py trigbbl_CSVTM Hbb --massMin 296 --massMax 1607 --massrange 400 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_Hbb_fitSignal.txt &
+python create_datacards_parallel.py trigbbl_CSVTM Hbb --massMin 296 --massMax 1058 --massrange 350 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_Hbb_fitSignal.txt &
 python create_datacards_parallel.py trigbbh_CSVTM RSG --massMin 526 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_RSG_fitSignal.txt &
-python create_datacards_parallel.py trigbbl_CSVTM RSG --massMin 296 --massMax 1607 --massrange 400 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_RSG_fitSignal.txt &
+python create_datacards_parallel.py trigbbl_CSVTM RSG --massMin 296 --massMax 1058 --massrange 350 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_RSG_fitSignal.txt &
+python create_datacards_parallel.py trigbbh_CSVTM ZPrime --massMin 526 --massMax 1607 --massrange 600 1200 50 --fitSignal --correctTrigger --runFit >& log_trigbbh_CSVTM_ZPrime_fitSignal.txt &
+python create_datacards_parallel.py trigbbl_CSVTM ZPrime --massMin 296 --massMax 1058 --massrange 350 800 50 --fitSignal --correctTrigger --runFit >& log_trigbbl_CSVTM_ZPrime_fitSignal.txt &
 
 
 
 # One-liners for limit setting
-python run_combine.py -M Asymptotic --fitSignal --analyses trigbbl_CSVTM --fit_function f4 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v5
-python run_combine.py -M Asymptotic --fitSignal --analyses trigbbl_CSVTM --fit_function f4 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v5 --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3,alpha_jer,alpha_jes
+python run_combine.py -M Asymptotic --fitSignal --correctTrigger --analyses trigbbl_CSVTM --fit_function f4 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v5
+python run_combine.py -M Asymptotic --fitSignal --correctTrigger --analyses trigbbl_CSVTM --fit_function f4 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v5 --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,alpha_jer,alpha_jes
 
-python run_combine.py -M Asymptotic --fitSignal --analyses trigbbh_CSVTM --fit_function f3 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v5
-python run_combine.py -M Asymptotic --fitSignal --analyses trigbbh_CSVTM --fit_function f3 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001 --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2,alpha_jer,alpha_jes   -v5
+python run_combine.py -M Asymptotic --fitSignal --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3
+python run_combine.py -M Asymptotic --fitSignal --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001 --noSyst --freezeNuisances shapeBkg_background_f1_bin1__norm,f1_p1,f1_p2,alpha_jer,alpha_jes   -v3
 
-python run_combine.py -M HybridNew --frequentist --fitSignal --analyses trigbbl_CSVTM --toysH 500 --rAbsAcc 0.005 --rRelAcc 0.01 -v2 --fit_function f4 --condor
-python run_combine.py -M HybridNew --frequentist --fitSignal --analyses trigbbh_CSVTM --toysH 500 --rAbsAcc 0.005 --rRelAcc 0.01 -v2 --fit_function f3 --condor
+python run_combine.py -M HybridNew --frequentist --fitSignal --correctTrigger --analyses trigbbl_CSVTM --toysH 500 --rAbsAcc 0.005 --rRelAcc 0.01 -v2 --fit_function f4 --condor --no_retar
+python run_combine.py -M HybridNew --frequentist --fitSignal --correctTrigger --analyses trigbbh_CSVTM --toysH 500 --rAbsAcc 0.005 --rRelAcc 0.01 -v2 --fit_function f1 --condor --no_retar
 
-python run_combine.py -M HybridNew --frequentist --significance --fitSignal --toysH 500 --rAbsAcc 0.001 --rRelAcc 0.001 -v2 --fit_function f3 --condor --testStat LHC
+python run_combine.py -M HybridNew --frequentist --significance --fitSignal --toysH 500 --rAbsAcc 0.001 --rRelAcc 0.001 -v2  --analyses trigbbl_CSVTM --fit_function f4 --condor --no_retar --testStat LHC
+python run_combine.py -M HybridNew --frequentist --significance --fitSignal --toysH 500 --rAbsAcc 0.001 --rRelAcc 0.001 -v2  --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar --testStat LHC
+
+# Bad expected limits
+python run_combine.py -M Asymptotic --fitSignal --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --rAbsAcc 0.0001 --rRelAcc 0.0001  -v3 --masses 650
+python run_combine.py -M Asymptotic --fitSignal --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3 --masses 700 --rMax 50.
+
 
 
 # Plots
-python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f1 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f1.root --extraText Internal --postfix internal
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f1 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f1.root --extraText Internal --postfix internal
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4.root --extraText Internal --postfix internal
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f4 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root --extraText Internal --postfix internal
 
-python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f3 --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2,alpha_jer,alpha_jes --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3_noSyst.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f3 --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2,alpha_jer,alpha_jes --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f3_noSyst.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f3 --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2,alpha_jer,alpha_jes --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f3_noSyst.root --extraText Preliminary --postfix preliminary --timesAE
-python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f3 --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2,alpha_jer,alpha_jes --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f3_noSyst.root --extraText Preliminary --postfix preliminary --timesAE
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f1 --noSyst --freezeNuisances shapeBkg_background_f1_bin1__norm,f1_p1,f1_p2,alpha_jer,alpha_jes --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f1_noSyst.root --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f1 --noSyst --freezeNuisances shapeBkg_background_f1_bin1__norm,f1_p1,f1_p2,alpha_jer,alpha_jes --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f1_noSyst.root --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f4 --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3,alpha_jer,alpha_jes --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4_noSyst.root --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f4 --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3,alpha_jer,alpha_jes --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4_noSyst.root --extraText Preliminary --postfix preliminary
 
-python plot_significance.py trigbbh_CSVTM Hbb -M HybridNew --fit_function f3 --massrange 600 1200 50 --extraText Preliminary --postfix preliminary
-python plot_significance.py trigbbl_CSVTM Hbb -M HybridNew --fit_function f3 --massrange 400 800 50 --extraText Preliminary --postfix preliminary
-python plot_significance.py trigbbh_CSVTM RSG -M HybridNew --fit_function f3 --massrange 600 1200 50 --extraText Preliminary --postfix preliminary
-python plot_significance.py trigbbl_CSVTM RSG -M HybridNew --fit_function f3 --massrange 400 800 50 --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbh_CSVTM Hbb -M Asymptotic --fit_function f4 --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3,alpha_jer,alpha_jes --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f4_noSyst.root --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbl_CSVTM Hbb -M Asymptotic --fit_function f4 --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3,alpha_jer,alpha_jes --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_Hbb_f4_noSyst.root --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbh_CSVTM RSG -M Asymptotic --fit_function f4 --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3,alpha_jer,alpha_jes --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_RSG_f4_noSyst.root --extraText Preliminary --postfix preliminary
+python plot_limits.py trigbbl_CSVTM RSG -M Asymptotic --fit_function f4 --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3,alpha_jer,alpha_jes --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4_noSyst.root --extraText Preliminary --postfix preliminary
+
+
+python plot_significance.py trigbbh_CSVTM Hbb -M HybridNew --fit_function f1 --massrange 600 1200 50 --extraText Preliminary --postfix preliminary
+python plot_significance.py trigbbl_CSVTM Hbb -M HybridNew --fit_function f4 --massrange 400 800 50 --extraText Preliminary --postfix preliminary
+python plot_significance.py trigbbh_CSVTM RSG -M HybridNew --fit_function f1 --massrange 600 1200 50 --extraText Preliminary --postfix preliminary
+python plot_significance.py trigbbl_CSVTM RSG -M HybridNew --fit_function f4 --massrange 400 800 50 --extraText Preliminary --postfix preliminary
 
 
 # Relaxing the DeltaEta cut
@@ -61,8 +75,9 @@ python plot_limits.py trigbbhl_CSVTM RSG -M Asymptotic --fit_function f4 --massr
 
 
 # Background only
-python create_datacards_parallel.py trigbbh_CSVTM Hbb --massMin 526 --massMax 1607 --massrange 600 1200 50 --fitSignal --fitBonly --correctTrigger --runFit >& log_trigbbh_CSVTM_Hbb_fitSignal_fitBonly.txt &
-python create_datacards_parallel.py trigbbl_CSVTM Hbb --massMin 296 --massMax 1607 --massrange 400 800 50 --fitSignal --fitBonly --correctTrigger --runFit >& log_trigbbl_CSVTM_Hbb_fitSignal_fitBonly.txt &
+python create_datacards_parallel.py trigbbh_CSVTM Hbb --massMin 526 --massMax 1607 --massrange 750 750 50 --fitSignal --fitBonly --correctTrigger --runFit >& log_trigbbh_CSVTM_Hbb_fitSignal_fitBonly.txt &
+python create_datacards_parallel.py trigbbl_CSVTM Hbb --massMin 296 --massMax 1058 --massrange 750 750 50 --fitSignal --fitBonly --correctTrigger --runFit >& log_trigbbl_CSVTM_Hbb_fitSignal_fitBonly.txt &
+
 python create_datacards_parallel.py trigbbll_CSVTM Hbb --massMin 325 --massMax 1607 --massrange 400 800 50 --fitSignal --fitBonly --correctTrigger --runFit >& log_trigbbll_CSVTM_Hbb_fitSignal_fitBonly.txt &
 python create_datacards_parallel.py trigbbhl_CSVTM Hbb --massMin 489 --massMax 1607 --massrange 600 1200 50 --fitSignal --fitBonly --correctTrigger --runFit >& log_trigbbhl_CSVTM_Hbb_fitSignal_fitBonly.txt &
 

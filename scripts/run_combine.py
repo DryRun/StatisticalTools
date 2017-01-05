@@ -60,7 +60,7 @@ def main():
                         help="Method to calculate upper limits",
                         metavar="METHOD")
     parser.add_argument('--analyses', type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help="Analysis names")
-    parser.add_argument('--models', type=str, default="Hbb,RSG", help="Model names")
+    parser.add_argument('--models', type=str, default="Hbb,RSG,ZPrime", help="Model names")
     parser.add_argument('--fitSignal', action='store_true', help="Use fitted signal shapes, rather than histograms")
     parser.add_argument('--correctTrigger', action='store_true', help="Use model with trigger correction (has to have been specified in create_datacards.py)")
     parser.add_argument('--fit_function', type=str, default="f4", help="Name of central fit function")

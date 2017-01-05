@@ -38,7 +38,7 @@ functions = ["f" + str(x) for x in xrange(1, 6)]
 
 top_directory = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/BiasStudies/"
 
-def run_bias_study(name, gen_datacard=None, gen_workspace=None, fit_datacard=None, fit_workspace=None, n_toys=1000, mu=0, dry_run=False):
+def run_bias_study(name, gen_datacard=None, gen_workspace=None, fit_datacard=None, fit_workspace=None, n_toys=1000, mu=0, dry_run=True):
 	print "Running bias study " + name
 	working_directory = top_directory + name
 	print "\tDirectory = " + working_directory
@@ -53,7 +53,7 @@ def run_bias_study(name, gen_datacard=None, gen_workspace=None, fit_datacard=Non
 	if not dry_run:
 		os.system("csub " + script_path + " --cmssw --no_retar -d " + working_directory + " -F " + gen_datacard + "," + fit_datacard + "," + gen_workspace + "," + fit_workspace)
 
-def run_many_bias_studies(top_name, job_names, gen_datacards, gen_workspaces, fit_datacards, fit_workspaces, n_toys, mu, dry_run=False):
+def run_many_bias_studies(top_name, job_names, gen_datacards, gen_workspaces, fit_datacards, fit_workspaces, n_toys, mu, dry_run=True):
 	working_directory = top_directory + top_name
 	print "\tDirectory = " + working_directory
 	os.system("mkdir -pv " + working_directory)
@@ -77,15 +77,24 @@ def run_many_bias_studies(top_name, job_names, gen_datacards, gen_workspaces, fi
 		files_to_transfer.append(fit_datacards[name])
 		files_to_transfer.append(gen_workspaces[name])
 		files_to_transfer.append(fit_workspaces[name])
-
+		files_to_transfer.append(script_path)
 		script.close()
 
 	files_to_transfer = list(set(files_to_transfer))
 
+	# Master script
+	master_script_path = working_directory + "/run_master.sh"
+	master_script = open(master_script_path, "w")
+	master_script.write("#!/bin/bash\n")
+	master_script.write("job_scripts=( " + " ".join([os.path.basename(x) for x in script_paths]) + " )\n")
+	master_script.write("source ${job_scripts[$1]}\n")
+	master_script.close()
+
 	if not dry_run:
-		os.system("csub " + ",".join(script_paths) + " --cmssw --no_retar -d " + working_directory + " -F " + ",".join(files_to_transfer))
+		print "csub " + master_script_path + " --cmssw --no_retar -d " + working_directory + " -F " + ",".join(files_to_transfer) + " -n " + str(len(script_paths))
+		os.system("csub " + master_script_path + " --cmssw --no_retar -d " + working_directory + " -F " + ",".join(files_to_transfer) + " -n " + str(len(script_paths)))
 	else:
-		print "csub " + ",".join(script_paths) + " --cmssw --no_retar -d " + working_directory + " -F " + ",".join(files_to_transfer)
+		print "csub " + master_script_path + " --cmssw --no_retar -d " + working_directory + " -F " + ",".join(files_to_transfer) + " -n " + str(len(script_paths))
 
 # 2D histogram plot
 # x-axis = functions (25 combinations)
@@ -282,11 +291,10 @@ def plot_all_averages(model, analysis, injected_mu=0):
 if __name__ == "__main__":
 	import argparse
 	parser = argparse.ArgumentParser(description = 'Run bias studies and plot output')
-	parser.add_argument('--model', type=str, default="Hbb,RSG", help='Model name')
+	parser.add_argument('--model', type=str, default="Hbb,RSG,ZPrime", help='Model name')
 	parser.add_argument('--analysis', type=str, default="trigbbl_CSVTM,trigbbh_CSVTM", help='Analysis name')
 	parser.add_argument('--run', action='store_true', help='Run bias studies')
-	parser.add_argument('--run2', action='store_true', help='Run bias studies')
-	parser.add_argument('--retry2', action='store_true', help='Rerun failed bias studies')
+	parser.add_argument('--retry', action='store_true', help='Rerun failed bias studies')
 	parser.add_argument('--dry_run', action='store_true', help='Setup but do not run bias studies')
 	parser.add_argument('--n_toys', type=int, default=1000, help='Number of toys to run')
 	parser.add_argument('--mu', type=int, default=0, help='Signal mu (1 = inject signal at +2sigma expected limit)')
@@ -296,7 +304,7 @@ if __name__ == "__main__":
 
 	models = args.model.split(",")
 	analyses = args.analysis.split(",")
-	masses = {"trigbbl_CSVTM":range(400, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
+	masses = {"trigbbl_CSVTM":range(350, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
 
 	job_mu_values = {}
 	for model in models:
@@ -307,27 +315,28 @@ if __name__ == "__main__":
 				if args.mu == 0:
 					job_mu_values[model][analysis][mass] = 0.
 				else:
-					workspace_file = TFile(datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root", "READ")
+					workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, fitSignal=True, correctTrigger=True), "READ")
+					#workspace_file = TFile(datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root", "READ")
 					workspace = workspace_file.Get("w")
 					signal_norm = workspace.var("signal_norm").getVal()
 					job_mu_values[model][analysis][mass] = 19700. * limit_config.limit_p2sigma_estimates[analysis][model][mass] / signal_norm
 
+	#if args.run:
+	#	if args.test:
+	#		run_bias_study("test", gen_datacard=datacard_folders["Hbb"]["trigbbh_CSVTM"] + "/datacard_qq_m" + str(750) + "_f3.txt", fit_datacard=datacard_folders["Hbb"]["trigbbh_CSVTM"] + "/datacard_qq_m" + str(750) + "_f1.txt", gen_workspace=datacard_folders["Hbb"]["trigbbh_CSVTM"] + "/workspace_qq_m" + str(750) + ".root", fit_workspace=datacard_folders["Hbb"]["trigbbh_CSVTM"] + "/workspace_qq_m" + str(750) + ".root", n_toys=args.n_toys, mu=args.mu)
+	#	else:
+	#		for model in models:
+	#			for analysis in analyses:
+	#				for mass in masses[analysis]:
+	#					for f_gen in functions:
+	#						gen_datacard = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_gen + ".txt"
+	#						gen_workspace = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
+	#						for f_fit in functions:
+	#							fit_datacard = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_fit + ".txt"
+	#							fit_workspace = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
+	#							name = model + "_" + analysis + "/m" + str(mass) + "_gen_" + f_gen + "_fit_" + f_fit + "_mu" + str(args.mu)
+	#							run_bias_study(name, gen_datacard=gen_datacard, fit_datacard=fit_datacard, gen_workspace=gen_workspace, fit_workspace=fit_workspace, n_toys=args.n_toys, mu=args.mu, dry_run=args.dry_run)
 	if args.run:
-		if args.test:
-			run_bias_study("test", gen_datacard=datacard_folders["Hbb"]["trigbbh_CSVTM"] + "/datacard_qq_m" + str(750) + "_f3.txt", fit_datacard=datacard_folders["Hbb"]["trigbbh_CSVTM"] + "/datacard_qq_m" + str(750) + "_f1.txt", gen_workspace=datacard_folders["Hbb"]["trigbbh_CSVTM"] + "/workspace_qq_m" + str(750) + ".root", fit_workspace=datacard_folders["Hbb"]["trigbbh_CSVTM"] + "/workspace_qq_m" + str(750) + ".root", n_toys=args.n_toys, mu=args.mu)
-		else:
-			for model in models:
-				for analysis in analyses:
-					for mass in masses[analysis]:
-						for f_gen in functions:
-							gen_datacard = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_gen + ".txt"
-							gen_workspace = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
-							for f_fit in functions:
-								fit_datacard = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_fit + ".txt"
-								fit_workspace = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
-								name = model + "_" + analysis + "/m" + str(mass) + "_gen_" + f_gen + "_fit_" + f_fit + "_mu" + str(args.mu)
-								run_bias_study(name, gen_datacard=gen_datacard, fit_datacard=fit_datacard, gen_workspace=gen_workspace, fit_workspace=fit_workspace, n_toys=args.n_toys, mu=args.mu, dry_run=args.dry_run)
-	if args.run2:
 		for model in models:
 			for analysis in analyses:
 				for mass in masses[analysis]:
@@ -342,17 +351,17 @@ if __name__ == "__main__":
 						for f_fit in functions:
 							name = model + "_" + analysis + "_m" + str(mass) + "_gen_" + f_gen + "_fit_" + f_fit + "_mu" + str(args.mu)
 							job_names.append(name)
-							gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, fitSignal=True)
-							gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, fitSignal=True)
-							fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, fitSignal=True)
-							fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, fitSignal=True)
+							gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, fitSignal=True, correctTrigger=True)
+							gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, fitSignal=True, correctTrigger=True)
+							fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, fitSignal=True, correctTrigger=True)
+							fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, fitSignal=True, correctTrigger=True)
 							#gen_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_gen + ".txt"
 							#gen_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
 							#fit_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_fit + ".txt"
 							#fit_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
 					run_many_bias_studies(top_name, job_names, gen_datacards=gen_datacards, fit_datacards=fit_datacards, gen_workspaces=gen_workspaces, fit_workspaces=fit_workspaces, n_toys=args.n_toys, mu=job_mu_values[model][analysis][mass], dry_run=args.dry_run)
 
-	if args.retry2:
+	if args.retry:
 		for model in models:
 			for analysis in analyses:
 				for mass in masses[analysis]:
@@ -377,10 +386,14 @@ if __name__ == "__main__":
 							if retry_this_job:
 								name = model + "_" + analysis + "_m" + str(mass) + "_gen_" + f_gen + "_fit_" + f_fit + "_mu" + str(args.mu)
 								job_names.append(name)
-								gen_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_gen + ".txt"
-								gen_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
-								fit_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_fit + ".txt"
-								fit_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
+								gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, fitSignal=True, correctTrigger=True)
+								gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, fitSignal=True, correctTrigger=True)
+								fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, fitSignal=True, correctTrigger=True)
+								fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, fitSignal=True, correctTrigger=True)
+								#gen_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_gen + ".txt"
+								#gen_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
+								#fit_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_fit + ".txt"
+								#fit_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
 					if len(job_names) > 0:
 						run_many_bias_studies(top_name, job_names, gen_datacards=gen_datacards, fit_datacards=fit_datacards, gen_workspaces=gen_workspaces, fit_workspaces=fit_workspaces, n_toys=args.n_toys, mu=args.mu, dry_run=args.dry_run)
 

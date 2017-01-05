@@ -12,7 +12,9 @@ import CMSDIJET.StatisticalTools.limit_configuration as limit_config
 import CMSDIJET.StatisticalTools.trigger_efficiency as trigger_efficiency
 from CMSDIJET.StatisticalTools.systematics import *
 from CMSDIJET.StatisticalTools.roofit_functions import *
+from CMSDIJET.StatisticalTools.background_fits import *
 import signal_fits
+
 
 ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/RooCBPlusVoigtian.h\"")
 gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so")
@@ -58,9 +60,13 @@ def main():
                         help="Output path where datacards and workspaces will be stored. If not specified, this is derived from limit_configuration.",
                         metavar="OUTPUT_PATH")
 
+    parser.add_argument("--fitTrigger", dest="fitTrigger",
+                        action='store_true',
+                        help="Include trigger correction in PDF. Exclusive with correctTrigger")
+
     parser.add_argument("--correctTrigger", dest="correctTrigger",
                         action='store_true',
-                        help="Include trigger correction in PDF")
+                        help="Apply trigger correction to data. Exclusive with fitTrigger.")
 
     parser.add_argument("-l", "--lumi", dest="lumi",
                         default=19700., type=float,
@@ -142,6 +148,10 @@ def main():
 
     args = parser.parse_args()
 
+    if args.fitTrigger and args.correctTrigger:
+        print "[create_datacards_parallel] ERROR : fitTrigger and correctTrigger cannot both be specified."
+        sys.exit(1)
+
     # mass points for which resonance shapes will be produced
     masses = []
 
@@ -183,8 +193,10 @@ def run_single_mass(args, mass):
     #hData = inputData.Get(args.dataHistname)
     #hData.SetDirectory(0)
     data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis, "BJetPlusX_2012"))
-    hData = data_file.Get("BHistograms/h_pfjet_mjj")
-    hData.SetDirectory(0)
+    hData_notrigcorr = data_file.Get("BHistograms/h_pfjet_mjj")
+    hData_notrigcorr.SetDirectory(0)
+    hData_name = hData_notrigcorr.GetName()
+    hData_notrigcorr.SetName(hData_name + "_notrigcorr")
 
     # input sig file
     if not args.fitSignal:
@@ -200,16 +212,20 @@ def run_single_mass(args, mass):
     lumi = args.lumi
     signalCrossSection = 1. # set to 1. so that the limit on r can be interpreted as a limit on the signal cross section
 
-    if args.correctTrigger:
-        trigger_efficiency_pdf = trigger_efficiency.get_pdf(args.analysis, mjj)
+    if args.fitTrigger:
         trigger_efficiency_formula = trigger_efficiency.get_formula(args.analysis, mjj)
+   
+    if args.correctTrigger:
+        # Apply trigger correction to data histogram
+        hData = CorrectTriggerEfficiency(hData_notrigcorr, args.analysis)
     else:
-        trigger_efficiency_pdf = trigger_efficiency.get_trivial_pdf(mjj)
-        trigger_efficiency_formula = trigger_efficiency.get_trivial_formula(mjj)
-
+        hData = hData_notrigcorr
+    hData.SetName(hData_name)
     print ">> Creating datacard and workspace for %s resonance with m = %i GeV..."%(args.final_state, int(mass))
     
-    rooDataHist = RooDataHist('rooDatahist','rooDathist',RooArgList(mjj),hData)
+    rooDataHist = RooDataHist('rooDatahist','rooDatahist',RooArgList(mjj),hData)
+    if args.correctTrigger:
+        rooDataHist_notrigcorr = RooDataHist("rooDatahist_notrigcorr", "rooDatahist_notrigcorr", RooArgList(mjj), hData_notrigcorr)
 
     if not args.fitSignal:
         hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
@@ -222,17 +238,24 @@ def run_single_mass(args, mass):
 
     # If using fitted signal shapes, load the signal PDF
     if args.fitSignal:
-        print "[create_datacards] Loading fitted signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
-        f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses)), "READ")
+        print "[create_datacards] Loading fitted signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
+        f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger), "READ")
         w_signal = f_signal_pdfs.Get("w_signal")
-        input_parameters = signal_fits.get_parameters(w_signal.pdf("signal_raw"))
+        if args.fitTrigger:
+            input_parameters = signal_fits.get_parameters(w_signal.pdf("signal_raw"))
+        else:
+            input_parameters = signal_fits.get_parameters(w_signal.pdf("signal"))
 
         # Make a new PDF with nuisance parameters
         signal_pdf_notrig, signal_vars = signal_fits.make_signal_pdf_systematic("bukin", mjj, mass=mass)
         signal_pdf_name = signal_pdf_notrig.GetName()
         signal_pdf_notrig.SetName(signal_pdf_name + "_notrig")
         #signal_pdf = RooProdPdf(signal_pdf_name, signal_pdf_name, signal_pdf_notrig, trigger_efficiency_pdf) 
-        signal_pdf = RooEffProd(signal_pdf_name, signal_pdf_name, signal_pdf_notrig, trigger_efficiency_formula)
+        if args.fitTrigger:
+            signal_pdf = RooEffProd(signal_pdf_name, signal_pdf_name, signal_pdf_notrig, trigger_efficiency_formula)
+        else:
+            signal_pdf = signal_pdf_notrig
+            signal_pdf.SetName(signal_pdf_name)
 
         # Copy input parameter values
         signal_vars["xp_0"].setVal(input_parameters["xp"][0])
@@ -268,34 +291,44 @@ def run_single_mass(args, mass):
     for fit_function in fit_functions:
         print "[create_datacards] INFO : On fit function {}".format(fit_function)
 
+        # Make signal PDF
         if args.fitSignal:
             # Make a copy of the signal PDF, so that each fitTo call uses its own copy.
             # The copy should have all variables set constant.  
             #signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("bukin", signal_pdf, mjj, tag=fit_function, include_systematics=True)
             signal_pdfs_notrig[fit_function] = ROOT.RooBukinPdf(signal_pdf_notrig, signal_pdf_notrig.GetName() + "_" + fit_function)
-            signal_pdfs[fit_function] = RooEffProd(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigger_efficiency_formula) 
-            #signal_pdfs[fit_function] = RooProdPdf(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigger_efficiency_pdf) 
             iterator = signal_pdfs_notrig[fit_function].getVariables().createIterator()
             this_parameter = iterator.Next()
             while this_parameter:
                 this_parameter.setConstant()
                 this_parameter = iterator.Next()
+            if args.fitTrigger:
+                signal_pdfs[fit_function] = RooEffProd(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigger_efficiency_formula) 
+            else:
+                signal_pdfs[fit_function] = signal_pdfs_notrig[fit_function]
+                signal_pdfs[fit_function].SetName(signal_pdf.GetName() + "_" + fit_function)
         else:
             signal_pdfs[fit_function] = RooHistPdf('signal_' + fit_function,'signal_' + fit_function, RooArgSet(mjj), rooSigHist)
         signal_norms[fit_function] = RooRealVar('signal_norm_' + fit_function, 'signal_norm_' + fit_function, 0., 0., 1e+05)
         if args.fitBonly: 
             signal_norms[fit_function].setConstant()
+
+        # Make background PDF
         background_pdfs_notrig[fit_function], background_parameters[fit_function] = make_background_pdf(fit_function, mjj, collision_energy=8000.)
         background_pdf_name = background_pdfs_notrig[fit_function].GetName()
         background_pdfs_notrig[fit_function].SetName(background_pdf_name + "_notrig")
-        background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigger_efficiency_formula)
-        #background_pdfs[fit_function] = RooProdPdf(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigger_efficiency_pdf)
-        #background_pdfs[fit_function] = background_pdfs_notrig[fit_function]
-        #background_pdfs[fit_function].SetName(background_pdf_name)
+        if args.fitTrigger:
+            background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigger_efficiency_formula)
+        else:
+            background_pdfs[fit_function] = background_pdfs_notrig[fit_function]
+            background_pdfs[fit_function].SetName(background_pdf_name)
         
         # Initial values
         if "trigbbh" in args.analysis:
-            if fit_function == "f3":
+            if fit_function == "f1":
+                background_parameters[fit_function]["p1"].setVal(1.e-5)
+                background_parameters[fit_function]["p1"].setMax(5.)
+            elif fit_function == "f3":
                 background_parameters[fit_function]["p1"].setVal(78.)
                 background_parameters[fit_function]["p1"].setMin(20.)
                 background_parameters[fit_function]["p2"].setVal(8.)
@@ -303,6 +336,11 @@ def run_single_mass(args, mass):
                 background_parameters[fit_function]["p1"].setVal(35.)
                 background_parameters[fit_function]["p2"].setVal(-28.)
                 background_parameters[fit_function]["p3"].setVal(10.)
+            elif fit_function == "f6":
+                background_parameters[fit_function]["p1"].setVal(35.)
+                background_parameters[fit_function]["p2"].setVal(-28.)
+                background_parameters[fit_function]["p3"].setVal(0.)
+                background_parameters[fit_function]["p4"].setVal(10.)
         elif "trigbbl" in args.analysis:
             if fit_function == "f3":
                 background_parameters[fit_function]["p1"].setVal(82.)
@@ -312,6 +350,11 @@ def run_single_mass(args, mass):
                 background_parameters[fit_function]["p1"].setVal(41.)
                 background_parameters[fit_function]["p2"].setVal(-45.)
                 background_parameters[fit_function]["p3"].setVal(10.)
+            elif fit_function == "f6":
+                background_parameters[fit_function]["p1"].setVal(35.)
+                background_parameters[fit_function]["p2"].setVal(-43.)
+                background_parameters[fit_function]["p3"].setVal(0.)
+                background_parameters[fit_function]["p4"].setVal(10.)
 
         data_integral = hData.Integral(hData.GetXaxis().FindBin(float(args.massMin)),hData.GetXaxis().FindBin(float(args.massMax)))
         background_norms[fit_function] = RooRealVar('background_' + fit_function + '_norm', 'background_' + fit_function + '_norm', data_integral, 0., 1.e8)
@@ -338,8 +381,8 @@ def run_single_mass(args, mass):
     #signal_pdfs_syst = {}
     # JES and JER uncertainties
     if args.fitSignal:
-        print "[create_datacards] INFO : Getting signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
-        f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses)))
+        print "[create_datacards] INFO : Getting signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
+        f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))
         w_signal = f_signal_pdfs.Get("w_signal")
         if "jes" in systematics:
             xp_central = signal_vars["xp_0"].getVal()
@@ -491,6 +534,8 @@ def run_single_mass(args, mass):
             if args.fitBonly:
                 getattr(w,'import')(models[fit_function],ROOT.RooCmdArg(),RooFit.RecycleConflictNodes())
     getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
+    if args.correctTrigger:
+        getattr(w,'import')(rooDataHist_notrigcorr, RooFit.Rename("data_obs_notrigcorr"))
 
     w.Print()
     print "Starting save"
@@ -500,8 +545,13 @@ def run_single_mass(args, mass):
         print "[create_datacards] INFO : Writing workspace to file {}".format(os.path.join(args.output_path,wsName))
         w.writeToFile(os.path.join(args.output_path,wsName))
     else:
-        print "[create_datacards] INFO : Writing workspace to file {}".format(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))
-        w.writeToFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))
+        print "[create_datacards] INFO : Writing workspace to file {}".format(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))
+        w.writeToFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))
+    if args.correctTrigger:
+        f_workspace = TFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger), "UPDATE")
+        hData.Write()
+        hData_notrigcorr.Write()
+
 
     # Clean up
     for name, obj in signal_norms.iteritems():
@@ -551,8 +601,8 @@ def run_single_mass(args, mass):
                 print "[create_datacards] INFO : Writing datacard to file {}".format(os.path.join(args.output_path,dcName)) 
                 datacard = open(os.path.join(args.output_path,dcName),'w')
             else:
-                print "[create_datacards] INFO : Writing datacard to file {}".format(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger)) 
-                datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger), 'w')
+                print "[create_datacards] INFO : Writing datacard to file {}".format(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)) 
+                datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger), 'w')
             datacard.write('imax 1\n')
             datacard.write('jmax 1\n')
             datacard.write('kmax *\n')
@@ -561,12 +611,12 @@ def run_single_mass(args, mass):
                 if args.output_path:
                     datacard.write('shapes * * '+wsName+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
                 else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
+                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
             else:
                 if args.output_path:
                     datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
                 else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, correctTrigger=args.correctTrigger))+' w:$PROCESS\n')
+                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))+' w:$PROCESS\n')
             datacard.write('---------------\n')
             datacard.write('bin 1\n')
             datacard.write('observation -1\n')
@@ -606,6 +656,62 @@ def run_single_mass(args, mass):
 
     #print '>> Datacards and workspaces created and stored in %s/'%( os.path.join(os.getcwd(),args.output_path) )
     print "Done with mass {}.".format(mass)
+
+def CorrectTriggerEfficiency(hist, analysis):
+    hist_corr = hist.Clone()
+    hist_corr.SetName(hist.GetName() + "_trigcorr")
+    if "bbl" in analysis:
+        mjj_min = 296
+        mjj_max = 5000
+    elif "bbh" in analysis:
+        mjj_min = 526
+        mjj_max = 5000
+    bin_min = hist_corr.GetXaxis().FindBin(mjj_min + 1.e-5)
+    bin_max = hist_corr.GetXaxis().FindBin(mjj_max - 1.e-5)
+
+    # Fit background*eff
+    if "bbl" in analysis:
+        background_fit_times_eff = ROOT.TF1("tmp_background_fit_times_eff", BackgroundFit_f4_trigcorr_bbl, mjj_min, mjj_max, 4)
+        background_fit_times_eff.SetParameter(1, 41.)
+        background_fit_times_eff.SetParameter(2, -45.)
+        background_fit_times_eff.SetParameter(3, 10.)
+    elif "bbh" in analysis:
+        background_fit_times_eff = ROOT.TF1("tmp_background_fit_times_eff", BackgroundFit_f4_trigcorr_bbh, mjj_min, mjj_max, 4)
+        background_fit_times_eff.SetParameter(1, 35.)
+        background_fit_times_eff.SetParameter(2, -28.)
+        background_fit_times_eff.SetParameter(3, 10.)
+    background_fit_times_eff.SetParameter(0, hist_corr.Integral(bin_min, bin_max))
+    background_fit_times_eff.SetParameter(0, hist_corr.Integral(bin_min, bin_max) / background_fit_times_eff.Integral(mjj_min, mjj_max))
+    hist_corr.Fit(background_fit_times_eff, "QR0")
+
+    # Make background TF1
+    background_fit = ROOT.TF1("tmp_background_fit", BackgroundFit_f4, mjj_min, mjj_max, 4)
+    for i in xrange(4):
+        background_fit.SetParameter(i, background_fit_times_eff.GetParameter(i))
+
+    # Correct histogram bins
+    for bin in xrange(1, hist_corr.GetNbinsX() + 1):
+        if bin < bin_min or bin > bin_max:
+            hist_corr.SetBinContent(bin, 0)
+            hist_corr.SetBinError(bin, 0)
+        else:
+            old_content = hist_corr.GetBinContent(bin)
+            old_error = hist_corr.GetBinError(bin)
+            this_bin_min = hist_corr.GetXaxis().GetBinLowEdge(bin)
+            this_bin_max = hist_corr.GetXaxis().GetBinUpEdge(bin)
+            num = background_fit.Integral(this_bin_min, this_bin_max)
+            den = background_fit_times_eff.Integral(this_bin_min, this_bin_max)
+            if ("bbl" in analysis and this_bin_min <= 350.) or ("bbh" in analysis and this_bin_min <= 575.):
+                print "mjj={}: observed={}, corr={}".format(0.5*(this_bin_min+this_bin_max), den, num)
+            if den > 0:
+                correction = num / den
+                #if ("bbl" in analysis and this_bin_min <= 350.) or ("bbh" in analysis and this_bin_min <= 575.):
+                #    print "Trigger correction for mjj={}: {}".format(0.5*(this_bin_min+this_bin_max), correction)
+            else:
+                correction = 1.
+            hist_corr.SetBinContent(bin, old_content * correction)
+            hist_corr.SetBinError(bin, old_error * correction)
+    return hist_corr
 
 if __name__ == '__main__':
     main()

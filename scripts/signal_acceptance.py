@@ -16,13 +16,29 @@ for model in models:
 	signal_acc_times_eff[model] = {}
 	for analysis in analyses:
 		signal_acc_times_eff[model][analysis] = {}
+		if "bbl" in analysis:
+			mjj_range = [296, 1607]
+		elif "bbh" in analysis:
+			mjj_range = [526, 1607]
 		for mass in masses:
 			f = TFile(analysis_config.get_b_histogram_filename(analysis, analysis_config.simulation.get_signal_tag(model, mass, "FULLSIM")))
-			numerator = f.Get("BHistograms/h_pass_nevents").Integral()
+			low_bin = f.Get("BHistograms/h_pfjet_mjj").GetXaxis().FindBin(mjj_range[0] + 1.e-5)
+			high_bin = f.Get("BHistograms/h_pfjet_mjj").GetXaxis().FindBin(mjj_range[1] - 1.e-5)
+			numerator = f.Get("BHistograms/h_pfjet_mjj").Integral(low_bin, high_bin)
 			denominator = f.Get("BHistograms/h_sample_nevents").Integral()
 			if denominator > 0:
 				signal_acc_times_eff[model][analysis][mass] = numerator/denominator
 			else:
 				signal_acc_times_eff[model][analysis][mass] = 0.
+			print "{} / {} / {} GeV : mjj acceptance = {}".format(model, analysis, mass, f.Get("BHistograms/h_pfjet_mjj").Integral(low_bin, high_bin) / f.Get("BHistograms/h_pfjet_mjj").Integral())
+			print "\tsample nevents = {}".format(f.Get("BHistograms/h_sample_nevents").Integral())
+			print "\tinput_nevents = {}".format(f.Get("BHistograms/h_input_nevents").Integral())
+			print "\tinput_nevents_weighted = {}".format(f.Get("BHistograms/h_input_nevents_weighted").Integral())
+			print "\tpass_nevents = {}".format(f.Get("BHistograms/h_pass_nevents").Integral())
+			print "\tpass_nevents_weighted = {}".format(f.Get("BHistograms/h_pass_nevents_weighted").Integral())
+
+
+
+
 print signal_acc_times_eff
 pickle.dump(signal_acc_times_eff, open(analysis_config.simulation.get_signal_AE_filename(), "wb"))

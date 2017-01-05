@@ -10,11 +10,11 @@ paths["limit_plots"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Results/figu
 paths["r_grid"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/Grid/"
 
 limit_signal_masses = {
-	"trigbbl_CSVTM":range(400, 850, 50),
+	"trigbbl_CSVTM":range(350, 850, 50),
 	"trigbbh_CSVTM":range(600, 1250, 50),
-	"trigbbll_CSVTM":range(400, 850, 50),
+	"trigbbll_CSVTM":range(350, 850, 50),
 	"trigbbhl_CSVTM":range(600, 1250, 50),
-	"trigbbl_CSVM":range(400, 850, 50),
+	"trigbbl_CSVM":range(350, 850, 50),
 	"trigbbh_CSVM":range(600, 1250, 50)
 }
 
@@ -25,8 +25,8 @@ limit_p2sigma_estimates = {
 		"RSG":{1200.0:0.019388, 1150.0:0.023826, 1100.0:0.035423, 1050.0:0.021946, 1000.0:0.024242, 950.0:0.02489, 900.0:0.022151, 850.0:0.030239, 800.0:0.037759, 750.0:0.042609, 700.0:0.058826, 650.0:0.09928, 600.0:0.295702, }
 	},
 	"trigbbl_CSVTM":{
-		"Hbb":{800.0:0.044405, 750.0:0.04907, 700.0:0.055848, 650.0:0.065613, 600.0:0.081398, 550.0:0.114254, 500.0:0.135334, 450.0:(0.135334+0.627745)/2., 400.0:0.627745},
-		"RSG":{800.0:0.044812, 750.0:0.049796, 700.0:0.056204, 650.0:0.065271, 600.0:0.079637, 550.0:0.117042, 500.0:0.14398, 450.0:(0.14398+0.598384)/2., 400.0:0.598384}
+		"Hbb":{800.0:0.044405, 750.0:0.04907, 700.0:0.055848, 650.0:0.065613, 600.0:0.081398, 550.0:0.114254, 500.0:0.135334, 450.0:(0.135334+0.627745)/2., 400.0:0.627745, 350:0.6},
+		"RSG":{800.0:0.044812, 750.0:0.049796, 700.0:0.056204, 650.0:0.065271, 600.0:0.079637, 550.0:0.117042, 500.0:0.14398, 450.0:(0.14398+0.598384)/2., 400.0:0.598384, 350:0.6}
 	}
 }
 limit_m2sigma_estimates = {
@@ -35,13 +35,13 @@ limit_m2sigma_estimates = {
 		"RSG":{600.0:0.091513, 650.0:0.013531, 700.0:0.006568, 750.0:0.004622, 800.0:0.004485, 850.0:0.003476, 900.0:0.002364, 950.0:0.003509, 1000.0:0.004443, 1050.0:0.004149, 1100.0:(0.004149+0.004126)/2., 1150.0:0.004126, 1200.0:0.005845}
 	},
 	"trigbbl_CSVTM":{
-		"Hbb":{400.0:0.175381, 450.0:(0.175381+0.015603)/2., 500.0:0.015603, 550.0:0.01208, 600.0:0.010857, 650.0:0.010387, 700.0:0.010275, 750.0:0.010221, 800.0:0.01033},
-		"RSG":{400.0:0.166479, 450.0:(0.166479+0.016075)/2., 500.0:0.016075, 550.0:0.012205, 600.0:0.010532, 650.0:0.010202, 700.0:0.010257, 750.0:0.010426, 800.0:0.010378}
+		"Hbb":{350:0.09, 400.0:0.175381, 450.0:(0.175381+0.015603)/2., 500.0:0.015603, 550.0:0.01208, 600.0:0.010857, 650.0:0.010387, 700.0:0.010275, 750.0:0.010221, 800.0:0.01033},
+		"RSG":{350:0.09, 400.0:0.166479, 450.0:(0.166479+0.016075)/2., 500.0:0.016075, 550.0:0.012205, 600.0:0.010532, 650.0:0.010202, 700.0:0.010257, 750.0:0.010426, 800.0:0.010378}
 	}
 }
 
 # Get the path to a workspace. 
-def get_workspace_filename(analysis_name, model, mass, fitBonly=False, fitSignal=False, correctTrigger=False):
+def get_workspace_filename(analysis_name, model, mass, fitBonly=False, fitSignal=False, correctTrigger=False, fitTrigger=False):
 	path = paths["datacards"] + "/workspace_" + analysis_name + "_" + model + "_" + str(mass)
 	if fitBonly:
 		path += "_fitBonly"
@@ -49,19 +49,23 @@ def get_workspace_filename(analysis_name, model, mass, fitBonly=False, fitSignal
 		path += "_fitSignal"
 	if correctTrigger:
 		path += "_correctTrigger"
+	if fitTrigger:
+		path += "_fitTrigger"
 	path += ".root"
 	return path
 	
-def get_datacard_filename(analysis_name, model, mass, fit_function, fitSignal=False, correctTrigger=False):
+def get_datacard_filename(analysis_name, model, mass, fit_function, fitSignal=False, correctTrigger=False, fitTrigger=False):
 	path = paths["datacards"] + "/datacard_" + analysis_name + "_" + model + "_" + str(mass) + "_" + fit_function
 	if fitSignal:
 		path += "_fitSignal"
 	if correctTrigger:
 		path += "_correctTrigger"
+	if fitTrigger:
+		path += "_fitTrigger"
 	path += ".txt"
 	return path
 
-def get_combine_log_path(analysis_name, model, mass, fit_function, method, systematics=True, frozen_nps=None, what="limits", correctTrigger=False):
+def get_combine_log_path(analysis_name, model, mass, fit_function, method, systematics=True, frozen_nps=None, what="limits", correctTrigger=False, fitTrigger=False):
 	postfix = ""
 	if not systematics:
 		postfix += "_noSyst"
@@ -69,11 +73,13 @@ def get_combine_log_path(analysis_name, model, mass, fit_function, method, syste
 		postfix += "_" + frozen_nps.replace(",", "_")
 	if correctTrigger:
 		postfix += "_correctTrigger"
+	if fitTrigger:
+		path += "_fitTrigger"
 	path = paths["combine_logs"] + "/" + what + "_" + method + "_" + analysis_name + "_" + model + "_m" + str(mass) + postfix + "_" + fit_function + ".log"
 	return path
 
 # Example: limits_HybridNewGrid_trigbbh_CSVTM_Hbb_m1200_f3_exp2.log
-def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, method="HybridNewGrid", systematics=True, frozen_nps=None, correctTrigger=False):
+def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, method="HybridNewGrid", systematics=True, frozen_nps=None, correctTrigger=False, fitTrigger=False):
 	postfix = ""
 	if not systematics:
 		postfix += "_noSyst"
@@ -81,6 +87,8 @@ def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, me
 		postfix += "_" + frozen_nps.replace(",", "_")
 	if correctTrigger:
 		postfix += "_correctTrigger"
+	if fitTrigger:
+		path += "_fitTrigger"
 	path = paths["combine_logs"] + "/limits_" + method + "_" + analysis_name + "_" + model + "_m" + str(mass) + postfix + "_" + fit_function + "_" + what + ".log"
 	return path
 

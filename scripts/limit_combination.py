@@ -293,7 +293,10 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 				limit_graphs[name].GetGB().SetLineColor(line_colors[name])
 			else:
 				limit_graphs[name].GetGB().SetLineColor(seaborn.GetColorRoot("cubehelixlarge", style_counter, len(limit_names)))
-			limit_graphs[name].GetGB().SetLineWidth(2)
+			if name in line_widths:
+				limit_graphs[name].GetGB().SetLineWidth(line_widths[name])
+			else:
+				limit_graphs[name].GetGB().SetLineWidth(2)
 			if name in line_styles:
 				limit_graphs[name].GetGB().SetLineStyle(line_styles[name])
 			limit_graphs[name].GetGB().Draw("l")
@@ -351,6 +354,9 @@ if __name__ == "__main__":
 	gr_CMS = csvToGraph(analysis_config.external_limits + "/CMS_Scouting.csv",8,False );
 	limit_collection["CMS jj"] = LimitGraph()
 	limit_collection["CMS jj"].LoadGB(gr_CMS)
+	gr_CMSBoostedDijet = csvToGraph(analysis_config.external_limits + "/BoostedDijet.csv")
+	limit_collection["CMS boosted jj"] = LimitGraph()
+	limit_collection["CMS boosted jj"].LoadGB(gr_CMSBoostedDijet)
 
 	# HIG-16-025 (2015/13 TeV X->bb)
 	# Raw limit values are sigma*BR(bb). Assuming equal BR to all quarks, this should be multiplied by 5-6 depending on ttbar threshold effects. 
@@ -380,7 +386,8 @@ if __name__ == "__main__":
 		"CDFRun1":2,
 		"CDFRun2":2,
 		"ATLAS jj":2,
-		"CMS jj":2,
+		"CMS boosted jj":1,
+		"CMS jj":1,
 		"CMS bb, 2015 exp":3,
 		"CMS bb, 2012 low exp":3,
 		"CMS bb, 2012 high exp":3,
@@ -388,12 +395,19 @@ if __name__ == "__main__":
 		"CMS bb, 2012 low obs":1,
 		"CMS bb, 2012 high obs":1,
 	}
+	line_widths = {
+		"CMS bb, 2012 low exp":4,
+		"CMS bb, 2012 high exp":4,
+		"CMS bb, 2012 low obs":4,
+		"CMS bb, 2012 high obs":4,
+	}
 	line_colors = {
 		"UA2":seaborn.GetColorRoot("cubehelixlarge", 1, 6),
 		"CDFRun1":seaborn.GetColorRoot("cubehelixlarge", 2, 6),
 		"CDFRun2":seaborn.GetColorRoot("cubehelixlarge", 3, 6),
 		"ATLAS jj":seaborn.GetColorRoot("cubehelixlarge", 4, 6),
 		"CMS jj":seaborn.GetColorRoot("cubehelixlarge", 5, 6),
+		"CMS boosted jj":seaborn.GetColorRoot("default", 5, 6),
 		"CMS bb, 2015 exp":seaborn.GetColorRoot("default", 1),
 		"CMS bb, 2015 obs":seaborn.GetColorRoot("default", 1),
 		"CMS bb, 2012 low exp":seaborn.GetColorRoot("default", 2),
@@ -421,7 +435,7 @@ if __name__ == "__main__":
 		limit_collection["CMS bb, 2012 low obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 low obs"].LoadXSBR(gr_Xbb_8TeVl_obs, BR_bb_8TeVl)
 
-		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root", "READ")
+		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f1.root", "READ")
 		gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
 		BR_bb_8TeVh = []
 		for i in xrange(gr_Xbb_8TeVh_exp.GetN()):
@@ -435,6 +449,7 @@ if __name__ == "__main__":
 		for i in xrange(gr_Xbb_8TeVh_obs.GetN()):
 			mass = gr_Xbb_8TeVh_obs.GetX()[i]
 			gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i] / PartonLuminosityRatio(mass, "gg"))
+			print "[debug] Set point {} {}".format(mass, gr_Xbb_8TeVh_obs.GetY()[i])
 		limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
 
@@ -450,7 +465,7 @@ if __name__ == "__main__":
 			mass = gr_Xbb_8TeVl_exp.GetX()[i]
 			gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i] / PartonLuminosityRatio(mass, "qq")) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
 			BR_bb_8TeVl.append(ZpBranchingRatio(mass, selected_decays=["b"]))
-			print "[debug] BR(Z-->bb, M={} GeV) = {}".format(mass, BR_bb_8TeVl[-1])
+			#print "[debug] BR(Z-->bb, M={} GeV) = {}".format(mass, BR_bb_8TeVl[-1])
 		limit_collection["CMS bb, 2012 low exp"] = LimitGraph()
 		limit_collection["CMS bb, 2012 low exp"].LoadXSBR(gr_Xbb_8TeVl_exp, BR_bb_8TeVl)
 
@@ -461,7 +476,7 @@ if __name__ == "__main__":
 		limit_collection["CMS bb, 2012 low obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 low obs"].LoadXSBR(gr_Xbb_8TeVl_obs, BR_bb_8TeVl)
 
-		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f3.root", "READ")
+		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f1.root", "READ")
 		gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
 		BR_bb_8TeVh = []
 		for i in xrange(gr_Xbb_8TeVh_exp.GetN()):
@@ -478,8 +493,9 @@ if __name__ == "__main__":
 		limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
 
-		limit_names = ["UA2","CDFRun1","CDFRun2","ATLAS jj","CMS jj","CMS bb, 2015 obs","CMS bb, 2012 low obs", "CMS bb, 2012 low exp","CMS bb, 2012 high obs", "CMS bb, 2012 high exp"]
+		limit_names = ["UA2","CDFRun1","CDFRun2","ATLAS jj","CMS jj", "CMS boosted jj", "CMS bb, 2015 obs","CMS bb, 2012 low obs", "CMS bb, 2012 low exp","CMS bb, 2012 high obs", "CMS bb, 2012 high exp"]
 
 		#MakeLimitPlot(limit_names, limit_collection, "gB_combination_log", what="gB", logy=True, line_styles=line_styles)
 		#MakeLimitPlot(limit_names, limit_collection, "xs_combination", what="xs", line_styles=line_styles, line_colors=line_colors, x_range=[0,1500])
 		MakeLimitPlot(limit_names, limit_collection, "gB_combination", what="gB", line_styles=line_styles, line_colors=line_colors, x_title="m_{Z'} [GeV]", y_title="g_{B}", x_range=[0,1000])
+		MakeLimitPlot(limit_names, limit_collection, "gB_combination_log", what="gB", line_styles=line_styles, line_colors=line_colors, x_title="m_{Z'} [GeV]", y_title="g_{B}", x_range=[0,1000], logy=True)

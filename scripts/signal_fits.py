@@ -232,15 +232,36 @@ def copy_signal_pdf(fit_function, input_function, mjj, tag=None, include_systema
 	#	sys.exit(1)
 	return copy_pdf, copy_vars
 
-def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_trigger=False):
+def signal_fit(analysis, model, mass, fit_functions, systematics=None, fitTrigger=False, correctTrigger=False):
 	print "[signal_fit] INFO : Welcome to signal_fit({}, {}, {}, {})".format(analysis, model, mass, ",".join(fit_functions))
 	if systematics:
 		print "\t",
 		print systematics
-	if correct_trigger:
+	if fitTrigger:
 		print "\tCorrecting trigger"
 	histogram_file = TFile(analysis_config.get_b_histogram_filename(analysis, analysis_config.simulation.get_signal_tag(model, mass, "FULLSIM")), "READ")
 	histogram = histogram_file.Get("BHistograms/h_pfjet_mjj")
+	if correctTrigger:
+		if "bbl" in analysis:
+			for bin in xrange(1, histogram.GetNbinsX() + 1):
+				bin_center = histogram.GetXaxis().GetBinCenter(bin)
+				if bin_center > 240.:
+					correction = 1. / trigger_efficiency.trigger_efficiency_bbl(bin_center)
+				else:
+					correction = 0.
+				histogram.SetBinContent(bin, histogram.GetBinContent(bin) * correction)
+				histogram.SetBinError(bin, histogram.GetBinError(bin) * correction)
+		elif "bbh" in analysis:
+			for bin in xrange(1, histogram.GetNbinsX() + 1):
+				bin_center = histogram.GetXaxis().GetBinCenter(bin)
+				if bin_center > 400.:
+					correction = 1. / trigger_efficiency.trigger_efficiency_bbl(bin_center)
+				else:
+					correction = 0.
+				histogram.SetBinContent(bin, histogram.GetBinContent(bin) * correction)
+				histogram.SetBinError(bin, histogram.GetBinError(bin) * correction)
+
+
 	#histogram_file = TFile(limit_config.get_resonance_shapes(analysis, model), "READ")
 	#histogram = histogram_file.Get("h_qq_" + str(mass))
 
@@ -335,7 +356,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 		signal_rdh = RooDataHist(histogram.GetName() + "_rdh", histogram.GetName() + "_rdh", ROOT.RooArgList(mjj), histogram)
 		signal_pdf_raw, signal_vars = make_signal_pdf(fit_function, mjj, mass=mass)
 		signal_pdf_raw.SetName("signal_pdf_raw")
-		if correct_trigger:
+		if fitTrigger:
 			#trigger_efficiency_pdf = trigger_efficiency.get_pdf(analysis, mjj)
 			#signal_pdf = RooProdPdf("signal_pdf", "signal_pdf", signal_pdf_raw, trigger_efficiency_pdf)
 			trigger_efficiency_formula = trigger_efficiency.get_formula(analysis, mjj)
@@ -424,7 +445,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 				signal_rdhs_syst[variation_name] = RooDataHist(histograms_syst[variation_name].GetName() + "_rdh", histograms_syst[variation_name].GetName() + "_rdh", ROOT.RooArgList(mjj), histograms_syst[variation_name])
 				signal_pdfs_raw_syst[variation_name], signal_vars_syst[variation_name] = make_signal_pdf(fit_function, mjj, tag=variation_name, mass=mass)
 				signal_pdfs_raw_syst[variation_name].SetName("signal_pdf__" + variation_name + "_raw")
-				if correct_trigger:
+				if fitTrigger:
 					signal_pdfs_syst[variation_name] = RooEffProd("signal_pdf__" + variation_name, "signal_pdf__" + variation_name, signal_pdfs_raw_syst[variation_name], trigger_efficiency_formula)
 				else:
 					signal_pdfs_syst[variation_name] = signal_pdfs_raw_syst[variation_name]
@@ -470,13 +491,13 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None, correct_t
 			#	print "Import: " + var.GetName() + "__" + variation_name
 			#	getattr(w,'import')(var, ROOT.RooCmdArg(), RooFit.Rename(var.GetName() + "__" + variation_name))
 		w.Print()
-		print "Saving fit results to " + analysis_config.get_signal_fit_file(analysis, model, mass, fit_function)
-		f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function), "RECREATE")
-		w.writeToFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function))
+		print "Saving fit results to " + analysis_config.get_signal_fit_file(analysis, model, mass, fit_function, fitTrigger=fitTrigger, correctTrigger=correctTrigger)
+		f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function, fitTrigger=fitTrigger, correctTrigger=correctTrigger), "RECREATE")
+		w.writeToFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function, fitTrigger=fitTrigger, correctTrigger=correctTrigger))
 		f.Close()
 	print "[signal_fits] INFO : Done with this point."
 
-def fit_parameter_table(analysis, model, masses):
+def fit_parameter_table(analysis, model, masses, fitTrigger=False, correctTrigger=False):
 	table = open(analysis_config.figure_directory + "/table_bukin_parameters_{}_{}.tex".format(analysis, model), 'w')
 	variables = ["xp", "sigp", "rho2", "xi"]
 	variables_pretty = {"xp":"$x_p$", "sigp":"$\\sigma_p$", "rho2":"$\\rho_2$", "xi":"$\\xi$"}
@@ -489,7 +510,7 @@ def fit_parameter_table(analysis, model, masses):
 	table.write("\\\\\n\t\t\\hline\n")
 	for mass in masses:
 		table.write("\t\t{} GeV\t".format(mass))
-		f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, "bukin"), "READ")
+		f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, "bukin", fitTrigger=fitTrigger, correctTrigger=correctTrigger), "READ")
 		w = f.Get("w_signal")
 		#w.Print()
 		for variable in variables:
@@ -500,7 +521,7 @@ def fit_parameter_table(analysis, model, masses):
 	table.write("\\end{table}\n")
 	table.close()
 
-def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
+def plot_fits(analysis, model, mass, fit_functions, systematics=[], fitTrigger=False, correctTrigger=False):
 	print "Welcome to plot_fits"
 	print "analysis=",
 	print analysis
@@ -523,8 +544,8 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 
 	for fit_function in fit_functions:
 		# Load objects
-		print "[plot_fits] INFO : Opening " + analysis_config.get_signal_fit_file(analysis, model, mass, fit_function)
-		f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function), "READ")
+		print "[plot_fits] INFO : Opening " + analysis_config.get_signal_fit_file(analysis, model, mass, fit_function, correctTrigger=correctTrigger, fitTrigger=fitTrigger)
+		f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function, correctTrigger=correctTrigger, fitTrigger=fitTrigger), "READ")
 		w = f.Get("w_signal")
 		mjj = w.var("mjj")
 		fit_results = w.genobj("fit_results_signal")
@@ -651,7 +672,7 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 			c_jes_fit.SaveAs(analysis_config.figure_directory + "/" + c_jes_fit.GetName() + ".pdf")
 		f.Close()
 
-def plot_multiple_fits(analysis, model, masses, fit_functions, systematics=[]):
+def plot_multiple_fits(analysis, model, masses, fit_functions, systematics=[], fitTrigger=False, correctTrigger=False):
 	print "Welcome to plot_multiple_fits"
 
 	systematic_variations = []
@@ -674,7 +695,7 @@ def plot_multiple_fits(analysis, model, masses, fit_functions, systematics=[]):
 		signal_vars_syst = {}
 		for mass in masses:
 			# Load objects
-			f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function), "READ")
+			f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function, fitTrigger=fitTrigger, correctTrigger=correctTrigger), "READ")
 			w = f.Get("w_signal")
 			mjj = w.var("mjj")
 			fit_results = w.genobj("fit_results_signal")
@@ -793,7 +814,7 @@ def get_signal_parameters(pdf, exclude=["mjj"], tag=None):
 
 
 
-def signal_interpolations(analysis, model, input_masses, output_masses, fit_function, systematic_variations=[], spline_interpolation=False, correct_trigger=False):
+def signal_interpolations(analysis, model, input_masses, output_masses, fit_function, systematic_variations=[], spline_interpolation=False, fitTrigger=False, correctTrigger=False):
 	print "Welcome to signal_interpolations"
 	print "analysis = {}".format(analysis)
 	print "model = {}".format(model)
@@ -816,7 +837,7 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 
 	for input_mass in input_masses:
 		index = input_masses.index(input_mass)
-		f = TFile(analysis_config.get_signal_fit_file(analysis, model, input_mass, fit_function), "READ")
+		f = TFile(analysis_config.get_signal_fit_file(analysis, model, input_mass, fit_function, fitTrigger=fitTrigger, correctTrigger=correctTrigger), "READ")
 		w = f.Get("w_signal")
 		if index == 0:
 			mjj = w.var("mjj")
@@ -825,11 +846,17 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 		input_parameters[input_mass] = {}
 		input_parameter_uncertainties[input_mass] = {}
 		# Nominal
-		input_shapes[input_mass]["nominal"] = w.pdf("signal_raw")
+		if fitTrigger:
+			input_shapes[input_mass]["nominal"] = w.pdf("signal_raw")
+		else:
+			input_shapes[input_mass]["nominal"] = w.pdf("signal")
 		input_parameters[input_mass]["nominal"], input_parameter_uncertainties[input_mass]["nominal"] = get_signal_parameters(input_shapes[input_mass]["nominal"])
 
 		for systematic_variation in systematic_variations:
-			input_shapes[input_mass][systematic_variation] = w.pdf("signal_raw__" + systematic_variation)
+			if fitTrigger:
+				input_shapes[input_mass][systematic_variation] = w.pdf("signal_raw__" + systematic_variation)
+			else:
+				input_shapes[input_mass][systematic_variation] = w.pdf("signal__" + systematic_variation)
 			input_parameters[input_mass][systematic_variation], input_parameter_uncertainties[input_mass][systematic_variation] = get_signal_parameters(input_shapes[input_mass][systematic_variation], tag=systematic_variation)
 
 		# Make TGraphs
@@ -857,7 +884,7 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 			for parameter, graph in parameter_graphs.iteritems():
 				input_parameter_splines[systematic_variation][parameter] = TSpline3("spline_" + systematic_variation + "_" + parameter, graph)
 
-	if correct_trigger:
+	if fitTrigger:
 		trigger_efficiency_formula = trigger_efficiency.get_formula(analysis, mjj)
 
 
@@ -884,7 +911,7 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 			else:
 				output_parameters[output_mass]["nominal"][parameter_name].setVal(input_parameter_graphs["nominal"][parameter_name].Eval(output_mass))
 		output_shapes_raw[output_mass]["nominal"].SetName("signal_raw")
-		if correct_trigger:
+		if fitTrigger:
 			output_shapes[output_mass]["nominal"] = RooEffProd("signal", "signal", output_shapes_raw[output_mass]["nominal"], trigger_efficiency_formula)
 		else:
 			output_shapes[output_mass]["nominal"] = output_shapes_raw[output_mass]["nominal"]
@@ -898,7 +925,7 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 				else:
 					output_parameters[output_mass][systematic_variation][parameter_name].setVal(input_parameter_graphs[systematic_variation][parameter_name].Eval(output_mass))
 			output_shapes_raw[output_mass][systematic_variation].SetName("signal_raw__" + systematic_variation)
-			if correct_trigger:
+			if fitTrigger:
 				output_shapes[output_mass][systematic_variation] = RooEffProd("signal__" + variation, "signal__" + variation, output_shapes_raw[output_mass][systematic_variation], trigger_efficiency_formula)
 			else:
 				output_shapes[output_mass][systematic_variation] = output_shapes_raw[output_mass][systematic_variation]
@@ -915,8 +942,8 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 			#	print "Import: " + var.GetName() + "__" + variation_name
 			#	getattr(w,'import')(var, ROOT.RooCmdArg(), RooFit.Rename(var.GetName() + "__" + variation_name))
 		w.Print()
-		f = TFile(analysis_config.get_signal_fit_file(analysis, model, output_mass, fit_function, interpolated=True), "RECREATE")
-		w.writeToFile(analysis_config.get_signal_fit_file(analysis, model, output_mass, fit_function, interpolated=True))
+		f = TFile(analysis_config.get_signal_fit_file(analysis, model, output_mass, fit_function, interpolated=True, fitTrigger=fitTrigger, correctTrigger=correctTrigger), "RECREATE")
+		w.writeToFile(analysis_config.get_signal_fit_file(analysis, model, output_mass, fit_function, interpolated=True, fitTrigger=fitTrigger, correctTrigger=correctTrigger))
 		f.Close()
 
 	# Draw parameter interpolations
@@ -968,7 +995,7 @@ if __name__ == "__main__":
 			masses[analysis] = [args.mass]
 	else:
 		# No need for limited masses, Tyler's files have all the interpolations
-		masses = {"trigbbl_CSVTM":[400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200], "trigbbl_CSVM":[400, 500, 600, 750, 900], "trigbbh_CSVM":[600, 750, 900, 1200], "trigbbhl_CSVTM":[600, 750, 900, 1200], "trigbbll_CSVTM":[400, 500, 600, 750, 900]}
+		masses = {"trigbbl_CSVTM":[350, 400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200], "trigbbl_CSVM":[400, 500, 600, 750, 900], "trigbbh_CSVM":[600, 750, 900, 1200], "trigbbhl_CSVTM":[600, 750, 900, 1200], "trigbbll_CSVTM":[400, 500, 600, 750, 900]}
 		#masses = {"trigbbl_CSVTM":range(400, 950, 50), "trigbbh_CSVTM":range(600, 1200, 50)}
 	fit_functions = args.fit_functions.split(",")
 	if args.no_systematics:
@@ -981,18 +1008,19 @@ if __name__ == "__main__":
 		for analysis in analyses:
 			for model in models:
 				for mass in masses[analysis]:
-					signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, correct_trigger=True)
+					#signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, fitTrigger=True)
+					signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, correctTrigger=True)
 
 	if args.plots:
 		for analysis in analyses:
 			for model in models:
 				for mass in masses[analysis]:
-					plot_fits(analysis, model, mass, fit_functions, systematics=systematics_arg)
-				plot_multiple_fits(analysis, model, masses[analysis], fit_functions, systematics=systematics_arg)
+					plot_fits(analysis, model, mass, fit_functions, systematics=systematics_arg, correctTrigger=True)
+				plot_multiple_fits(analysis, model, masses[analysis], fit_functions, systematics=systematics_arg, correctTrigger=True)
 	if args.table:
 		for analysis in analyses:
 			for model in models:
-				fit_parameter_table(analysis, model, masses[analysis])
+				fit_parameter_table(analysis, model, masses[analysis], correctTrigger=True)
 
 
 	if args.interpolate:
@@ -1010,4 +1038,4 @@ if __name__ == "__main__":
 		for analysis in analyses:
 			for model in models:
 				for fit_function in fit_functions:
-					signal_interpolations(analysis, model, masses[analysis], output_masses[analysis], fit_function, systematic_variations=["JERUp", "JERDown", "JESUp", "JESDown"], correct_trigger=True)
+					signal_interpolations(analysis, model, masses[analysis], output_masses[analysis], fit_function, systematic_variations=["JERUp", "JERDown", "JESUp", "JESDown"], correctTrigger=True)
