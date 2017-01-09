@@ -92,7 +92,7 @@ def main():
     from ROOT import kGreen, kYellow, kWhite
 
     # Make acc*eff TGraph
-    ae_x = array('d',[400, 500, 600, 750, 900, 1200])
+    ae_x = array('d',[350, 400, 500, 600, 750, 900, 1200])
     if args.timesAE:
         ae_y = np.ones(len(ae_x))
     else:
@@ -414,9 +414,15 @@ def main():
     frame.Reset()
     frame.GetXaxis().SetTitle("Resonance mass [GeV]")
     if args.timesAE:
-        frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) #times #it{A} #times #epsilon [pb]")
+        if args.model == "ZPrime":
+            frame.GetYaxis().SetTitle("#sigma #times (BR(c#bar{c})+BR(b#bar{b})) #times #it{A} #times #epsilon [pb]")
+        else:
+            frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) #times #it{A} #times #epsilon [pb]")
     else:
-        frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) [pb]")
+        if args.model == "ZPrime":
+            frame.GetYaxis().SetTitle("#sigma #times (BR(c#bar{c})+BR(b#bar{b})) [pb]")
+        else:
+            frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) [pb]")
     frame.GetYaxis().SetTitleOffset(1.1)
     if args.timesAE:
         frame.GetYaxis().SetRangeUser(1e-03,1e+01)
