@@ -36,7 +36,7 @@ def main():
     parser = ArgumentParser(description='Script that creates combine datacards and corresponding RooFit workspaces',epilog=usage)
     parser.add_argument("analysis", type=str, help="Analysis name")
     parser.add_argument("model", type=str, help="Model (Hbb, RSG)")
-
+    parser.add_argument("--datacard_only", action="store_true", help="Make datacard only")
     #parser.add_argument("--inputData", dest="inputData", required=True,
     #                    help="Input data spectrum",
     #                    metavar="INPUT_DATA")
@@ -59,15 +59,15 @@ def main():
     parser.add_argument("-o", "--output_path", dest="output_path",
                         help="Output path where datacards and workspaces will be stored. If not specified, this is derived from limit_configuration.",
                         metavar="OUTPUT_PATH")
-
-    parser.add_argument("--fitTrigger", dest="fitTrigger",
+    trigger_group = parser.add_mutually_exclusive_group()
+    trigger_group.add_argument("--fitTrigger", dest="fitTrigger",
                         action='store_true',
                         help="Include trigger correction in PDF. Exclusive with correctTrigger")
 
-    parser.add_argument("--correctTrigger", dest="correctTrigger",
+    trigger_group.add_argument("--correctTrigger", dest="correctTrigger",
                         action='store_true',
                         help="Apply trigger correction to data. Exclusive with fitTrigger.")
-
+    parser.add_argument("--useMCTrigger", action="store_true", help="Use MC trigger simulation (i.e. trigbbl/trigbbh), instead of measured data trigger times *_notrig_*")
     parser.add_argument("-l", "--lumi", dest="lumi",
                         default=19700., type=float,
                         help="Integrated luminosity in pb-1 (default: %(default).1f)",
@@ -82,26 +82,6 @@ def main():
                         default=1200, type=int,
                         help="Upper bound of the mass range used for fitting (default: %(default)s)",
                         metavar="MASS_MAX")
-    parser.add_argument("--fitSignal", action="store_true", help="Use signal fitted shapes (CB+Voigtian) instead of histogram templates")
-    #parser.add_argument("--lumiUnc", dest="lumiUnc",
-    #                    required=True, type=float,
-    #                    help="Relative uncertainty in the integrated luminosity",
-    #                    metavar="LUMI_UNC")
-
-    #parser.add_argument("--jesUnc", dest="jesUnc",
-    #                    type=float,
-    #                    help="Relative uncertainty in the jet energy scale",
-    #                    metavar="JES_UNC")
-
-    #parser.add_argument("--jerUnc", dest="jerUnc",
-    #                    type=float,
-    #                    help="Relative uncertainty in the jet energy resolution",
-    #                    metavar="JER_UNC")
-
-    parser.add_argument("--sqrtS", dest="sqrtS",
-                        default=8000., type=float,
-                        help="Collision center-of-mass energy (default: %(default).1f)",
-                        metavar="SQRTS")
 
     parser.add_argument("--fixP3", dest="fixP3", default=False, action="store_true", help="Fix the fit function p3 parameter")
 
@@ -148,13 +128,11 @@ def main():
 
     args = parser.parse_args()
 
-    if args.fitTrigger and args.correctTrigger:
-        print "[create_datacards_parallel] ERROR : fitTrigger and correctTrigger cannot both be specified."
+    if not (args.useMCTrigger or args.fitTrigger or args.correctTrigger):
+        print "[create_datacards] ERROR : None of useMCTrigger, fitTrigger, and correctTrigger was specified. Therefore, I don't know what to do with the signal samples."
         sys.exit(1)
 
-    # mass points for which resonance shapes will be produced
     masses = []
-
     if args.fitBonly:
         masses.append(750)
     else:
@@ -168,7 +146,6 @@ def main():
             masses = masslist.masses
         else:
             masses = args.mass
-
     # sort masses
     masses.sort()
 
@@ -176,104 +153,121 @@ def main():
     print "All done."
 
 def run_single_mass(args, mass):
+    print "[run_single_mass] INFO : Creating datacard and workspace for m = %i GeV..."%(int(mass))
     fit_functions = args.fit_functions.split(",")
 
     # import ROOT stuff
     from ROOT import gStyle, TFile, TH1F, TH1D, TGraph, kTRUE, kFALSE, TCanvas, TLegend, TPad, TLine
-    from ROOT import RooHist, RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooProdPdf, RooEffProd, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, RooExtendPdf
+    from ROOT import RooHist, RooRealVar, RooDataHist, RooArgList, RooArgSet, RooAddPdf, RooProdPdf, RooEffProd, RooFit, RooGenericPdf, RooWorkspace, RooMsgService, RooHistPdf, RooExtendPdf, RooFormulaVar
 
     if not args.debug:
         RooMsgService.instance().setSilentMode(kTRUE)
         RooMsgService.instance().setStreamStatus(0,kFALSE)
         RooMsgService.instance().setStreamStatus(1,kFALSE)
 
-    # input data file
-    #inputData = TFile(limit_config.get_data_input(args.analysis))
-    # input data histogram
-    #hData = inputData.Get(args.dataHistname)
-    #hData.SetDirectory(0)
-    data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis, "BJetPlusX_2012"))
+    # Stuff
+    mjj = RooRealVar('mjj','mjj',float(args.massMin),float(args.massMax))
+    lumi = args.lumi
+    signalCrossSection = 1. # Set to 1 so that the limit on r can be interpreted as a limit on the signal cross section
+
+    # Input data file
+    if "trigbb" in args.analysis:
+        data_sample = "BJetPlusX_2012"
+    elif "trigmu" in args.analysis:
+        data_sample = "SingleMu_2012"
+    data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis, data_sample))
     hData_notrigcorr = data_file.Get("BHistograms/h_pfjet_mjj")
     hData_notrigcorr.SetDirectory(0)
     hData_name = hData_notrigcorr.GetName()
     hData_notrigcorr.SetName(hData_name + "_notrigcorr")
 
-    # input sig file
-    if not args.fitSignal:
-        print "[create_datacards] INFO : Opening resonance shapes file at " + limit_config.get_resonance_shapes(args.analysis, args.model)
-        inputSig = TFile(limit_config.get_resonance_shapes(args.analysis, args.model), "READ")
-
-    sqrtS = args.sqrtS
-
-    # mass variable
-    mjj = RooRealVar('mjj','mjj',float(args.massMin),float(args.massMax))
-
-    # integrated luminosity and signal cross section
-    lumi = args.lumi
-    signalCrossSection = 1. # set to 1. so that the limit on r can be interpreted as a limit on the signal cross section
-
+    # Trigger correction on data
     if args.fitTrigger:
-        trigger_efficiency_formula = trigger_efficiency.get_formula(args.analysis, mjj)
-   
+        # Make trigger correction objects
+        trigeff_pt_formula, trigeff_vars = trigger_efficiency.get_var_formula(args.analysis, mjj)
+        trigeff_btag_var      = RooRealVar("trigeff_btag", "trigeff_btag", 0., 1.)
+        trigeff_btag_var.setVal(trigger_efficiency.online_btag_eff[args.analysis][0])
+        trigeff_btag_var.setVal(trigger_efficiency.online_btag_eff[args.analysis][0])
+        trigeff_btag_formula  = RooFormulaVar("trigeff_btag_formula", "@0", RooArgList(trigeff_btag_var))
+        #trigeff_btag_var.setConstant()
+        trigeff_total_formula = RooFormulaVar("trigeff_total_formula", "@0*@1", RooArgList(trigeff_btag_var, trigeff_pt_formula))
+        #for trigeff_var_name, trigeff_var in trigeff_vars.iteritems():
+        #    trigeff_var.setConstant()
     if args.correctTrigger:
         # Apply trigger correction to data histogram
         hData = CorrectTriggerEfficiency(hData_notrigcorr, args.analysis)
+
+        # Still need b-tagging efficiency to scale the MC
+        trigeff_btag_var      = RooRealVar("trigeff_btag", "trigeff_btag", 0., 1.)
+        trigeff_btag_var.setVal(trigger_efficiency.online_btag_eff[args.analysis][0])
+        trigeff_btag_var.setVal(trigger_efficiency.online_btag_eff[args.analysis][0])
+        trigeff_btag_formula  = RooFormulaVar("trigeff_btag_formula", "@0", RooArgList(trigeff_btag_var))
+        trigeff_btag_var.setConstant()
     else:
         hData = hData_notrigcorr
     hData.SetName(hData_name)
-    print ">> Creating datacard and workspace for %s resonance with m = %i GeV..."%(args.final_state, int(mass))
     
     rooDataHist = RooDataHist('rooDatahist','rooDatahist',RooArgList(mjj),hData)
     if args.correctTrigger:
         rooDataHist_notrigcorr = RooDataHist("rooDatahist_notrigcorr", "rooDatahist_notrigcorr", RooArgList(mjj), hData_notrigcorr)
 
-    if not args.fitSignal:
-        hSig = inputSig.Get( "h_" + args.final_state + "_" + str(int(mass)) )
-        if not hSig:
-            raise Exception("Couldn't find histogram " + "h_" + args.final_state + "_" + str(int(mass)) + " in file " + limit_config.get_resonance_shapes(args.analysis, args.model))
-        # normalize signal shape to the expected event yield (works even if input shapes are not normalized to unity)
-        hSig.Scale(signalCrossSection*lumi/hSig.Integral()) # divide by a number that provides roughly an r value of 1-10
-        rooSigHist = RooDataHist('rooSigHist','rooSigHist',RooArgList(mjj),hSig)
-        print 'Signal acceptance:', (rooSigHist.sumEntries()/hSig.Integral())
-
-    # If using fitted signal shapes, load the signal PDF
-    if args.fitSignal:
-        print "[create_datacards] Loading fitted signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
-        f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger), "READ")
+    # Get signal pdf * btag efficiency
+    if args.useMCTrigger:
+        signal_pdf_file = analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
+        print "[create_datacards] Loading fitted signal PDFs from " + signal_pdf_file
+        f_signal_pdfs = TFile(signal_pdf_file, "READ")
         w_signal = f_signal_pdfs.Get("w_signal")
-        if args.fitTrigger:
-            input_parameters = signal_fits.get_parameters(w_signal.pdf("signal_raw"))
+        bukin_pdf = w_signal.pdf("signal_bukin")
+    else:
+        if args.analysis == "trigbbl_CSVTM":
+            notrig_analysis = "trigbbl_notrig_CSVTM"
+        elif args.analysis == "trigbbh_CSVTM":
+            notrig_analysis = "trigbbh_notrig_CSVTM"
         else:
-            input_parameters = signal_fits.get_parameters(w_signal.pdf("signal"))
+            print "[run_single_mass] ERROR : I don't know a no-trigger variant of analysis {}. Please make one, or specify --useMCTrigger.".format(args.analysis) 
+            sys.exit(1)
+        signal_pdf_file = analysis_config.get_signal_fit_file(notrig_analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
+        print "[create_datacards] Loading fitted signal PDFs from " + signal_pdf_file
+        f_signal_pdfs = TFile(signal_pdf_file, "READ")
+        w_signal = f_signal_pdfs.Get("w_signal")
+        bukin_pdf = w_signal.pdf("signal")
+        bukin_pdf.SetName("signal_bukin")
+    input_signal_parameters = signal_fits.get_parameters(bukin_pdf)
 
-        # Make a new PDF with nuisance parameters
-        signal_pdf_notrig, signal_vars = signal_fits.make_signal_pdf_systematic("bukin", mjj, mass=mass)
-        signal_pdf_name = signal_pdf_notrig.GetName()
-        signal_pdf_notrig.SetName(signal_pdf_name + "_notrig")
-        #signal_pdf = RooProdPdf(signal_pdf_name, signal_pdf_name, signal_pdf_notrig, trigger_efficiency_pdf) 
+    # Make a new PDF with nuisance parameters
+    signal_pdf_notrig, signal_vars = signal_fits.make_signal_pdf_systematic("bukin", mjj, mass=mass)
+    signal_pdf_name = signal_pdf_notrig.GetName()
+    signal_pdf_notrig.SetName(signal_pdf_name + "_notrig")
+
+    # Add trigger efficiency
+    if args.useMCTrigger:
+        # Signal PDF = bukin; b-tag efficiency already included in normalization
+        signal_pdf = signal_pdf_notrig
+        signal_pdf.SetName(signal_pdf_name)
+    else:
         if args.fitTrigger:
-            signal_pdf = RooEffProd(signal_pdf_name, signal_pdf_name, signal_pdf_notrig, trigger_efficiency_formula)
-        else:
-            signal_pdf = signal_pdf_notrig
-            signal_pdf.SetName(signal_pdf_name)
-
-        # Copy input parameter values
-        signal_vars["xp_0"].setVal(input_parameters["xp"][0])
-        signal_vars["xp_0"].setError(input_parameters["xp"][1])
-        signal_vars["xp_0"].setConstant()
-        signal_vars["sigp_0"].setVal(input_parameters["sigp"][0])
-        signal_vars["sigp_0"].setError(input_parameters["sigp"][1])
-        signal_vars["sigp_0"].setConstant()
-        signal_vars["xi_0"].setVal(input_parameters["xi"][0])
-        signal_vars["xi_0"].setError(input_parameters["xi"][1])
-        signal_vars["xi_0"].setConstant()
-        signal_vars["rho1_0"].setVal(input_parameters["rho1"][0])
-        signal_vars["rho1_0"].setError(input_parameters["rho1"][1])
-        signal_vars["rho1_0"].setConstant()
-        signal_vars["rho2_0"].setVal(input_parameters["rho2"][0])
-        signal_vars["rho2_0"].setError(input_parameters["rho2"][1])
-        signal_vars["rho2_0"].setConstant()
-        f_signal_pdfs.Close()
+            # Signal PDF = bukin * total trigger efficiency
+            signal_pdf = RooEffProd("signal", "signal", signal_pdf_notrig, trigeff_total_formula)
+        elif args.correctTrigger:
+            # Signal PDF = bukin * btag efficiency
+            signal_pdf = RooEffProd("signal", "signal", signal_pdf_notrig, trigeff_btag_formula)
+    # Copy input parameter values
+    signal_vars["xp_0"].setVal(input_signal_parameters["xp"][0])
+    signal_vars["xp_0"].setError(input_signal_parameters["xp"][1])
+    signal_vars["xp_0"].setConstant()
+    signal_vars["sigp_0"].setVal(input_signal_parameters["sigp"][0])
+    signal_vars["sigp_0"].setError(input_signal_parameters["sigp"][1])
+    signal_vars["sigp_0"].setConstant()
+    signal_vars["xi_0"].setVal(input_signal_parameters["xi"][0])
+    signal_vars["xi_0"].setError(input_signal_parameters["xi"][1])
+    signal_vars["xi_0"].setConstant()
+    signal_vars["rho1_0"].setVal(input_signal_parameters["rho1"][0])
+    signal_vars["rho1_0"].setError(input_signal_parameters["rho1"][1])
+    signal_vars["rho1_0"].setConstant()
+    signal_vars["rho2_0"].setVal(input_signal_parameters["rho2"][0])
+    signal_vars["rho2_0"].setError(input_signal_parameters["rho2"][1])
+    signal_vars["rho2_0"].setConstant()
+    f_signal_pdfs.Close()
 
     signal_parameters = {}
     signal_pdfs_notrig = {}
@@ -291,24 +285,28 @@ def run_single_mass(args, mass):
     for fit_function in fit_functions:
         print "[create_datacards] INFO : On fit function {}".format(fit_function)
 
-        # Make signal PDF
-        if args.fitSignal:
-            # Make a copy of the signal PDF, so that each fitTo call uses its own copy.
-            # The copy should have all variables set constant.  
-            #signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("bukin", signal_pdf, mjj, tag=fit_function, include_systematics=True)
-            signal_pdfs_notrig[fit_function] = ROOT.RooBukinPdf(signal_pdf_notrig, signal_pdf_notrig.GetName() + "_" + fit_function)
-            iterator = signal_pdfs_notrig[fit_function].getVariables().createIterator()
+        # Make a copy of the signal PDF, so that each fitTo call uses its own copy.
+        # The copy should have all variables set constant.  
+        #signal_pdfs[fit_function], signal_parameters[fit_function] = signal_fits.copy_signal_pdf("bukin", signal_pdf, mjj, tag=fit_function, include_systematics=True)
+
+        signal_pdfs_notrig[fit_function] = ROOT.RooBukinPdf(signal_pdf_notrig, signal_pdf_notrig.GetName() + "_" + fit_function)
+        iterator = signal_pdfs_notrig[fit_function].getVariables().createIterator()
+        this_parameter = iterator.Next()
+        while this_parameter:
+            this_parameter.setConstant()
             this_parameter = iterator.Next()
-            while this_parameter:
-                this_parameter.setConstant()
-                this_parameter = iterator.Next()
-            if args.fitTrigger:
-                signal_pdfs[fit_function] = RooEffProd(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigger_efficiency_formula) 
-            else:
-                signal_pdfs[fit_function] = signal_pdfs_notrig[fit_function]
-                signal_pdfs[fit_function].SetName(signal_pdf.GetName() + "_" + fit_function)
-        else:
-            signal_pdfs[fit_function] = RooHistPdf('signal_' + fit_function,'signal_' + fit_function, RooArgSet(mjj), rooSigHist)
+
+        # Add trigger efficiency
+        if args.useMCTrigger:
+            # Signal PDF = bukin; b-tag efficiency already included in normalization
+            signal_pdfs[fit_function] = signal_pdfs_notrig[fit_function]
+            signal_pdfs[fit_function].SetName(signal_pdf.GetName() + "_" + fit_function)
+        elif args.fitTrigger:
+            # Signal PDF = bukin * total trigger efficiency
+            signal_pdfs[fit_function] = RooEffProd(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigeff_total_formula)
+        elif args.correctTrigger:
+            # Signal PDF = bukin * btag efficiency
+            signal_pdfs[fit_function] = RooEffProd(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigeff_btag_formula)
         signal_norms[fit_function] = RooRealVar('signal_norm_' + fit_function, 'signal_norm_' + fit_function, 0., 0., 1e+05)
         if args.fitBonly: 
             signal_norms[fit_function].setConstant()
@@ -318,7 +316,7 @@ def run_single_mass(args, mass):
         background_pdf_name = background_pdfs_notrig[fit_function].GetName()
         background_pdfs_notrig[fit_function].SetName(background_pdf_name + "_notrig")
         if args.fitTrigger:
-            background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigger_efficiency_formula)
+            background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigeff_pt_formula)
         else:
             background_pdfs[fit_function] = background_pdfs_notrig[fit_function]
             background_pdfs[fit_function].SetName(background_pdf_name)
@@ -366,6 +364,7 @@ def run_single_mass(args, mass):
 
         if args.runFit:
             print "[create_datacards] INFO : Starting fit with function {}".format(fit_function)
+            models[fit_function].Print()
             fit_results[fit_function] = models[fit_function].fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Extended(kTRUE), RooFit.Strategy(args.fitStrategy), RooFit.Verbose(0))
             print "[create_datacards] INFO : Done with fit {}. Printing results.".format(fit_function)
             fit_results[fit_function].Print()
@@ -380,111 +379,53 @@ def run_single_mass(args, mass):
     # -----------------------------------------
     #signal_pdfs_syst = {}
     # JES and JER uncertainties
-    if args.fitSignal:
-        print "[create_datacards] INFO : Getting signal PDFs from " + analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
-        f_signal_pdfs = TFile(analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))
-        w_signal = f_signal_pdfs.Get("w_signal")
-        if "jes" in systematics:
-            xp_central = signal_vars["xp_0"].getVal()
-            #print w_signal.pdf("signal__JESUp")
-            #print signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))
-            xp_up = signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))["xpJESUp"][0]
-            xp_down = signal_fits.get_parameters(w_signal.pdf("signal__JESDown"))["xpJESDown"][0]
-            signal_vars["dxp"].setVal(max(abs(xp_up - xp_central), abs(xp_down - xp_central)))
-            if signal_vars["dxp"].getVal() > 2 * mass * 0.1:
-                print "[create_datacards] WARNING : Large dxp value. dxp = {}, xp_down = {}, xp_central = {}, xp_up = {}".format(signal_vars["dxp"].getVal(), xp_down, xp_central, xp_up)
-            signal_vars["alpha_jes"].setVal(0.)
-            signal_vars["alpha_jes"].setConstant(False)
-        else:
-            signal_vars["dxp"].setVal(0.)
-            signal_vars["alpha_jes"].setVal(0.)
-            signal_vars["alpha_jes"].setConstant()
-        signal_vars["dxp"].setError(0.)
-        signal_vars["dxp"].setConstant()
-
-        if "jer" in systematics:
-            sigp_central = signal_vars["sigp_0"].getVal()
-            sigp_up = signal_fits.get_parameters(w_signal.pdf("signal__JERUp"))["sigpJERUp"][0]
-            sigp_down = signal_fits.get_parameters(w_signal.pdf("signal__JERDown"))["sigpJERDown"][0]
-            signal_vars["dsigp"].setVal(max(abs(sigp_up - sigp_central), abs(sigp_down - sigp_central)))
-            signal_vars["alpha_jer"].setVal(0.)
-            signal_vars["alpha_jer"].setConstant(False)
-        else:
-            signal_vars["dsigp"].setVal(0.)
-            signal_vars["alpha_jer"].setVal(0.)
-            signal_vars["alpha_jer"].setConstant()
-        signal_vars["dsigp"].setError(0.)
-        signal_vars["dsigp"].setConstant()
-            #for variation in ["JERUp", "JERDown"]:
-            #    signal_pdfs_syst[variation] = w_signal.pdf("signal__" + variation)
-        #for variation, pdf in signal_pdfs_syst.iteritems():
-        #    signal_parameters = pdf.getVariables()
-        #    iter = signal_parameters.createIterator()
-        #    var = iter.Next()
-        #    while var:
-        #        var.setConstant()
-        #        var = iter.Next()
-        f_signal_pdfs.Close()
+    if args.useMCTrigger:
+        signal_fit_file = analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
     else:
-        # dictionaries holding systematic variations of the signal shape
-        hSig_Syst = {}
-        hSig_Syst_DataHist = {}
-        sigCDF = TGraph(hSig.GetNbinsX()+1)
+        # Get analysis name without trigger
+        if args.analysis == "trigbbl_CSVTM":
+            signal_analysis = "trigbbl_notrig_CSVTM"
+        elif args.analysis == "trigbbh_CSVTM":
+            signal_analysis = "trigbbh_notrig_CSVTM"
+        else:
+            print "[create_datacards] ERROR : I don't know the signal analysis name with no MC trigger for {}".format(args.analysis)
+            sys.exit(1)
+        signal_fit_file = analysis_config.get_signal_fit_file(signal_analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
+    print "[create_datacards] INFO : Getting signal PDFs from " + signal_fit_file
+    f_signal_pdfs = TFile(signal_fit_file, "READ")
+    w_signal = f_signal_pdfs.Get("w_signal")
+    if "jes" in systematics:
+        xp_central = signal_vars["xp_0"].getVal()
+        #print w_signal.pdf("signal__JESUp")
+        #print signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))
+        xp_up = signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))["xpJESUp"][0]
+        xp_down = signal_fits.get_parameters(w_signal.pdf("signal__JESDown"))["xpJESDown"][0]
+        signal_vars["dxp"].setVal(max(abs(xp_up - xp_central), abs(xp_down - xp_central)))
+        if signal_vars["dxp"].getVal() > 2 * mass * 0.1:
+            print "[create_datacards] WARNING : Large dxp value. dxp = {}, xp_down = {}, xp_central = {}, xp_up = {}".format(signal_vars["dxp"].getVal(), xp_down, xp_central, xp_up)
+        signal_vars["alpha_jes"].setVal(0.)
+        signal_vars["alpha_jes"].setConstant(False)
+    else:
+        signal_vars["dxp"].setVal(0.)
+        signal_vars["alpha_jes"].setVal(0.)
+        signal_vars["alpha_jes"].setConstant()
+    signal_vars["dxp"].setError(0.)
+    signal_vars["dxp"].setConstant()
 
-        if "jes" in systematics or "jer" in systematics:
-
-            sigCDF.SetPoint(0,0.,0.)
-            integral = 0.
-            for i in range(1, hSig.GetNbinsX()+1):
-                x = hSig.GetXaxis().GetBinLowEdge(i+1)
-                integral = integral + hSig.GetBinContent(i)
-                sigCDF.SetPoint(i,x,integral)
-
-        if "jes" in systematics:
-            hSig_Syst['JESUp'] = copy.deepcopy(hSig)
-            hSig_Syst['JESDown'] = copy.deepcopy(hSig)
-
-        if "jer" in systematics:
-            hSig_Syst['JERUp'] = copy.deepcopy(hSig)
-            hSig_Syst['JERDown'] = copy.deepcopy(hSig)
-
-        # reset signal histograms
-        for key in hSig_Syst.keys():
-            hSig_Syst[key].Reset()
-            hSig_Syst[key].SetName(hSig_Syst[key].GetName() + '_' + key)
-
-        # produce JES signal shapes
-        if "jes" in systematics:
-            for i in range(1, hSig.GetNbinsX()+1):
-                xLow = hSig.GetXaxis().GetBinLowEdge(i)
-                xUp = hSig.GetXaxis().GetBinLowEdge(i+1)
-                jes = 1. - systematics["jes"]
-                xLowPrime = jes*xLow
-                xUpPrime = jes*xUp
-                hSig_Syst['JESUp'].SetBinContent(i, sigCDF.Eval(xUpPrime) - sigCDF.Eval(xLowPrime))
-                jes = 1. + systematics["jes"]
-                xLowPrime = jes*xLow
-                xUpPrime = jes*xUp
-                hSig_Syst['JESDown'].SetBinContent(i, sigCDF.Eval(xUpPrime) - sigCDF.Eval(xLowPrime))
-            hSig_Syst_DataHist['JESUp'] = RooDataHist('hSig_JESUp','hSig_JESUp',RooArgList(mjj),hSig_Syst['JESUp'])
-            hSig_Syst_DataHist['JESDown'] = RooDataHist('hSig_JESDown','hSig_JESDown',RooArgList(mjj),hSig_Syst['JESDown'])
-        
-        # produce JER signal shapes
-        if "jer" in systematics:
-            for i in range(1, hSig.GetNbinsX()+1):
-                xLow = hSig.GetXaxis().GetBinLowEdge(i)
-                xUp = hSig.GetXaxis().GetBinLowEdge(i+1)
-                jer = 1. - systematics["jer"]
-                xLowPrime = jer*(xLow-float(mass))+float(mass)
-                xUpPrime = jer*(xUp-float(mass))+float(mass)
-                hSig_Syst['JERUp'].SetBinContent(i, sigCDF.Eval(xUpPrime) - sigCDF.Eval(xLowPrime))
-                jer = 1. + systematics["jer"]
-                xLowPrime = jer*(xLow-float(mass))+float(mass)
-                xUpPrime = jer*(xUp-float(mass))+float(mass)
-                hSig_Syst['JERDown'].SetBinContent(i, sigCDF.Eval(xUpPrime) - sigCDF.Eval(xLowPrime))
-            hSig_Syst_DataHist['JERUp'] = RooDataHist('hSig_JERUp','hSig_JERUp',RooArgList(mjj),hSig_Syst['JERUp'])
-            hSig_Syst_DataHist['JERDown'] = RooDataHist('hSig_JERDown','hSig_JERDown',RooArgList(mjj),hSig_Syst['JERDown'])
-
+    if "jer" in systematics:
+        sigp_central = signal_vars["sigp_0"].getVal()
+        sigp_up = signal_fits.get_parameters(w_signal.pdf("signal__JERUp"))["sigpJERUp"][0]
+        sigp_down = signal_fits.get_parameters(w_signal.pdf("signal__JERDown"))["sigpJERDown"][0]
+        signal_vars["dsigp"].setVal(max(abs(sigp_up - sigp_central), abs(sigp_down - sigp_central)))
+        signal_vars["alpha_jer"].setVal(0.)
+        signal_vars["alpha_jer"].setConstant(False)
+    else:
+        signal_vars["dsigp"].setVal(0.)
+        signal_vars["alpha_jer"].setVal(0.)
+        signal_vars["alpha_jer"].setConstant()
+    signal_vars["dsigp"].setError(0.)
+    signal_vars["dsigp"].setConstant()
+    f_signal_pdfs.Close()
 
     # -----------------------------------------
     # create a datacard and corresponding workspace
@@ -492,47 +433,24 @@ def run_single_mass(args, mass):
     wsName = 'workspace_' + args.final_state + '_m' + str(mass) + postfix + '.root'
 
     w = RooWorkspace('w','workspace')
-    if args.fitSignal:
-        signal_pdf.SetName("signal")
-        getattr(w,'import')(signal_pdf,RooFit.Rename("signal"))
-        # Create a norm variable "signal_norm" which normalizes the PDF to unity.
-        norm = args.lumi
-        #signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", 1. / norm, 0.1 / norm, 10. / norm)
-        #if args.analysis == "trigbbh_CSVTM" and mass >= 1100:
-        signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm/100., norm/100. / 10., norm * 10.)
-        #else:
-        #    signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm, norm / 10., norm * 10.)
-        print "[create_datacards] INFO : Set signal norm to {}".format(signal_norm.getVal())
-        signal_norm.setConstant()
-        getattr(w,'import')(signal_norm,ROOT.RooCmdArg())
-        #if "jes" in systematics:
-        #    getattr(w,'import')(signal_pdfs_syst['JESUp'],RooFit.Rename("signal__JESUp"))
-        #    getattr(w,'import')(signal_pdfs_syst['JESDown'],RooFit.Rename("signal__JESDown"))
-        #if "jer" in systematics:
-        #    getattr(w,'import')(signal_pdfs_syst['JERUp'],RooFit.Rename("signal__JERUp"))
-        #    getattr(w,'import')(signal_pdfs_syst['JERDown'],RooFit.Rename("signal__JERDown"))
-    else:
-        getattr(w,'import')(rooSigHist,RooFit.Rename("signal"))
-        if "jes" in systematics:
-            getattr(w,'import')(hSig_Syst_DataHist['JESUp'],RooFit.Rename("signal__JESUp"))
-            getattr(w,'import')(hSig_Syst_DataHist['JESDown'],RooFit.Rename("signal__JESDown"))
-        if "jer" in systematics:
-            getattr(w,'import')(hSig_Syst_DataHist['JERUp'],RooFit.Rename("signal__JERUp"))
-            getattr(w,'import')(hSig_Syst_DataHist['JERDown'],RooFit.Rename("signal__JERDown"))
-    if args.decoBkg:
-        getattr(w,'import')(background_deco,ROOT.RooCmdArg())
-    else:
-        for fit_function in fit_functions:
-            print "Importing background PDF"
-            print background_pdfs[fit_function]
-            background_pdfs[fit_function].Print()
-            getattr(w,'import')(background_pdfs[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function), RooFit.RecycleConflictNodes())
-            w.pdf("background_" + fit_function).Print()
-            getattr(w,'import')(background_norms[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function + "_norm"))
-            getattr(w,'import')(fit_results[fit_function])
-            getattr(w,'import')(signal_norms[fit_function],ROOT.RooCmdArg())
-            if args.fitBonly:
-                getattr(w,'import')(models[fit_function],ROOT.RooCmdArg(),RooFit.RecycleConflictNodes())
+    signal_pdf.SetName("signal")
+    getattr(w,'import')(signal_pdf,RooFit.Rename("signal"))
+    norm = args.lumi
+    signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm/100., norm/100. / 10., norm * 10.)
+    print "[create_datacards] INFO : Set signal norm to {}".format(signal_norm.getVal())
+    signal_norm.setConstant()
+    getattr(w,'import')(signal_norm,ROOT.RooCmdArg())
+    for fit_function in fit_functions:
+        print "Importing background PDF"
+        print background_pdfs[fit_function]
+        background_pdfs[fit_function].Print()
+        getattr(w,'import')(background_pdfs[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function), RooFit.RecycleConflictNodes())
+        w.pdf("background_" + fit_function).Print()
+        getattr(w,'import')(background_norms[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function + "_norm"))
+        getattr(w,'import')(fit_results[fit_function])
+        getattr(w,'import')(signal_norms[fit_function],ROOT.RooCmdArg())
+        if args.fitBonly:
+            getattr(w,'import')(models[fit_function],ROOT.RooCmdArg(),RooFit.RecycleConflictNodes())
     getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
     if args.correctTrigger:
         getattr(w,'import')(rooDataHist_notrigcorr, RooFit.Rename("data_obs_notrigcorr"))
@@ -545,13 +463,12 @@ def run_single_mass(args, mass):
         print "[create_datacards] INFO : Writing workspace to file {}".format(os.path.join(args.output_path,wsName))
         w.writeToFile(os.path.join(args.output_path,wsName))
     else:
-        print "[create_datacards] INFO : Writing workspace to file {}".format(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))
-        w.writeToFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))
+        print "[create_datacards] INFO : Writing workspace to file {}".format(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger))
+        w.writeToFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger))
     if args.correctTrigger:
-        f_workspace = TFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger), "UPDATE")
+        f_workspace = TFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger), "UPDATE")
         hData.Write()
         hData_notrigcorr.Write()
-
 
     # Clean up
     for name, obj in signal_norms.iteritems():
@@ -593,7 +510,7 @@ def run_single_mass(args, mass):
 
     # Make datacards only if S+B fitted
     if not args.fitBonly:
-        beffUnc = 0.3
+        #beffUnc = 0.3
         boffUnc = 0.06
         for fit_function in fit_functions:
             if args.output_path:
@@ -601,22 +518,16 @@ def run_single_mass(args, mass):
                 print "[create_datacards] INFO : Writing datacard to file {}".format(os.path.join(args.output_path,dcName)) 
                 datacard = open(os.path.join(args.output_path,dcName),'w')
             else:
-                print "[create_datacards] INFO : Writing datacard to file {}".format(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)) 
-                datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger), 'w')
+                print "[create_datacards] INFO : Writing datacard to file {}".format(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)) 
+                datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger), 'w')
             datacard.write('imax 1\n')
             datacard.write('jmax 1\n')
             datacard.write('kmax *\n')
             datacard.write('---------------\n')
-            if ("jes" in systematics or "jer" in systematics) and not args.fitSignal:
-                if args.output_path:
-                    datacard.write('shapes * * '+wsName+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
-                else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))+' w:$PROCESS w:$PROCESS__$SYSTEMATIC\n')
+            if args.output_path:
+                datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
             else:
-                if args.output_path:
-                    datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
-                else:
-                    datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitSignal=args.fitSignal, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))+' w:$PROCESS\n')
+                datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))+' w:$PROCESS\n')
             datacard.write('---------------\n')
             datacard.write('bin 1\n')
             datacard.write('observation -1\n')
@@ -624,32 +535,25 @@ def run_single_mass(args, mass):
             datacard.write('bin          1          1\n')
             datacard.write('process      signal     background_' + fit_function + '\n')
             datacard.write('process      0          1\n')
-            if args.fitSignal:
-                datacard.write('rate         1         1\n')
-            else:
-                datacard.write('rate         -1         1\n')
+            datacard.write('rate         1         1\n')
             datacard.write('------------------------------\n')
             datacard.write('lumi  lnN    %f         -\n'%(1.+systematics["luminosity"]))
-            datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
+            #datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
             datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
             #datacard.write('bkg   lnN     -         1.03\n')
-            if args.fitSignal:
-                if "jes" in systematics:
-                    datacard.write("alpha_jes  param  0.0  1.0\n")
-                if "jer" in systematics:
-                    datacard.write("alpha_jer  param  0.0  1.0\n")
-            else:
-                if "jes" in systematics:
-                    datacard.write('JES  shape   1          -\n')
-                if "jer" in systematics:
-                    datacard.write('JER  shape   1          -\n')
-            # flat parameters --- flat prior
+            if "jes" in systematics:
+                datacard.write("alpha_jes  param  0.0  1.0\n")
+            if "jer" in systematics:
+                datacard.write("alpha_jer  param  0.0  1.0\n")
+            # Trigger efficiency
+            if not args.useMCTrigger:
+                datacard.write("trigeff_btag  param  {}  {}\n".format(trigger_efficiency.online_btag_eff[args.analysis][0], trigger_efficiency.online_btag_eff[args.analysis][1]))
+            if args.fitTrigger:
+                for trigeff_var_name, trigeff_var in trigeff_vars.iteritems():
+                    datacard.write("{}  param  {}  {}\n".format(trigeff_var_name, trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][0], trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][1]))
+            # Background fit parameters --- flat prior
             datacard.write('background_' + fit_function + '_norm  flatParam\n')
-            if args.decoBkg:
-                datacard.write('deco_eig1  flatParam\n')
-                datacard.write('deco_eig2  flatParam\n')
-            else:
-                for par_name, par in background_parameters[fit_function].iteritems():
+            for par_name, par in background_parameters[fit_function].iteritems():
                     datacard.write(fit_function + "_" + par_name + '  flatParam\n')
             datacard.close()
             print "[create_datacards] INFO : Done with this datacard"

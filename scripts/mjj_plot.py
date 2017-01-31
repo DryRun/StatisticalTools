@@ -693,7 +693,7 @@ if __name__ == "__main__":
 			#	trigger_correction = "bbl"
 			data_histogram.SetDirectory(0)
 			for model in models:
-				background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, fitSignal=True, correctTrigger=True)
+				background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, correctTrigger=False, fitTrigger=("trigbbl" in analysis))
 				save_tag = "mjj_combinefits_" + analysis + "_" + model
 				if len(fit_functions) == 1:
 					save_tag += "_" + fit_functions[0]
@@ -710,7 +710,7 @@ if __name__ == "__main__":
 					trigger_correction = "bbl"
 				data_histogram.SetDirectory(0)
 				for model in models:
-					b_workspace_file = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, fitSignal=True, correctTrigger=True)
+					b_workspace_file = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, correctTrigger=False, fitTrigger=("trigbbl" in analysis))
 					sb_names = []
 					sb_workspaces = {}
 					if "bbl" in analysis:
@@ -720,6 +720,6 @@ if __name__ == "__main__":
 					for signal_mass in signal_masses:
 						sb_name = "m_{X}=" + str(signal_mass) + " [GeV]"
 						sb_names.append(sb_name)
-						sb_workspaces[sb_name] = limit_config.get_workspace_filename(analysis, model, signal_mass, fitBonly=False, fitSignal=True, correctTrigger=True)
+						sb_workspaces[sb_name] = limit_config.get_workspace_filename(analysis, model, signal_mass, fitBonly=False, correctTrigger=False, fitTrigger=("trigbbl" in analysis))
 					save_tag = "mjj_sbfits_" + analysis + "_" + model + "_" + fit_function
 					PlotAllSB(save_tag=save_tag, fit_function=fit_function, sb_names=sb_names, sb_workspace_files=sb_workspaces, b_workspace_file=b_workspace_file, log=True, x_range=x_range, data_binning=mass_bins, normalization_bin_width=1, draw_chi2ndf=False, draw_chi2prob=False, data_histogram=data_histogram, trigger_correction=None, draw_trigeff=False)
