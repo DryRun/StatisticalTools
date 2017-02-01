@@ -6,7 +6,7 @@ from ROOT import *
 gROOT.SetBatch(True)
 ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/SeabornInterface.h\"")
 ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/RooCBPlusVoigtian.h\"")
-gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so")
+gSystem.Load(os.path.expandvars("$CMSSW_BASE/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so"))
 gStyle.SetOptStat(0)
 gStyle.SetOptTitle(0)
 seaborn = Root.SeabornInterface()
@@ -15,7 +15,7 @@ from CMSDIJET.StatisticalTools.systematics import *
 import CMSDIJET.StatisticalTools.limit_configuration as limit_config
 import CMSDIJET.StatisticalTools.trigger_efficiency as trigger_efficiency
 
-sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python/CMSDIJET/QCDAnalysis")
+sys.path.append(os.path.expandvars("$CMSSW_BASE/python/CMSDIJET/StatisticalTools"))
 import analysis_configuration_8TeV as analysis_config
 
 from array import array

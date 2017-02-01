@@ -4,7 +4,6 @@ import sys, os, copy, re
 from argparse import ArgumentParser
 from array import array
 import math
-from joblib import Parallel, delayed
 import ROOT
 ROOT.gROOT.SetBatch(True)
 
@@ -17,9 +16,9 @@ import signal_fits
 
 
 ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/RooCBPlusVoigtian.h\"")
-gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so")
+gSystem.Load(os.path.expandvars("$CMSSW_BASE/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so"))
 
-sys.path.append("/uscms/home/dryu/Dijets/CMSSW_5_3_32_patch3/python/CMSDIJET/QCDAnalysis")
+sys.path.append(os.path.expandvars("$CMSSW_BASE/python/CMSDIJET/StatisticalTools"))
 import analysis_configuration_8TeV as analysis_config
 
 #if not os.path.exists(os.path.join(os.environ["CMSSW_BASE"],"src/HiggsAnalysis/CombinedLimit/src/PdfDiagonalizer_cc.so")):
@@ -32,10 +31,13 @@ def main():
     # usage description
     usage = "Example: ./scripts/createDatacards.py --inputData inputs/rawhistV7_Run2015D_scoutingPFHT_UNBLINDED_649_838_JEC_HLTplusV7_Mjj_cor_smooth.root --dataHistname mjj_mjjcor_gev --inputSig inputs/ResonanceShapes_gg_13TeV_Scouting_Spring15.root -f gg -o datacards -l 1866 --lumiUnc 0.027 --massrange 1000 1500 50 --runFit --p1 5 --p2 7 --p3 0.4 --massMin 838 --massMax 2037 --fitStrategy 2"
 
+    print "Welcome to create_datacards_parallel"
+
     # input parameters
     parser = ArgumentParser(description='Script that creates combine datacards and corresponding RooFit workspaces',epilog=usage)
     parser.add_argument("analysis", type=str, help="Analysis name")
     parser.add_argument("model", type=str, help="Model (Hbb, RSG)")
+    parser.add_argument("--condor", action="store_true", help="For running on condor, where the file paths are different.")
     parser.add_argument("--datacard_only", action="store_true", help="Make datacard only")
     #parser.add_argument("--inputData", dest="inputData", required=True,
     #                    help="Input data spectrum",
@@ -149,7 +151,11 @@ def main():
     # sort masses
     masses.sort()
 
-    Parallel(n_jobs=4)(delayed(run_single_mass)(args, mass) for mass in masses)
+    if len(masses) == 1:
+        run_single_mass(args, masses[0])
+    else:
+        from joblib import Parallel, delayed
+        Parallel(n_jobs=4)(delayed(run_single_mass)(args, mass) for mass in masses)
     print "All done."
 
 def run_single_mass(args, mass):
@@ -175,7 +181,10 @@ def run_single_mass(args, mass):
         data_sample = "BJetPlusX_2012"
     elif "trigmu" in args.analysis:
         data_sample = "SingleMu_2012"
-    data_file = TFile(analysis_config.get_b_histogram_filename(args.analysis, data_sample))
+    data_file_path = analysis_config.get_b_histogram_filename(args.analysis, data_sample)
+    if args.condor:
+        data_file_path = os.path.basename(data_file_path)
+    data_file = TFile(data_file_path)
     hData_notrigcorr = data_file.Get("BHistograms/h_pfjet_mjj")
     hData_notrigcorr.SetDirectory(0)
     hData_name = hData_notrigcorr.GetName()
@@ -214,6 +223,8 @@ def run_single_mass(args, mass):
     # Get signal pdf * btag efficiency
     if args.useMCTrigger:
         signal_pdf_file = analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
+        if args.condor:
+            signal_pdf_file = os.path.basename(signal_pdf_file)
         print "[create_datacards] Loading fitted signal PDFs from " + signal_pdf_file
         f_signal_pdfs = TFile(signal_pdf_file, "READ")
         w_signal = f_signal_pdfs.Get("w_signal")
@@ -228,6 +239,8 @@ def run_single_mass(args, mass):
             sys.exit(1)
         signal_pdf_file = analysis_config.get_signal_fit_file(notrig_analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
         print "[create_datacards] Loading fitted signal PDFs from " + signal_pdf_file
+        if args.condor:
+            signal_pdf_file = os.path.basename(signal_pdf_file)
         f_signal_pdfs = TFile(signal_pdf_file, "READ")
         w_signal = f_signal_pdfs.Get("w_signal")
         bukin_pdf = w_signal.pdf("signal")
@@ -377,27 +390,10 @@ def run_single_mass(args, mass):
                 par.setConstant()
 
     # -----------------------------------------
-    #signal_pdfs_syst = {}
+    # Set values of signal systematic variables
     # JES and JER uncertainties
-    if args.useMCTrigger:
-        signal_fit_file = analysis_config.get_signal_fit_file(args.analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses), fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
-    else:
-        # Get analysis name without trigger
-        if args.analysis == "trigbbl_CSVTM":
-            signal_analysis = "trigbbl_notrig_CSVTM"
-        elif args.analysis == "trigbbh_CSVTM":
-            signal_analysis = "trigbbh_notrig_CSVTM"
-        else:
-            print "[create_datacards] ERROR : I don't know the signal analysis name with no MC trigger for {}".format(args.analysis)
-            sys.exit(1)
-        signal_fit_file = analysis_config.get_signal_fit_file(signal_analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
-    print "[create_datacards] INFO : Getting signal PDFs from " + signal_fit_file
-    f_signal_pdfs = TFile(signal_fit_file, "READ")
-    w_signal = f_signal_pdfs.Get("w_signal")
     if "jes" in systematics:
         xp_central = signal_vars["xp_0"].getVal()
-        #print w_signal.pdf("signal__JESUp")
-        #print signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))
         xp_up = signal_fits.get_parameters(w_signal.pdf("signal__JESUp"))["xpJESUp"][0]
         xp_down = signal_fits.get_parameters(w_signal.pdf("signal__JESDown"))["xpJESDown"][0]
         signal_vars["dxp"].setVal(max(abs(xp_up - xp_central), abs(xp_down - xp_central)))
@@ -425,7 +421,6 @@ def run_single_mass(args, mass):
         signal_vars["alpha_jer"].setConstant()
     signal_vars["dsigp"].setError(0.)
     signal_vars["dsigp"].setConstant()
-    f_signal_pdfs.Close()
 
     # -----------------------------------------
     # create a datacard and corresponding workspace
@@ -460,13 +455,15 @@ def run_single_mass(args, mass):
     if args.output_path:
         if not os.path.isdir( os.path.join(os.getcwd(),args.output_path) ):
             os.mkdir( os.path.join(os.getcwd(),args.output_path) )
-        print "[create_datacards] INFO : Writing workspace to file {}".format(os.path.join(args.output_path,wsName))
-        w.writeToFile(os.path.join(args.output_path,wsName))
+        workspace_output_path = os.path.join(args.output_path,wsName)
     else:
-        print "[create_datacards] INFO : Writing workspace to file {}".format(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger))
-        w.writeToFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger))
+        workspace_output_path = limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger)
+    if args.condor:
+        workspace_output_path = os.path.basename(workspace_output_path)
+    print "[create_datacards] INFO : Writing workspace to file {}".format(workspace_output_path)
+    w.writeToFile(workspace_output_path)
     if args.correctTrigger:
-        f_workspace = TFile(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger), "UPDATE")
+        f_workspace = TFile(workspace_output_path, "UPDATE")
         hData.Write()
         hData_notrigcorr.Write()
 
@@ -515,11 +512,11 @@ def run_single_mass(args, mass):
         for fit_function in fit_functions:
             if args.output_path:
                 dcName = 'datacard_' + args.final_state + '_m' + str(mass) + postfix + '_' + fit_function + '.txt'
-                print "[create_datacards] INFO : Writing datacard to file {}".format(os.path.join(args.output_path,dcName)) 
-                datacard = open(os.path.join(args.output_path,dcName),'w')
+                datacard_output_path = os.path.join(args.output_path,dcName)
             else:
-                print "[create_datacards] INFO : Writing datacard to file {}".format(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)) 
-                datacard = open(limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger), 'w')
+                datacard_output_path = limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
+            print "[create_datacards] INFO : Writing datacard to file {}".format() 
+            datacard = open(datacard_output_path, 'w')
             datacard.write('imax 1\n')
             datacard.write('jmax 1\n')
             datacard.write('kmax *\n')
