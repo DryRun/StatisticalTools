@@ -95,7 +95,7 @@ def get_var_formula(analysis, mjj_var):
 
 	eff_vars = {}
 	for varname in ["trigeff_p0", "trigeff_p1", "trigeff_p2"]:
-		eff_vars[varname] = RooRealVar("trigeff_" + varname, "trigeff_" + varname, sigmoid_parameters[eff_analysis][varname][0], sigmoid_parameters[eff_analysis][varname][0]-10.*sigmoid_parameters[eff_analysis][varname][1], sigmoid_parameters[eff_analysis][varname][0]+10.*sigmoid_parameters[eff_analysis][varname][1])
+		eff_vars[varname] = RooRealVar(varname, varname, sigmoid_parameters[eff_analysis][varname][0], sigmoid_parameters[eff_analysis][varname][0]-10.*sigmoid_parameters[eff_analysis][varname][1], sigmoid_parameters[eff_analysis][varname][0]+10.*sigmoid_parameters[eff_analysis][varname][1])
 	return [RooFormulaVar("trigger_efficiency_bbl", 
 			"pow(1. / (1. + exp(-1. * (@0 - @1) / @2)), @3)", 
 			RooArgList(mjj_var, eff_vars["trigeff_p0"], eff_vars["trigeff_p1"], eff_vars["trigeff_p2"])), eff_vars]
