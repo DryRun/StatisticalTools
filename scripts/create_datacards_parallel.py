@@ -515,7 +515,9 @@ def run_single_mass(args, mass):
                 datacard_output_path = os.path.join(args.output_path,dcName)
             else:
                 datacard_output_path = limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
-            print "[create_datacards] INFO : Writing datacard to file {}".format() 
+            if args.condor:
+                datacard_output_path = os.path.basename(datacard_output_path)
+            print "[create_datacards] INFO : Writing datacard to file {}".format(datacard_output_path) 
             datacard = open(datacard_output_path, 'w')
             datacard.write('imax 1\n')
             datacard.write('jmax 1\n')
