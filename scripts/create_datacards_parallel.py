@@ -378,9 +378,16 @@ def run_single_mass(args, mass):
         if args.runFit:
             print "[create_datacards] INFO : Starting fit with function {}".format(fit_function)
             models[fit_function].Print()
+            # Fix the trigger efficiency for this fit
+            for var_name, var in trigeff_vars.iteritems():
+                var.setConstant(True)
+            trigeff_btag_var.setConstant(True)
             fit_results[fit_function] = models[fit_function].fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Extended(kTRUE), RooFit.Strategy(args.fitStrategy), RooFit.Verbose(0))
             print "[create_datacards] INFO : Done with fit {}. Printing results.".format(fit_function)
             fit_results[fit_function].Print()
+            for var_name, var in trigeff_vars.iteritems():
+                var.setConstant(False)
+            trigeff_btag_var.setConstant(False)
             print "[create_datacards] DEBUG : End args.runFit if block."
 
         # needed if want to evaluate limits without background systematics
