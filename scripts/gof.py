@@ -65,11 +65,18 @@ if __name__ == "__main__":
 					log_name)
 
 				if args.toys:
+					combine_toy_options =  "-M GoodnessOfFit -v3 --algo {} -s {} --name {} --mass {} ".format(
+						args.algo,
+						args.seed,
+						job_name + "_toys",
+						mass
+					)
+
 					toy_cmd = "combine {} {} -t {} 2>&1 | tee {}".format(
 						combine_options, 
 						os.path.basename(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger)),
 						args.toys,
-						log_name)
+						job_name + "_toys.log")
 
 				submission_dir = condor_path
 				start_dir = os.getcwd()
