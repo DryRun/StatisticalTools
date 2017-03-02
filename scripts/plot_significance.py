@@ -83,7 +83,7 @@ def main():
     for mass in input_masses:
         masses.append(mass)
         print ">> Reading results for resonance with m = %i GeV..."%(int(mass))
-        log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, what="significance"), 'r')
+        log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, what="significance", correctTrigger=True), 'r')
 
         if args.method == 'theta': logName = logName.replace('significance_','')
 

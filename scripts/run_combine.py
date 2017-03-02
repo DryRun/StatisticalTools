@@ -49,18 +49,15 @@ exit $exitcode
 
 
 def main():
-    # usage description
-    usage = "Example: ./scripts/runCombine.py -M Asymptotic -d datacards -f qq --massrange 1200 7000 100"
-
     # input parameters
-    parser = ArgumentParser(description='Script that runs limit calculation for specified mass points',epilog=usage)
-
+    parser = ArgumentParser(description='Script that runs limit calculation for specified mass points')
     parser.add_argument("-M", "--method", dest="method", required=True,
                         choices=['MaxLikelihoodFit', 'ProfileLikelihood', 'HybridNew', 'Asymptotic', 'MarkovChainMC'],
                         help="Method to calculate upper limits",
                         metavar="METHOD")
     parser.add_argument('--analyses', type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help="Analysis names")
-    parser.add_argument('--models', type=str, default="Hbb,RSG,ZPrime", help="Model names")
+    parser.add_argument('--models', type=str, default="Hbb,RSG", help="Model names")
+    parser.add_argument('--qcd', action='store_true', help="Use QCD instead of data (assumes no trigger emulation)")
     parser.add_argument('--correctTrigger', action='store_true', help="Use model with trigger correction (has to have been specified in create_datacards.py)")
     parser.add_argument('--fitTrigger', action='store_true', help="Use model with trigger fit (has to have been specified in create_datacards.py)")
     parser.add_argument('--fit_function', type=str, default="f4", help="Name of central fit function")
@@ -130,8 +127,12 @@ def main():
 
     parser.add_argument("--hnsig2", dest="hnsig2", default=False, action="store_true", help="HybridNew Significance calc")
 
+    parser.add_argument("--minimizerTolerance", dest="minimizerTolerance", type=float, help="--minimizerTolerance option for combine")
+    parser.add_argument("--minimizerAlgoForMinos", dest="minimizerAlgoForMinos", type=str, help="--minimizerAlgoForMinos option for combine")
+    parser.add_argument("--minimizerToleranceForMinos", dest="minimizerToleranceForMinos", type=float, help="--minimizerToleranceForMinos option for combine")
     parser.add_argument('-v', '--verbose', type=int, help='Verbosity of combine')
     parser.add_argument('-m', '--masses', type=str, help='Manually specify masses (comma-separated list). Otherwise, taken from limit_configuration.')
+    parser.add_argument("--preFitValue", type=float, help="preFitValue option for combine")
     #mass_group = parser.add_mutually_exclusive_group(required=True)
     #mass_group.add_argument("--mass",
     #                        type=int,
@@ -228,6 +229,14 @@ def main():
         options = options + ' --toys ' + str(args.toys)
     if args.robustFit:
         options = options + ' --robustFit 1'
+    if args.minimizerTolerance:
+        options += " --minimizerTolerance " + str(args.minimizerTolerance) + " "
+    if args.minimizerAlgoForMinos:
+        options += " --minimizerAlgoForMinos " + str(args.minimizerAlgoForMinos) + " "
+    if args.minimizerToleranceForMinos:
+        options += " --minimizerToleranceForMinos " + str(args.minimizerToleranceForMinos) + " "
+    if args.preFitValue:
+        options += " --preFitValue " + str(args.preFitValue) + " " 
     if args.rPrior:
         # Take rMin and rMax from +/-2 sigma estimates from a previous iteration. This has to be done per-job, so do it later.
         pass
@@ -250,10 +259,16 @@ def main():
         postfix += "_noSyst"
     if args.freezeNuisances:
         postfix += "_" + args.freezeNuisances.replace(",", "_")
+    if args.fitTrigger:
+        postfix += "_fitTrigger"
+    if args.correctTrigger:
+        postfix += "_correctTrigger"
+    if args.qcd:
+        postfix += "_qcd"
 
     datacards_path = limit_config.paths["datacards"]
     output_path = limit_config.paths["combine_logs"]
-    condor_path = limit_config.paths["condor"]
+    condor_path = limit_config.paths["gof"] + "/condor"
 
     # change to the appropriate directory
     if args.condor:
@@ -267,25 +282,29 @@ def main():
         for model in models:
             for mass in masses[analysis]:
 
-                logName = '%s_%s_%s_%s_m%i%s_%s.log'%(prefix, method, analysis, model, int(mass), postfix,args.fit_function)
-
+                logName = '{}_{}_{}_{}_m{}{}_{}.log'.format(prefix, method, analysis, model, int(mass), postfix,args.fit_function)
+                job_name = "%s_%s_m%i%s_%s"%(analysis, model, int(mass),postfix,args.fit_function)
                 run_options = options + ' --name _%s_%s_m%i%s_%s --mass %i'%(analysis, model, int(mass),postfix,args.fit_function,int(mass))
 
                 if args.rPrior:
                     run_options += " --rMin " + str(limit_config.limit_m2sigma_estimates[analysis][model][mass] / 5. * 100.)
                     run_options += " --rMax " + str(limit_config.limit_p2sigma_estimates[analysis][model][mass] * 5. * 100.)
 
+                if method == "MaxLikelihoodFit":
+                    # Save shapes and plots
+                    run_options += " --saveWithUncertainties --saveShapes --plots --out plots_" + job_name
+
                 if args.condor:
                     cmd = "combine -M %s %s %s 2>&1 | tee %s"%(
                         method,
                         run_options,
-                        os.path.basename(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger)),
+                        os.path.basename(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger)),
                         os.path.basename(os.path.join(('' if args.condor else output_path),logName)))
                 else:
                     cmd = "combine -M %s %s %s 2>&1 | tee %s"%(
                         method,
                         run_options,
-                        limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger),
+                        limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger),
                         os.path.join(('' if args.condor else output_path),logName))
 
                 # if using Condor
@@ -302,6 +321,9 @@ def main():
                     #bash_content = re.sub('DUMMY_CMD',cmd,bash_content)
 
                     bash_script = open(bash_script_path,'w')
+                    bash_script.write("echo '" + cmd + "'\n")
+                    if method == "MaxLikelihoodFit":
+                        bash_script.write("mkdir -pv plots_" + job_name + "\n")
                     bash_script.write(cmd)
                     bash_script.close()
 
@@ -309,12 +331,14 @@ def main():
                     condor_command = "csub " + bash_script_path
                     files_to_transfer = []
                     files_to_transfer.append(bash_script_path)
-                    files_to_transfer.append(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger))
-                    files_to_transfer.append(limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger))
+                    files_to_transfer.append(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger))
+                    files_to_transfer.append(limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=args.correctTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger))
                     condor_command += " -F " + ",".join(files_to_transfer)
                     condor_command += " -l combine_{}_\$\(Cluster\)_\$\(Process\).log".format(logName)
                     condor_command += " -s submit_combine_{}_{}_{}.jdl".format(analysis, model, mass)
                     condor_command += " -d " + submission_dir
+                    if method == "MaxLikelihoodFit":
+                        condor_command += " -o plots_" + job_name + " "
                     condor_command += " --cmssw"
                     if not first or args.no_retar:
                         condor_command += " --no_retar "
@@ -328,6 +352,8 @@ def main():
                 else:
                     print ">> Running combine for %s %s resonance with m = %i GeV..."%(analysis, model, int(mass))
                     print "---------------------------------------------------------------------------"
+                    if method == "MaxLikelihoodFit":
+                        os.system("mkdir -pv plots_" + job_name)
                     print "Running: " + cmd + "\n"
                     os.system(cmd)
                 if first:

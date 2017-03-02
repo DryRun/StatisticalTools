@@ -21,18 +21,30 @@ seaborn = Root.SeabornInterface()
 seaborn.Initialize()
 
 
-def RunAsimovCheck(datacard, expected_signal, dry_run=False):
+def RunAsimovCheck(datacard, expected_signal, condor=False, workspace=None):
 	name = os.path.basename(datacard).replace("datacard", "").replace(".txt", "") + "_" + str(expected_signal)
-	command = "combine {} -M MaxLikelihoodFit -t -1 --expectSignal {} --name {}".format(datacard, expected_signal, name)
-	if dry_run:
-		print command
+	if condor:
+		if not workspace:
+			print "[RunAsimovCheck] ERROR : If running on condor, you need to specify the workspace."
+			sys.exit(1)
+		start_dir = os.getcwd()
+		work_dir = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/AsimovFits/condor"
+		os.chdir(work_dir)
+		command = "combine {} -M MaxLikelihoodFit --preFitValue 0.1 --minimizerTolerance 0.4 -t -1 --expectSignal {} --name {}".format(os.path.basename(datacard), expected_signal, name)
+		run_script_path = "{}/run_{}.sh".format(work_dir, name)
+		run_script = open(run_script_path, 'w')
+		run_script.write("#!/bin/bash\n")
+		run_script.write(command + "\n")
+		condor_command = "csub --cmssw --no_retar -F " + datacard + "," + workspace + " --log log_" + name + " " + run_script_path
+		os.system(condor_command)
+		os.chdir(start_dir)
 	else:
-		command = "combine {} -M MaxLikelihoodFit -t -1 --expectSignal {} --name {}".format(datacard, expected_signal, name)
 		logfile = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/AsimovFits/asimovcheck" + name + ".log"
+		command = "combine {} -M MaxLikelihoodFit --preFitValue 0.1 --minimizerTolerance 0.4 -t -1 --expectSignal {} --name {}".format(datacard, expected_signal, name)
 		os.system(command + " >& " + logfile)
 
-		#with open("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Logs/asimovcheck" + name + ".log", "w") as out:
-		#	subprocess.call("combine {} -M MaxLikelihoodFit -t -1 --expectSignal {}".format(datacard, expected_signal), stdout=out)
+	#with open("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Logs/asimovcheck" + name + ".log", "w") as out:
+	#	subprocess.call("combine {} -M MaxLikelihoodFit -t -1 --expectSignal {}".format(datacard, expected_signal), stdout=out)
 		
 def AsimovFitTables(model, analysis, fit_functions, expected_signal, masses):
 	import ROOT
@@ -52,7 +64,7 @@ def AsimovFitTables(model, analysis, fit_functions, expected_signal, masses):
 	for mass in masses:
 		table_file.write("\t\t{} GeV ".format(mass))
 		for fit_function in fit_functions:
-			tree_file = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/AsimovFits/mlfit_{}_{}_{}_{}_fitSignal_correctTrigger_{}.root".format(analysis, model, mass, fit_function, expected_signal)
+			tree_file = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/AsimovFits/mlfit_{}_{}_{}_{}_correctTrigger_{}.root".format(analysis, model, mass, fit_function, expected_signal)
 			f = TFile(tree_file, "READ")
 			if not f.IsOpen():
 				print "[AsimovFitTables] WARNING : File {} was not found. Skipping.".format(tree_file)
@@ -104,7 +116,7 @@ def AsimovFitPlots(model, analysis, fit_functions, expected_signal, masses):
 		graph_mu[fit_function] = TGraphErrors(len(masses))
 		graph_pull[fit_function] = TGraph(len(masses))
 		for i in xrange(len(masses)):
-			tree_file = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/AsimovFits/mlfit_{}_{}_{}_{}_fitSignal_correctTrigger_{}.root".format(analysis, model, masses[i], fit_function, expected_signal)
+			tree_file = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/AsimovFits/mlfit_{}_{}_{}_{}_correctTrigger_{}.root".format(analysis, model, masses[i], fit_function, expected_signal)
 			f = TFile(tree_file, "READ")
 			if not f.IsOpen():
 				print "[AsimovFitTables] WARNING : File {} was not found. Skipping.".format(tree_file)
@@ -152,15 +164,17 @@ def AsimovFitPlots(model, analysis, fit_functions, expected_signal, masses):
 
 
 if __name__ == "__main__":
+	print "Welcome to check_asimov.py"
 	parser = ArgumentParser(description='Script that runs limit calculation for specified mass points')
 	parser.add_argument("--models", type=str, default="Hbb,RSG", help="Models")
 	parser.add_argument("--analyses", type=str, default="trigbbl_CSVTM,trigbbh_CSVTM", help="Analyses")
 	parser.add_argument("--masses", type=str, default=None, help="Masses")
-	parser.add_argument("--fit_functions", type=str, default="f3,f4", help="Fit functions")
+	parser.add_argument("--fit_functions", type=str, default="f1,f4", help="Fit functions")
 	parser.add_argument("--expected_signals", type=str, default="0,1", help="Injected signal strength")
 	parser.add_argument("--fit", action="store_true", help="Run fits")
 	parser.add_argument("--table", action="store_true", help="Make table from results")
 	parser.add_argument("--plot", action="store_true", help="Make plot from results")
+	parser.add_argument("--condor", action="store_true", help="Run fits on condor")
 	args = parser.parse_args()
 
 	models = args.models.split(",")
@@ -174,7 +188,7 @@ if __name__ == "__main__":
 	else:
 		for analysis in analyses:
 			if "bbl" in analysis:
-				masses[analysis] = xrange(400, 650, 50)
+				masses[analysis] = xrange(350, 650, 50)
 			elif "bbh" in analysis:
 				masses[analysis] = xrange(600, 1250, 50)
 
@@ -191,7 +205,7 @@ if __name__ == "__main__":
 			#				command = "combine {} -M MaxLikelihoodFit -t -1 --expectSignal {} --name {}".format(#datacard, expected_signal, name)
 			#				log = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Logs/asimovcheck" + name + "#.log"
 			#				os.system(command + " >& " + log)
-			Parallel(n_jobs=4)(delayed(RunAsimovCheck)(limit_config.get_datacard_filename(analysis, model, mass, fit_function, fitSignal=True, correctTrigger=True), expected_signal) for mass in masses[analysis] for model in models for fit_function in fit_functions for expected_signal in expected_signals)
+			Parallel(n_jobs=4)(delayed(RunAsimovCheck)(limit_config.get_datacard_filename(analysis, model, mass, fit_function, correctTrigger=True), expected_signal, condor=args.condor, workspace=limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True)) for mass in masses[analysis] for model in models for fit_function in fit_functions for expected_signal in expected_signals)
 
 		os.chdir(cwd)
 	if args.table:

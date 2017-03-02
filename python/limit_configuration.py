@@ -5,6 +5,7 @@ paths["limits"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/"
 paths["datacards"] = paths["limits"] + "/Datacards/"
 paths["condor"] = paths["limits"] + "/condor/"
 paths["combine_logs"] = paths["limits"] + "/Logs/"
+paths["gof"] = paths["limits"] + "/GoF/"
 paths["resonance_shapes"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/ResonanceShapes/"
 paths["limit_plots"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Results/figures/"
 paths["r_grid"] = "/uscms_data/d1/dryu/Dijets/EightTeeEeVeeBee/Fits/Grid/"
@@ -15,7 +16,9 @@ limit_signal_masses = {
 	"trigbbll_CSVTM":range(350, 850, 50),
 	"trigbbhl_CSVTM":range(600, 1250, 50),
 	"trigbbl_CSVM":range(350, 850, 50),
-	"trigbbh_CSVM":range(600, 1250, 50)
+	"trigbbh_CSVM":range(600, 1250, 50),
+	"NoTrigger_eta1p7_CSVTM":range(350, 850, 50),
+	"NoTrigger_eta2p2_CSVTM":range(600, 1250, 50),
 }
 
 # Estimates of 2-sigma expected limits, in pb
@@ -41,8 +44,10 @@ limit_m2sigma_estimates = {
 }
 
 # Get the path to a workspace. 
-def get_workspace_filename(analysis_name, model, mass, fitBonly=False, correctTrigger=False, fitTrigger=False, useMCTrigger=False):
+def get_workspace_filename(analysis_name, model, mass, fitBonly=False, correctTrigger=False, fitTrigger=False, qcd=False, useMCTrigger=False):
 	path = paths["datacards"] + "/workspace_" + analysis_name + "_" + model + "_" + str(mass)
+	if qcd:
+		path += "_qcd"
 	if fitBonly:
 		path += "_fitBonly"
 	if correctTrigger:
@@ -54,8 +59,10 @@ def get_workspace_filename(analysis_name, model, mass, fitBonly=False, correctTr
 	path += ".root"
 	return path
 	
-def get_datacard_filename(analysis_name, model, mass, fit_function, correctTrigger=False, fitTrigger=False, useMCTrigger=False):
+def get_datacard_filename(analysis_name, model, mass, fit_function, correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False):
 	path = paths["datacards"] + "/datacard_" + analysis_name + "_" + model + "_" + str(mass) + "_" + fit_function
+	if qcd:
+		path += "_qcd"
 	if correctTrigger:
 		path += "_correctTrigger"
 	if fitTrigger:
@@ -65,12 +72,14 @@ def get_datacard_filename(analysis_name, model, mass, fit_function, correctTrigg
 	path += ".txt"
 	return path
 
-def get_combine_log_path(analysis_name, model, mass, fit_function, method, systematics=True, frozen_nps=None, what="limits", correctTrigger=False, fitTrigger=False, useMCTrigger=False):
+def get_combine_log_path(analysis_name, model, mass, fit_function, method, systematics=True, frozen_nps=None, what="limits", correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False):
 	postfix = ""
 	if not systematics:
 		postfix += "_noSyst"
 	if frozen_nps:
 		postfix += "_" + frozen_nps.replace(",", "_")
+	if qcd:
+		postfix += "_qcd"
 	if correctTrigger:
 		postfix += "_correctTrigger"
 	if fitTrigger:
@@ -81,12 +90,14 @@ def get_combine_log_path(analysis_name, model, mass, fit_function, method, syste
 	return path
 
 # Example: limits_HybridNewGrid_trigbbh_CSVTM_Hbb_m1200_f3_exp2.log
-def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, method="HybridNewGrid", systematics=True, frozen_nps=None, correctTrigger=False, fitTrigger=False, useMCTrigger=False):
+def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, method="HybridNewGrid", systematics=True, frozen_nps=None, correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False):
 	postfix = ""
 	if not systematics:
 		postfix += "_noSyst"
 	if frozen_nps:
 		postfix += "_" + frozen_nps.replace(",", "_")
+	if qcd:
+		postfix += "_qcd"
 	if correctTrigger:
 		postfix += "_correctTrigger"
 	if useMCTrigger:

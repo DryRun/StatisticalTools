@@ -6,7 +6,7 @@ from ROOT import *
 def make_background_pdf(function_name, mjj, collision_energy=8000.):
 	fit_parameters = {}
 	if function_name == "f1":
-		fit_parameters["p1"] = RooRealVar('f1_p1','f1_p1',5.e-3,-10.,10.)
+		fit_parameters["p1"] = RooRealVar('f1_p1','f1_p1',-1.,-50.,50.)
 		fit_parameters["p2"] = RooRealVar('f1_p2','f1_p2',9.1,0.,60.)
 		fit_parameters["p3"] = RooRealVar('f1_p3','f1_p3',0.5,-10.,10.)
 		background_pdf = RooGenericPdf('background_' + function_name,'(pow(1-@0/%.1f,@1)/pow(@0/%.1f,@2+@3*log(@0/%.1f)))'%(collision_energy,collision_energy,collision_energy),RooArgList(mjj,fit_parameters["p1"],fit_parameters["p2"],fit_parameters["p3"]))

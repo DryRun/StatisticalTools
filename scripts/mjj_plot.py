@@ -675,7 +675,7 @@ if __name__ == "__main__":
 	#	for signal_model in args.fixed_signal.split(","):
 	#		expected_signal_workspaces.append(limit_paths.get_workspace_filename(args.analysis_name, signal_model))
 
-	mass_bins = array("d", [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8000])
+	mass_bins = array("d", [1, 3, 6, 10, 16, 23, 31, 40, 50, 61, 74, 88, 103, 119, 137, 156, 176, 197, 220, 244, 270, 296, 325, 354, 386, 419, 453, 489, 526, 565, 606, 649, 693, 740, 788, 838, 890, 944, 1000, 1058, 1118, 1181, 1246, 1313, 1383, 1455, 1530, 1607, 1687, 1770, 1856, 1945, 2037, 2132, 2231, 2332, 2438, 2546, 2659, 2775, 2895, 3019, 3147, 3279, 3416, 3558, 3704, 3854, 4010, 4171, 4337, 4509, 4686, 4869, 5000]) #5058, 5253, 5455, 5663, 5877, 6099, 6328, 6564, 6808, 7060, 7320, 7589, 7866, 8000])
 	if args.x_range:
 		x_range = args.x_range
 	else:
@@ -693,7 +693,7 @@ if __name__ == "__main__":
 			#	trigger_correction = "bbl"
 			data_histogram.SetDirectory(0)
 			for model in models:
-				background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, correctTrigger=False, fitTrigger=("trigbbl" in analysis))
+				background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, correctTrigger=True, fitTrigger=False)
 				save_tag = "mjj_combinefits_" + analysis + "_" + model
 				if len(fit_functions) == 1:
 					save_tag += "_" + fit_functions[0]
