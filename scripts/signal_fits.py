@@ -361,7 +361,8 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 			signal_pdf.SetName("signal_pdf")
 
 		# Some fits are special and need help
-		if (analysis == "trigbbl_CSVTM" or analysis == "trigbbll_CSVTM" or analysis == "trigbbl_notrig_CSVTM"):
+		if "trigbbl" in analysis:
+			#if (analysis == "trigbbl_CSVTM" or analysis == "trigbbll_CSVTM" or analysis == "trigbbl_notrig_CSVTM"):
 			xi_initial = -0.1 + (-0.45 + 0.1) / (900 - 400) * (mass - 400)
 			signal_vars["xi"].setMax(-0.05)
 			signal_vars["xi"].setVal(xi_initial)
@@ -395,7 +396,8 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 				signal_vars["rho2"].setMax(0.2)
 			elif mass == 900:
 				signal_vars["sigp"].setMin(70.)
-		elif analysis == "trigbbh_CSVTM" or analysis == "trigbbh_notrig_CSVTM":
+		elif "trigbbh" in analysis:
+			#elif analysis == "trigbbh_CSVTM" or analysis == "trigbbh_notrig_CSVTM":
 			sigp_initial = 55. + (160.-55.) / (1200 - 600) * (mass - 600)
 			signal_vars["sigp"].setVal(sigp_initial)
 			signal_vars["sigp"].setMin(sigp_initial - 30.)
@@ -1002,8 +1004,11 @@ if __name__ == "__main__":
 			masses[analysis] = [args.mass]
 	else:
 		# No need for limited masses, Tyler's files have all the interpolations
-		masses = {"trigbbl_CSVTM":[350, 400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200], "trigbbl_CSVM":[350, 400, 500, 600, 750, 900], "trigbbh_CSVM":[600, 750, 900, 1200], "trigbbhl_CSVTM":[600, 750, 900, 1200], "trigbbll_CSVTM":[350, 400, 500, 600, 750, 900], "trigbbl_notrig_CSVTM":[350, 400, 500, 600, 750, 900], "trigbbh_notrig_CSVTM":[600, 750, 900, 1200]}
-		#masses = {"trigbbl_CSVTM":range(400, 950, 50), "trigbbh_CSVTM":range(600, 1200, 50)}
+		for analysis in analyses:
+			if "trigbbl" in analysis:
+				masses[analysis] = [350,400,500,600,750,900]
+			elif "trigbbh" in analysis:
+				masses[analysis] = [600, 750, 900, 1200]
 	fit_functions = args.fit_functions.split(",")
 	if args.no_systematics:
 		print "[signal_fits] INFO : Running without systematics"
@@ -1035,16 +1040,21 @@ if __name__ == "__main__":
 		if args.mass:
 			print "[signal_fits] ERROR : Argument mass not supported for interpolation. The input/output masses are too complicated for the command line, and are written into the code."
 			sys.exit(1)
-		output_masses = {
-			"trigbbll_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbll_CSVTM"])),
-			"trigbbl_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVTM"])),
-			"trigbbhl_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbhl_CSVTM"])),
-			"trigbbh_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVTM"])),
-			"trigbbl_CSVM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVM"])),
-			"trigbbh_CSVM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVM"])),
-			"trigbbl_notrig_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbl_notrig_CSVTM"])),
-			"trigbbh_notrig_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_notrig_CSVTM"])),
-		}
+		for analysis in analyses:
+			if "trigbbl" in analysis:
+				output_masses[analysis] = list(set(range(350, 950, 50)) - set(masses[analysis]))
+			elif "trigbbh" in analysis:
+				output_masses[analysis] = list(set(range(600, 1250, 50)) - set(masses[analysis]))
+		#output_masses = {
+		#	"trigbbll_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbll_CSVTM"])),
+		#	"trigbbl_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVTM"])),
+		#	"trigbbhl_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbhl_CSVTM"])),
+		#	"trigbbh_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVTM"])),
+		#	"trigbbl_CSVM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVM"])),
+		#	"trigbbh_CSVM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVM"])),
+		#	"trigbbl_notrig_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbl_notrig_CSVTM"])),
+		#	"trigbbh_notrig_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_notrig_CSVTM"])),
+		#}
 		for analysis in analyses:
 			for model in models:
 				for fit_function in fit_functions:

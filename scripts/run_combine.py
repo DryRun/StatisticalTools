@@ -268,7 +268,7 @@ def main():
 
     datacards_path = limit_config.paths["datacards"]
     output_path = limit_config.paths["combine_logs"]
-    condor_path = limit_config.paths["gof"] + "/condor"
+    condor_path = limit_config.paths["condor"]
 
     # change to the appropriate directory
     if args.condor:
