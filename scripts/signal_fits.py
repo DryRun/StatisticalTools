@@ -1,5 +1,6 @@
 import os
 import sys
+sys.stdout.flush()
 import ROOT
 import copy
 from ROOT import *
@@ -375,6 +376,15 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 
 			sigp_initial = 35 + (100 -35) / (900 - 400) * (mass - 400)
 			signal_vars["sigp"].setVal(sigp_initial)
+			if "CSVM" in analysis and mass == 350:
+				signal_vars["xp"].setVal(325.)
+				signal_vars["rho2"].setVal(0.02)
+				signal_vars["xi"].setMax(-0.02)
+				signal_vars["xi"].setVal(-0.08)
+			if "CSVM" in analysis and mass == 500:
+				signal_vars["xp"].setVal(475.)
+				signal_vars["rho2"].setVal(0.06)
+				signal_vars["xi"].setVal(-0.2)
 			if mass == 400:
 				#signal_vars["xi"].setMax(10.)
 				signal_vars["xp"].setMin(300.)
@@ -396,6 +406,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 				signal_vars["rho2"].setMax(0.2)
 			elif mass == 900:
 				signal_vars["sigp"].setMin(70.)
+
 		elif "trigbbh" in analysis:
 			#elif analysis == "trigbbh_CSVTM" or analysis == "trigbbh_notrig_CSVTM":
 			sigp_initial = 55. + (160.-55.) / (1200 - 600) * (mass - 600)
