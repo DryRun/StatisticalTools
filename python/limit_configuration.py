@@ -19,6 +19,16 @@ limit_signal_masses = {
 	"trigbbh_CSVM":range(600, 1250, 50),
 	"NoTrigger_eta1p7_CSVTM":range(350, 850, 50),
 	"NoTrigger_eta2p2_CSVTM":range(600, 1250, 50),
+	"trigbbl_CSVT":range(350, 850, 50),
+	"trigbbh_CSVT":range(600, 1250, 50),
+	"trigbbl_CSVM":range(350, 850, 50),
+	"trigbbh_CSVM":range(600, 1250, 50),
+	"trigbbl_CSVL":range(350, 850, 50),
+	"trigbbh_CSVL":range(600, 1250, 50),
+	"trigbbl_CSVTL":range(350, 850, 50),
+	"trigbbh_CSVTL":range(600, 1250, 50),
+	"trigbbl_CSVML":range(350, 850, 50),
+	"trigbbh_CSVML":range(600, 1250, 50),
 }
 
 # Estimates of 2-sigma expected limits, in pb

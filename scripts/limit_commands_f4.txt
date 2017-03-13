@@ -1,0 +1,4 @@
+python run_combine.py -M Asymptotic --toysH 5000 --rAbsAcc 0.0001 --rRelAcc 0.001 --rMin 0.005 --rMax 0.2 --fitSignal -v5 --fit_function f4 --condor --no_retar
+python run_combine.py -M Asymptotic --fitSignal --noSyst --freezeNuisances shapeBkg_background_f4_bin1__norm,f4_p1,f4_p2,f4_p3 -v5 --fit_function f4 --condor --no_retar
+
+python run_combine.py -M HybridNew --frequentist --fitSignal --toysH 500 --rAbsAcc 0.005 --rRelAcc 0.01 -v2 --fit_function f4 --condor

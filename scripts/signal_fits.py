@@ -381,11 +381,31 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 				signal_vars["rho2"].setVal(0.02)
 				signal_vars["xi"].setMax(-0.02)
 				signal_vars["xi"].setVal(-0.08)
+			elif "CSVM" in analysis and mass == 400:
+				signal_vars["xp"].setVal(3.7008e+02)
+				signal_vars["rho2"].setVal(4.4137e-02)
+				signal_vars["xi"].setVal(-1.3378e-01)
+				signal_vars["sigp"].setVal(4.7188e+01)
+			if "CSVL" in analysis and mass == 350:
+				signal_vars["xp"].setVal(325.)
+				signal_vars["rho2"].setVal(0.02)
+				signal_vars["xi"].setMax(-0.02)
+				signal_vars["xi"].setVal(-0.08)
 			if "CSVM" in analysis and mass == 500:
 				signal_vars["xp"].setVal(475.)
 				signal_vars["rho2"].setVal(0.06)
 				signal_vars["xi"].setVal(-0.2)
-			if mass == 400:
+			if "CSVM" in analysis and mass == 600:
+				signal_vars["xp"].setVal(5.5885e+02)
+				signal_vars["rho2"].setVal(7.2476e-02)
+				signal_vars["xi"].setVal(-2.4311e-01)
+				signal_vars["sigp"].setVal(6.9726e+01)
+			if "CSVTL" in analysis and mass == 600:
+				signal_vars["xp"].setVal(5.5398e+02)
+				signal_vars["rho2"].setVal(7.4604e-02)
+				signal_vars["xi"].setVal(-1.9649e-01)
+				signal_vars["sigp"].setVal(7.2282e+01)
+			elif mass == 400:
 				#signal_vars["xi"].setMax(10.)
 				signal_vars["xp"].setMin(300.)
 			elif mass == 500:
@@ -1048,6 +1068,7 @@ if __name__ == "__main__":
 
 
 	if args.interpolate:
+		output_masses = {}
 		if args.mass:
 			print "[signal_fits] ERROR : Argument mass not supported for interpolation. The input/output masses are too complicated for the command line, and are written into the code."
 			sys.exit(1)

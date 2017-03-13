@@ -1,0 +1,29 @@
+Low mass
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbl_CSVTM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3 --models Hbb --masses 650
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbl_CSVTM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3  --models RSG --masses 400,650
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3 --models Hbb --masses 650
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3  --models RSG --masses 650,950
+
+
+
+Retry funky f4 points
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbl_CSVTM --fit_function f4 --condor --no_retar   -v3  --rMin 0.005 --rMax 50 --rAbsAcc 0.001 --rRelAcc 0.001 -v5 --masses 600,650,700,750,800
+
+
+Manually run slow f1 m=550
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbl_CSVTM --models Hbb --fit_function f1 -v3  --masses 550 --rAbsAcc 0.001 --rRelAcc 0.005 --rMin 0.3 --rMax 60 --minimizerTolerance 0.05
+
+
+High mass 
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar   -v3  --rAbsAcc 0.001 --rRelAcc 0.001 -v3 --masses 600,700,750,800,850,900,950,1000,1050,1100,1150,1200
+
+High mass weird points
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar   -v3  --rAbsAcc 0.001 --rRelAcc 0.001 --rMin 0.05 --rMax 40 -v5 --masses 950 --models RSG
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar -v3  --rAbsAcc 0.01 --rRelAcc 0.001 -v5 --masses 650 --minimizerTolerance 0.08
+
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar   -v3 --rMax 50 --rAbsAcc 0.001 --rRelAcc 0.001 -v5 --masses 1200
+
+
+Significance
+python run_combine.py -M HybridNew --correctTrigger --frequentist --significance --toysH 500 --rAbsAcc 0.001 --rRelAcc 0.001 -v3  --analyses trigbbl_CSVTM --fit_function f1 --condor --no_retar --testStat LHC
+python run_combine.py -M HybridNew --correctTrigger --frequentist --significance --toysH 500 --rAbsAcc 0.001 --rRelAcc 0.001 -v3  --analyses trigbbh_CSVTM --fit_function f1 --condor --no_retar --testStat LHC

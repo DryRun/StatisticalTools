@@ -6,15 +6,31 @@ import analysis_configuration_8TeV as analysis_config
 datacard_directory = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Datacards/condor"
 os.chdir(datacard_directory)
 #analyses = ["trigbbl_CSVTM", "trigbbh_CSVTM"]
-analyses = ["trigbbh_CSVTM"]
+#analyses = ["trigbbh_CSVTM"]
+analyses = []
+masses = {}
+mjj_min = {}
+mjj_max = {}
+for sr in ["trigbbl", "trigbbh"]:
+	for wp in ["CSVT", "CSVM", "CSVL", "CSVTL", "CSVML"]:
+		analysis = sr + "_" + wp
+		analyses.append(analysis)
+		if sr == "trigbbl":
+			masses[analysis] = range(350, 850, 50)
+			mjj_min[analysis] = 296
+			mjj_max[analysis] = 1058
+		else:
+			masses[analysis] = range(600, 1250, 50)
+			mjj_min[analysis] = 526
+			mjj_max[analysis] = 1607
 #masses = {"trigbbl_CSVTM":range(350, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
-masses = {"trigbbh_CSVTM":[1200]}
-mjj_min = {"trigbbl_CSVTM":296, "trigbbh_CSVTM":526}
-mjj_max = {"trigbbl_CSVTM":1058, "trigbbh_CSVTM":1607}
-useMCTrigger = False
-do_qcd = True
+#masses = {"trigbbh_CSVTM":[1200]}
+#mjj_min = {"trigbbl_CSVTM":296, "trigbbh_CSVTM":526}
+#mjj_max = {"trigbbl_CSVTM":1058, "trigbbh_CSVTM":1607}
+useMCTrigger = True
+do_qcd = False
 
-for model in ["Hbb", "RSG"]:
+for model in ["Hbb"]:
 	for analysis in analyses:
 		for mass in masses[analysis]:
 			if do_qcd:
@@ -39,7 +55,7 @@ for model in ["Hbb", "RSG"]:
 			input_files = [data_file_path, signal_pdf_file]
 			command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
 			command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
-			command += " --correctTrigger --runFit --condor"
+			command += " --correctTrigger --runFit --condor --useMCTrigger"
 			run_script_path = datacard_directory + "/run_dc_{}_{}_{}.sh".format(model, analysis, mass)
 			run_script = open(run_script_path, "w")
 			run_script.write("#!/bin/bash\n")
@@ -52,7 +68,7 @@ for model in ["Hbb", "RSG"]:
 				# Run another job with fitBonly, for plotting
 				command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
 				command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
-				command += " --correctTrigger --runFit --condor --fitBonly"
+				command += " --correctTrigger --runFit --condor --fitBonly --useMCTrigger"
 				run_script_path = datacard_directory + "/run_dc_{}_{}_{}_fitBonly.sh".format(model, analysis, mass)
 				run_script = open(run_script_path, "w")
 				run_script.write("#!/bin/bash\n")

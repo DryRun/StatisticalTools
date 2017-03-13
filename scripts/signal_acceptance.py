@@ -7,7 +7,13 @@ import analysis_configuration_8TeV as analysis_config
 import CMSDIJET.StatisticalTools.trigger_efficiency as trigger_efficiency
 
 models = ["Hbb", "RSG", "ZPrime"]
-analyses = ["trigbbl_CSVTM", "trigbbh_CSVTM"] # , "trigbbl_CSVM", "trigbbh_CSVM"
+#analyses = ["trigbbl_CSVTM", "trigbbh_CSVTM"] # , "trigbbl_CSVM", "trigbbh_CSVM"
+analyses = []
+for sr in ["trigbbl", "trigbbh"]:
+	for wp in ["CSVT", "CSVM", "CSVL", "CSVTL", "CSVML", "CSVTM"]:
+		analysis = sr + "_" + wp
+		analyses.append(analysis)
+
 masses = [350, 400, 500, 600, 750, 900, 1200]
 #masses = {"trigbbl_CSVTM":[400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200]}
 
@@ -47,7 +53,8 @@ for model in models:
 				signal_acc_times_eff[model][analysis][mass] = numerator/denominator
 			else:
 				signal_acc_times_eff[model][analysis][mass] = 0.
-			signal_acc_times_eff[model][analysis][mass] *= trigger_efficiency.online_btag_eff[analysis][0]
+			if not use_MC_trigger:
+				signal_acc_times_eff[model][analysis][mass] *= trigger_efficiency.online_btag_eff[analysis][0]
 			print "{} / {} / {} GeV : mjj acceptance = {}".format(model, analysis, mass, f.Get("BHistograms/h_pfjet_mjj").Integral(low_bin, high_bin) / f.Get("BHistograms/h_pfjet_mjj").Integral())
 			print "\tsample nevents = {}".format(f.Get("BHistograms/h_sample_nevents").Integral())
 			print "\tinput_nevents = {}".format(f.Get("BHistograms/h_input_nevents").Integral())

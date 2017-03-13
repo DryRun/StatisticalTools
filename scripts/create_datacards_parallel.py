@@ -209,7 +209,8 @@ def run_single_mass(args, mass):
         hData = CorrectTriggerEfficiency(hData_notrigcorr, args.analysis)
 
         # Still need b-tagging efficiency to scale the MC
-        trigeff_btag_formula  = RooFormulaVar("trigeff_btag_formula", str(trigger_efficiency.online_btag_eff[args.analysis][0]), RooArgList())
+        if not args.useMCTrigger:
+            trigeff_btag_formula  = RooFormulaVar("trigeff_btag_formula", str(trigger_efficiency.online_btag_eff[args.analysis][0]), RooArgList())
     else:
         hData = hData_notrigcorr
     if args.qcd:
@@ -273,8 +274,12 @@ def run_single_mass(args, mass):
             # Signal PDF = bukin * total trigger efficiency
             signal_pdf = RooEffProd("signal", "signal", signal_pdf_notrig, trigeff_total_formula)
         elif args.correctTrigger:
-            # Signal PDF = bukin * btag efficiency
-            signal_pdf = RooEffProd("signal", "signal", signal_pdf_notrig, trigeff_btag_formula)
+            if args.useMCTrigger:
+                signal_pdf = signal_pdf_notrig
+                signal_pdf.SetName("signal")
+            else:
+                # Signal PDF = bukin * btag efficiency
+                signal_pdf = RooEffProd("signal", "signal", signal_pdf_notrig, trigeff_btag_formula)
         elif args.qcd:
             # Signal PDF = bukin * btag efficiency
             # Same as correctTrigger
@@ -563,7 +568,7 @@ def run_single_mass(args, mass):
                 dcName = 'datacard_' + args.final_state + '_m' + str(mass) + postfix + '_' + fit_function + '.txt'
                 datacard_output_path = os.path.join(args.output_path,dcName)
             else:
-                datacard_output_path = limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, qcd=args.qcd)
+                datacard_output_path = limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd)
             if args.condor:
                 datacard_output_path = os.path.basename(datacard_output_path)
             print "[create_datacards] INFO : Writing datacard to file {}".format(datacard_output_path) 
@@ -575,7 +580,7 @@ def run_single_mass(args, mass):
             if args.output_path:
                 datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
             else:
-                datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, qcd=args.qcd))+' w:$PROCESS\n')
+                datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd))+' w:$PROCESS\n')
             datacard.write('---------------\n')
             datacard.write('bin 1\n')
             datacard.write('observation -1\n')
