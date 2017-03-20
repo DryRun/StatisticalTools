@@ -56,7 +56,7 @@ def main():
                         help="Method to calculate upper limits",
                         metavar="METHOD")
     parser.add_argument('--analyses', type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help="Analysis names")
-    parser.add_argument('--models', type=str, default="Hbb,RSG", help="Model names")
+    parser.add_argument('--models', type=str, default="Hbb,RSG,ZPrime", help="Model names")
     parser.add_argument('--qcd', action='store_true', help="Use QCD instead of data (assumes no trigger emulation)")
     parser.add_argument('--correctTrigger', action='store_true', help="Use model with trigger correction (has to have been specified in create_datacards.py)")
     parser.add_argument('--useMCTrigger', action='store_true', help="Use MC trigger")
@@ -134,6 +134,7 @@ def main():
     parser.add_argument('-v', '--verbose', type=int, help='Verbosity of combine')
     parser.add_argument('-m', '--masses', type=str, help='Manually specify masses (comma-separated list). Otherwise, taken from limit_configuration.')
     parser.add_argument("--preFitValue", type=float, help="preFitValue option for combine")
+    parser.add_argument("--fitBonly", action="store_true", help="Use workspace created with fitBonly option")
     #mass_group = parser.add_mutually_exclusive_group(required=True)
     #mass_group.add_argument("--mass",
     #                        type=int,
@@ -268,6 +269,8 @@ def main():
         postfix += "_useMCTrigger"
     if args.qcd:
         postfix += "_qcd"
+    if args.fitBonly:
+        postfix += "_fitBonly"
 
     datacards_path = limit_config.paths["datacards"]
     output_path = limit_config.paths["combine_logs"]
@@ -301,13 +304,13 @@ def main():
                     cmd = "combine -M %s %s %s 2>&1 | tee %s"%(
                         method,
                         run_options,
-                        os.path.basename(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger)),
+                        os.path.basename(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger, fitBonly=args.fitBonly)),
                         os.path.basename(os.path.join(('' if args.condor else output_path),logName)))
                 else:
                     cmd = "combine -M %s %s %s 2>&1 | tee %s"%(
                         method,
                         run_options,
-                        limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger),
+                        limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger, fitBonly=args.fitBonly),
                         os.path.join(('' if args.condor else output_path),logName))
 
                 # if using Condor
@@ -334,8 +337,8 @@ def main():
                     condor_command = "csub " + bash_script_path
                     files_to_transfer = []
                     files_to_transfer.append(bash_script_path)
-                    files_to_transfer.append(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger))
-                    files_to_transfer.append(limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger))
+                    files_to_transfer.append(limit_config.get_datacard_filename(analysis, model, mass, args.fit_function, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger, fitBonly=args.fitBonly))
+                    files_to_transfer.append(limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitTrigger=args.fitTrigger, fitBonly=args.fitBonly))
                     condor_command += " -F " + ",".join(files_to_transfer)
                     condor_command += " -l combine_{}_\$\(Cluster\)_\$\(Process\).log".format(logName)
                     condor_command += " -s submit_combine_{}_{}_{}.jdl".format(analysis, model, mass)

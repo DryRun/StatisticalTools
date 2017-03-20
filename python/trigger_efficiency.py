@@ -29,10 +29,21 @@ sigmoid_parameters = {
 		"trigeff_p0":[3.50710e+02, 3.06566e-01],
 		"trigeff_p1":[2.38978e+01, 3.33254e-01],
 	}, 
+	"trigbbl_CSVM":{
+ 		"trigeff_p0":[1.83611e+02, 2.80688e+00],
+ 		"trigeff_p1":[2.80708e+01, 4.10200e+00],
+	},
+	"trigbbh_CSVM":{
+		"trigeff_p0":[3.50710e+02, 3.06566e-01],
+		"trigeff_p1":[2.38978e+01, 3.33254e-01],
+	}, 
 }
 online_btag_eff = {
 	"trigbbl_CSVTM":[1.82719e-01, 3.99115e-03],
 	"trigbbh_CSVTM":[4.89446e-01, 5.91335e-03],
+	"trigbbl_CSVM":[1.33787e-01, 2.90406e-03],
+	"trigbbh_CSVM":[4.06002e-01, 4.26919e-03],
+
 }
 # Change to this! It's the real efficiency measurement.
 #Fitting BJet80_70_highmass
@@ -127,14 +138,24 @@ def get_var_formula(analysis, mjj_var):
 
 
 def get_formula_with_btag(analysis, mjj_var):
-	if "bbl" in analysis:
-		return RooFormulaVar("trigger_efficiency_bbl", 
-			"%.1f / (1. + exp(-1. * (@0 - %.1f) / %.1f))"%(online_btag_eff["trigbbl_CSVTM"], sigmoid_parameters["trigbbl_CSVTM"]["trigeff_p0"][0], sigmoid_parameters["trigbbl_CSVTM"]["trigeff_p1"][0]), 
-			RooArgList(mjj_var))
-	elif "bbh" in analysis:
-		return RooFormulaVar("trigger_efficiency_trigbbh_CSVTM", 
-			"%.1f / (1. + exp(-1. * (@0 - %.1f) / %.1f))"%(online_btag_eff["trigbbh_CSVTM"], sigmoid_parameters["trigbbh_CSVTM"]["trigeff_p0"][0], sigmoid_parameters["trigbbh_CSVTM"]["trigeff_p1"][0]), 
-			RooArgList(mjj_var))
+	if "CSVTM" in analysis:
+		if "bbl" in analysis:
+			return RooFormulaVar("trigger_efficiency_trigbbl_CSVM", 
+				"%.1f / (1. + exp(-1. * (@0 - %.1f) / %.1f))"%(online_btag_eff["trigbbl_CSVTM"], sigmoid_parameters["trigbbl_CSVTM"]["trigeff_p0"][0], sigmoid_parameters["trigbbl_CSVTM"]["trigeff_p1"][0]), 
+				RooArgList(mjj_var))
+		elif "bbh" in analysis:
+			return RooFormulaVar("trigger_efficiency_trigbbh_CSVTM", 
+				"%.1f / (1. + exp(-1. * (@0 - %.1f) / %.1f))"%(online_btag_eff["trigbbh_CSVTM"], sigmoid_parameters["trigbbh_CSVTM"]["trigeff_p0"][0], sigmoid_parameters["trigbbh_CSVTM"]["trigeff_p1"][0]), 
+				RooArgList(mjj_var))
+	elif "CSVM" in analysis:
+		if "bbl" in analysis:
+			return RooFormulaVar("trigger_efficiency_trigbbl_CSVM", 
+				"%.1f / (1. + exp(-1. * (@0 - %.1f) / %.1f))"%(online_btag_eff["trigbbl_CSVM"], sigmoid_parameters["trigbbl_CSVM"]["trigeff_p0"][0], sigmoid_parameters["trigbbl_CSVM"]["trigeff_p1"][0]), 
+				RooArgList(mjj_var))
+		elif "bbh" in analysis:
+			return RooFormulaVar("trigger_efficiency_trigbbh_CSVM", 
+				"%.1f / (1. + exp(-1. * (@0 - %.1f) / %.1f))"%(online_btag_eff["trigbbh_CSVM"], sigmoid_parameters["trigbbh_CSVM"]["trigeff_p0"][0], sigmoid_parameters["trigbbh_CSVM"]["trigeff_p1"][0]), 
+				RooArgList(mjj_var))
 
 
 def get_trivial_pdf(mjj_var):

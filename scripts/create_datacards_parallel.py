@@ -68,7 +68,8 @@ def main():
     trigger_group.add_argument("--correctTrigger", dest="correctTrigger",
                         action='store_true',
                         help="Apply trigger correction to data. Exclusive with fitTrigger.")
-    parser.add_argument("--useMCTrigger", action="store_true", help="Use MC trigger simulation (i.e. trigbbl/trigbbh), instead of measured data trigger times *_notrig_*")
+    parser.add_argument("--useMCTrigger", action="store_true", help="Use MC trigger simulation (i.e. trigbbl/trigbbh), instead of measured data trigger times *_NoTrigger_*")
+    parser.add_argument("--fitOffB", action="store_true", help="Include offline b-tag efficiency in background fit")
     parser.add_argument("-l", "--lumi", dest="lumi",
                         default=19700., type=float,
                         help="Integrated luminosity in pb-1 (default: %(default).1f)",
@@ -135,19 +136,19 @@ def main():
         sys.exit(1)
 
     masses = []
-    if args.fitBonly:
-        masses.append(750)
+    #if args.fitBonly:
+    #    masses.append(750)
+    #else:
+    if args.massrange != None:
+        MIN, MAX, STEP = args.massrange
+        masses = range(MIN, MAX+STEP, STEP)
+    elif args.masslist != None:
+        # A mass list was provided
+        print  "Will create mass list according to", args.masslist
+        masslist = __import__(args.masslist.replace(".py",""))
+        masses = masslist.masses
     else:
-        if args.massrange != None:
-            MIN, MAX, STEP = args.massrange
-            masses = range(MIN, MAX+STEP, STEP)
-        elif args.masslist != None:
-            # A mass list was provided
-            print  "Will create mass list according to", args.masslist
-            masslist = __import__(args.masslist.replace(".py",""))
-            masses = masslist.masses
-        else:
-            masses = args.mass
+        masses = args.mass
     # sort masses
     masses.sort()
 
@@ -239,13 +240,20 @@ def run_single_mass(args, mass):
             signal_pdf_file = os.path.basename(signal_pdf_file)
         print "[create_datacards] Loading fitted signal PDFs from " + signal_pdf_file
         f_signal_pdfs = TFile(signal_pdf_file, "READ")
+        f_signal_pdfs.Print()
         w_signal = f_signal_pdfs.Get("w_signal")
+        w_signal.Print()
         bukin_pdf = w_signal.pdf("signal_bukin")
+        bukin_pdf.Print()
     else:
         if args.analysis == "trigbbl_CSVTM" or args.analysis == "NoTrigger_eta1p7_CSVTM":
-            notrig_analysis = "trigbbl_notrig_CSVTM"
+            notrig_analysis = "NoTrigger_eta1p7_CSVTM"
         elif args.analysis == "trigbbh_CSVTM" or args.analysis == "NoTrigger_eta2p2_CSVTM":
-            notrig_analysis = "trigbbh_notrig_CSVTM"
+            notrig_analysis = "NoTrigger_eta2p2_CSVTM"
+        elif args.analysis == "trigbbl_CSVM" or args.analysis == "NoTrigger_eta1p7_CSVM":
+            notrig_analysis = "NoTrigger_eta1p7_CSVM"
+        elif args.analysis == "trigbbh_CSVM" or args.analysis == "NoTrigger_eta2p2_CSVM":
+            notrig_analysis = "NoTrigger_eta2p2_CSVM"
         else:
             print "[run_single_mass] ERROR : I don't know a no-trigger variant of analysis {}. Please make one, or specify --useMCTrigger.".format(args.analysis) 
             sys.exit(1)
@@ -284,6 +292,7 @@ def run_single_mass(args, mass):
             # Signal PDF = bukin * btag efficiency
             # Same as correctTrigger
             signal_pdf = RooEffProd("signal", "signal", signal_pdf_notrig, trigeff_btag_formula)
+
     # Copy input parameter values
     signal_vars["xp_0"].setVal(input_signal_parameters["xp"][0])
     signal_vars["xp_0"].setError(input_signal_parameters["xp"][1])
@@ -314,6 +323,18 @@ def run_single_mass(args, mass):
     background_epdfs = {}
     models = {}
     fit_results = {}
+
+    if args.fitOffB:
+        # Load RooHistPdf
+        if "bbl" in args.analysis or "eta1p7" in args.analysis:
+            eta_region = "eta1p7"
+        elif "bbh" in args.analysis or "eta2p2" in args.analysis:
+            eta_region = "eta2p2"
+        f_offline_btag_eff = TFile(analysis_config.get_offline_btag_file("CSVTM", eta_region))
+        h_offline_btag_eff = f_offline_btag_eff.Get("h_offline_btag_eff")
+        print h_offline_btag_eff
+        offline_btag_eff_rdh = RooDataHist("rdh_offline_btag_eff", "rdh_offline_btag_eff", RooArgList(mjj), h_offline_btag_eff)
+        offline_btag_eff_pdf = RooHistPdf("pdf_offline_btag_eff", "pdf_offline_btag_eff", RooArgSet(mjj), offline_btag_eff_rdh)
 
     for fit_function in fit_functions:
         print "[create_datacards] INFO : On fit function {}".format(fit_function)
@@ -351,8 +372,13 @@ def run_single_mass(args, mass):
         background_pdfs_notrig[fit_function], background_parameters[fit_function] = make_background_pdf(fit_function, mjj, collision_energy=8000.)
         background_pdf_name = background_pdfs_notrig[fit_function].GetName()
         background_pdfs_notrig[fit_function].SetName(background_pdf_name + "_notrig")
-        if args.fitTrigger:
+        if args.fitTrigger and args.fitOffB:
+            background_pdf_intermediate = RooProdPdf(background_pdf_name + "_intermediate", background_pdf_name + "_intermediate", offline_btag_eff_pdf, background_pdfs_notrig[fit_function])
+            background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdf_intermediate, trigeff_pt_formula)
+        elif args.fitTrigger and not args.fitOffB:
             background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigeff_pt_formula)
+        elif args.fitOffB and not args.fitTrigger:
+            background_pdfs[fit_function] = RooProdPdf(background_pdf_name, background_pdf_name, offline_btag_eff_pdf, background_pdfs_notrig[fit_function])
         else:
             background_pdfs[fit_function] = background_pdfs_notrig[fit_function]
             background_pdfs[fit_function].SetName(background_pdf_name)
@@ -360,9 +386,14 @@ def run_single_mass(args, mass):
         # Initial values
         if "trigbbh" in args.analysis:
             if fit_function == "f1":
-                background_parameters[fit_function]["p1"].setVal(-13.5877235358)
-                background_parameters[fit_function]["p2"].setVal(14.0659901462)
-                background_parameters[fit_function]["p3"].setVal(1.24550474025)
+                if mass == 650:
+                    background_parameters[fit_function]["p1"].setVal(-2.2473e+01)
+                    background_parameters[fit_function]["p2"].setVal(1.4923e+01)
+                    background_parameters[fit_function]["p3"].setVal(1.3077e+00)
+                else:
+                    background_parameters[fit_function]["p1"].setVal(-13.5877235358)
+                    background_parameters[fit_function]["p2"].setVal(14.0659901462)
+                    background_parameters[fit_function]["p3"].setVal(1.24550474025)
                 background_parameters[fit_function]["p1"].setMin(-50.)
                 background_parameters[fit_function]["p1"].setMax(50.)
             elif fit_function == "f2":
@@ -511,7 +542,7 @@ def run_single_mass(args, mass):
             os.mkdir( os.path.join(os.getcwd(),args.output_path) )
         workspace_output_path = os.path.join(args.output_path,wsName)
     else:
-        workspace_output_path = limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd)
+        workspace_output_path = limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitOffB=args.fitOffB)
     if args.condor:
         workspace_output_path = os.path.basename(workspace_output_path)
     print "[create_datacards] INFO : Writing workspace to file {}".format(workspace_output_path)
@@ -560,56 +591,55 @@ def run_single_mass(args, mass):
     w.IsA().Destructor(w)
 
     # Make datacards only if S+B fitted
-    if not args.fitBonly:
-        #beffUnc = 0.3
-        boffUnc = 0.06
-        for fit_function in fit_functions:
-            if args.output_path:
-                dcName = 'datacard_' + args.final_state + '_m' + str(mass) + postfix + '_' + fit_function + '.txt'
-                datacard_output_path = os.path.join(args.output_path,dcName)
-            else:
-                datacard_output_path = limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd)
-            if args.condor:
-                datacard_output_path = os.path.basename(datacard_output_path)
-            print "[create_datacards] INFO : Writing datacard to file {}".format(datacard_output_path) 
-            datacard = open(datacard_output_path, 'w')
-            datacard.write('imax 1\n')
-            datacard.write('jmax 1\n')
-            datacard.write('kmax *\n')
-            datacard.write('---------------\n')
-            if args.output_path:
-                datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
-            else:
-                datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd))+' w:$PROCESS\n')
-            datacard.write('---------------\n')
-            datacard.write('bin 1\n')
-            datacard.write('observation -1\n')
-            datacard.write('------------------------------\n')
-            datacard.write('bin          1          1\n')
-            datacard.write('process      signal     background_' + fit_function + '\n')
-            datacard.write('process      0          1\n')
-            datacard.write('rate         1         1\n')
-            datacard.write('------------------------------\n')
-            datacard.write('lumi  lnN    %f         -\n'%(1.+systematics["luminosity"]))
-            #datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
-            datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
-            #datacard.write('bkg   lnN     -         1.03\n')
-            if "jes" in systematics:
-                datacard.write("alpha_jes  param  0.0  1.0\n")
-            if "jer" in systematics:
-                datacard.write("alpha_jer  param  0.0  1.0\n")
-            # Trigger efficiency
-            if not args.useMCTrigger:
-                datacard.write("trigeff_btag  param  {}  {}\n".format(trigger_efficiency.online_btag_eff[args.analysis][0], trigger_efficiency.online_btag_eff[args.analysis][1]))
-            if args.fitTrigger:
-                for trigeff_var_name, trigeff_var in trigeff_vars.iteritems():
-                    datacard.write("{}  param  {}  {}\n".format(trigeff_var_name, trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][0], trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][1]))
-            # Background fit parameters --- flat prior
-            datacard.write('background_' + fit_function + '_norm  flatParam\n')
-            for par_name, par in background_parameters[fit_function].iteritems():
-                    datacard.write(fit_function + "_" + par_name + '  flatParam\n')
-            datacard.close()
-            print "[create_datacards] INFO : Done with this datacard"
+    #beffUnc = 0.3
+    boffUnc = 0.06
+    for fit_function in fit_functions:
+        if args.output_path:
+            dcName = 'datacard_' + args.final_state + '_m' + str(mass) + postfix + '_' + fit_function + '.txt'
+            datacard_output_path = os.path.join(args.output_path,dcName)
+        else:
+            datacard_output_path = limit_config.get_datacard_filename(args.analysis, args.model, mass, fit_function, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitOffB=args.fitOffB, fitBonly=args.fitBonly)
+        if args.condor:
+            datacard_output_path = os.path.basename(datacard_output_path)
+        print "[create_datacards] INFO : Writing datacard to file {}".format(datacard_output_path) 
+        datacard = open(datacard_output_path, 'w')
+        datacard.write('imax 1\n')
+        datacard.write('jmax 1\n')
+        datacard.write('kmax *\n')
+        datacard.write('---------------\n')
+        if args.output_path:
+            datacard.write('shapes * * '+wsName+' w:$PROCESS\n')
+        else:
+            datacard.write('shapes * * '+os.path.basename(limit_config.get_workspace_filename(args.analysis, args.model, mass, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitOffB=args.fitOffB, fitBonly=args.fitBonly))+' w:$PROCESS\n')
+        datacard.write('---------------\n')
+        datacard.write('bin 1\n')
+        datacard.write('observation -1\n')
+        datacard.write('------------------------------\n')
+        datacard.write('bin          1          1\n')
+        datacard.write('process      signal     background_' + fit_function + '\n')
+        datacard.write('process      0          1\n')
+        datacard.write('rate         1         1\n')
+        datacard.write('------------------------------\n')
+        datacard.write('lumi  lnN    %f         -\n'%(1.+systematics["luminosity"]))
+        #datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
+        datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
+        #datacard.write('bkg   lnN     -         1.03\n')
+        if "jes" in systematics:
+            datacard.write("alpha_jes  param  0.0  1.0\n")
+        if "jer" in systematics:
+            datacard.write("alpha_jer  param  0.0  1.0\n")
+        # Trigger efficiency
+        if not args.useMCTrigger:
+            datacard.write("trigeff_btag  param  {}  {}\n".format(trigger_efficiency.online_btag_eff[args.analysis][0], trigger_efficiency.online_btag_eff[args.analysis][1]))
+        if args.fitTrigger:
+            for trigeff_var_name, trigeff_var in trigeff_vars.iteritems():
+                datacard.write("{}  param  {}  {}\n".format(trigeff_var_name, trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][0], trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][1]))
+        # Background fit parameters --- flat prior
+        datacard.write('background_' + fit_function + '_norm  flatParam\n')
+        for par_name, par in background_parameters[fit_function].iteritems():
+                datacard.write(fit_function + "_" + par_name + '  flatParam\n')
+        datacard.close()
+        print "[create_datacards] INFO : Done with this datacard"
 
     #print '>> Datacards and workspaces created and stored in %s/'%( os.path.join(os.getcwd(),args.output_path) )
     print "Done with mass {}.".format(mass)

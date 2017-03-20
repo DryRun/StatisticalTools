@@ -654,6 +654,9 @@ if __name__ == "__main__":
 	parser.add_argument("--draw_trigeff", action="store_true", help="Plot with and without trigger efficiency (assumes create_datacards with run with correctTrigger)")
 	parser.add_argument("--hide_chi2prob", action="store_false", help="Hide fit chi2 probabilities in legend.")
 	parser.add_argument("--central", action="store_true", help="Draw central value of fit only")
+	parser.add_argument("--correctTrigger", action="store_true", help="")
+	parser.add_argument("--fitTrigger", action="store_true", help="")
+	parser.add_argument("--fitOffB", action="store_true", help="")
 	# Fit options
 	parser.add_argument("-l", "--lumi", dest="lumi",
 						default=19700., type=float,
@@ -693,7 +696,7 @@ if __name__ == "__main__":
 			#	trigger_correction = "bbl"
 			data_histogram.SetDirectory(0)
 			for model in models:
-				background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, correctTrigger=True, fitTrigger=False)
+				background_workspace = limit_config.get_workspace_filename(analysis, model, 750, fitBonly=True, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger, fitOffB=args.fitOffB)
 				save_tag = "mjj_combinefits_" + analysis + "_" + model
 				if len(fit_functions) == 1:
 					save_tag += "_" + fit_functions[0]

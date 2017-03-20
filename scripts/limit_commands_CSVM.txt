@@ -1,10 +1,9 @@
-python create_datacards.py trigbbh_CSVM Hbb --massMin 526 --massMax 1607 --massrange 600 1200 50 --fitSignal --runFit >& log_trigbbh_CSVM_Hbb_fitSignal.txt &
-python create_datacards.py trigbbl_CSVM Hbb --massMin 354 --massMax 1607 --massrange 400 800 50 --fitSignal --runFit >& log_trigbbl_CSVM_Hbb_fitSignal.txt &
-python create_datacards.py trigbbh_CSVM RSG --massMin 526 --massMax 1607 --massrange 600 1200 50 --fitSignal --runFit >& log_trigbbh_CSVM_RSG_fitSignal.txt &
-python create_datacards.py trigbbl_CSVM RSG --massMin 354 --massMax 1607 --massrange 400 800 50 --fitSignal --runFit >& log_trigbbl_CSVM_RSG_fitSignal.txt &
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbl_CSVM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3 --models Hbb
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbl_CSVM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3  --models RSG
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbh_CSVM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3 --models Hbb
+python run_combine.py -M Asymptotic --correctTrigger --analyses trigbbh_CSVM --fit_function f1 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001  -v3  --models RSG
 
-python run_combine.py -M Asymptotic --fitSignal --fit_function f3 --condor --rAbsAcc 0.001 --rRelAcc 0.001  -v5 --analyses trigbbh_CSVM,trigbbl_CSVM
-python run_combine.py -M Asymptotic --fitSignal --fit_function f3 --condor --no_retar --rAbsAcc 0.001 --rRelAcc 0.001 --noSyst --freezeNuisances shapeBkg_background_f3_bin1__norm,f3_p1,f3_p2,alpha_jer,alpha_jes   -v3 --analyses trigbbh_CSVM,trigbbl_CSVM
+
 
 python plot_limits.py trigbbh_CSVM Hbb -M Asymptotic --fit_function f3 --massrange 600 1200 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVM_Hbb_f3.root --extraText Preliminary --postfix preliminary
 python plot_limits.py trigbbl_CSVM Hbb -M Asymptotic --fit_function f3 --massrange 400 800 50 --saveObjects /uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVM_Hbb_f3.root --extraText Preliminary --postfix preliminary

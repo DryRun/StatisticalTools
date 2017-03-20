@@ -235,7 +235,7 @@ def copy_signal_pdf(fit_function, input_function, mjj, tag=None, include_systema
 
 def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 	print "[signal_fit] INFO : Welcome to signal_fit({}, {}, {}, {})".format(analysis, model, mass, ",".join(fit_functions))
-	fit_trigger = not ("notrig" in analysis)
+	fit_trigger = not ("notrig" in analysis or "NoTrigger" in analysis)
 	if systematics:
 		print "\t",
 		print systematics
@@ -395,12 +395,21 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 				signal_vars["xp"].setVal(475.)
 				signal_vars["rho2"].setVal(0.06)
 				signal_vars["xi"].setVal(-0.2)
+			if "CSVTM" in analysis and mass == 500:
+				signal_vars["xp"].setVal(475.)
+				signal_vars["rho2"].setVal(0.06)
+				signal_vars["xi"].setVal(-0.2)
 			if "CSVM" in analysis and mass == 600:
 				signal_vars["xp"].setVal(5.5885e+02)
 				signal_vars["rho2"].setVal(7.2476e-02)
 				signal_vars["xi"].setVal(-2.4311e-01)
 				signal_vars["sigp"].setVal(6.9726e+01)
 			if "CSVTL" in analysis and mass == 600:
+				signal_vars["xp"].setVal(5.5398e+02)
+				signal_vars["rho2"].setVal(7.4604e-02)
+				signal_vars["xi"].setVal(-1.9649e-01)
+				signal_vars["sigp"].setVal(7.2282e+01)
+			if "trigbbl_CSVTM" in analysis and mass == 600:
 				signal_vars["xp"].setVal(5.5398e+02)
 				signal_vars["rho2"].setVal(7.4604e-02)
 				signal_vars["xi"].setVal(-1.9649e-01)
@@ -448,8 +457,11 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 				#	signal_vars["rho2"].setVal(0.15)
 				#	signal_vars["sigp"].setMin(50.)
 				if mass == 1200:
+					signal_vars["xp"].setVal(1.1395e+03)
 					signal_vars["sigp"].setMin(75.)
-					signal_vars["sigp"].setVal(140.)
+					signal_vars["sigp"].setVal(1.6098e+02)
+					signal_vars["xi"].setVal(-5.8503e-01)
+					signal_vars["rho2"].setVal(2.5920e-01)
 			elif model == "Hbb":
 				# Take initial values from RSG 
 				rho2_initial = 0.06 + (0.22 - 0.06) / (1200 - 600) * (mass - 600)
@@ -570,7 +582,7 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 	print "systematics=",
 	print systematics
 
-	fit_trigger = not ("notrig" in analysis)
+	fit_trigger = not ("notrig" in analysis or "NoTrigger" in analysis)
 
 	systematic_variations = []
 	if "jer" in systematics:
@@ -873,7 +885,7 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 	input_parameter_splines = {}
 	parameter_names = {}
 
-	fit_trigger = not ("notrig" in analysis)
+	fit_trigger = not ("notrig" in analysis or "NoTrigger" in analysis)
 
 	for input_mass in input_masses:
 		index = input_masses.index(input_mass)
@@ -1020,7 +1032,7 @@ if __name__ == "__main__":
 	parser.add_argument("--table", action="store_true", help="Table of fit parameters")
 	parser.add_argument("--interpolate", action="store_true", help="Run signal interpolation")
 	parser.add_argument("--validate_interpolation", action="store_true", help="Compare actual fits to interpolations")
-	parser.add_argument("--analyses", type=str, default="trigbbh_notrig_CSVTM,trigbbl_notrig_CSVTM", help="List of analyses to run (comma-separated)")
+	parser.add_argument("--analyses", type=str, default="NoTrigger_eta1p7_CSVTM,NoTrigger_eta2p2_CSVTM", help="List of analyses to run (comma-separated)")
 	parser.add_argument("--models", type=str, default="Hbb,RSG", help="List of models to run")
 	parser.add_argument("--mass", type=int, help="Manually specify mass (otherwise, script runs all mass points)")
 	parser.add_argument("--fit_functions", type=str, default="bukin", help="List of fit functions")
@@ -1036,9 +1048,9 @@ if __name__ == "__main__":
 	else:
 		# No need for limited masses, Tyler's files have all the interpolations
 		for analysis in analyses:
-			if "trigbbl" in analysis:
+			if "trigbbl" in analysis or "eta1p7" in analysis:
 				masses[analysis] = [350,400,500,600,750,900]
-			elif "trigbbh" in analysis:
+			elif "trigbbh" in analysis or "eta2p2" in analysis:
 				masses[analysis] = [600, 750, 900, 1200]
 	fit_functions = args.fit_functions.split(",")
 	if args.no_systematics:
@@ -1073,9 +1085,9 @@ if __name__ == "__main__":
 			print "[signal_fits] ERROR : Argument mass not supported for interpolation. The input/output masses are too complicated for the command line, and are written into the code."
 			sys.exit(1)
 		for analysis in analyses:
-			if "trigbbl" in analysis:
+			if "trigbbl" in analysis or "eta1p7" in analysis:
 				output_masses[analysis] = list(set(range(350, 950, 50)) - set(masses[analysis]))
-			elif "trigbbh" in analysis:
+			elif "trigbbh" in analysis or "eta2p2" in analysis:
 				output_masses[analysis] = list(set(range(600, 1250, 50)) - set(masses[analysis]))
 		#output_masses = {
 		#	"trigbbll_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbll_CSVTM"])),

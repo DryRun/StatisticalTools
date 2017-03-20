@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--timesAE', action='store_true', help="Set y-axis to sigma*BR*A*e, instead of sigma*BR")
     parser.add_argument('--fitTrigger', action='store_true', help="Use trigger fit")
     parser.add_argument('--correctTrigger', action='store_true', help="Use trigger correction")
+    parser.add_argument('--useMCTrigger', action='store_true', help="Use MC trigger emulation")
     #results_group = parser.add_mutually_exclusive_group(required=True)
     #results_group.add_argument("-l", "--logs_path", dest="logs_path",
     #                           help="Path to log files",
@@ -162,7 +163,7 @@ def main():
         if args.method == "HybridNewGrid":
             found_limit = {"obs":False, "exp0":False, "exp1":False, "exp2":False, "exp-1":False, "exp-2":False}
             for what in found_limit.keys():
-                log_file_path = limit_config.get_combine_log_path_grid(args.analysis, args.model, mass, args.fit_function, what, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
+                log_file_path = limit_config.get_combine_log_path_grid(args.analysis, args.model, mass, args.fit_function, what, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger)
                 print "Reading log file from " + log_file_path
                 log_file = open(log_file_path, 'r')
                 for line in log_file:
@@ -198,8 +199,18 @@ def main():
                 print "** ERROR: ** Could not find observed limit for m =", int(mass), "GeV. Aborting."
                 sys.exit(1)
         else:
-            print "Reading log file from " + limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger)
-            log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger))
+            print "Reading log file from " + limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger)
+            if not os.path.exists((limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger))):
+                print "[plot_limits] WARNING : Log file not found! Setting limits to zero and skipping this point."
+                print "[plot_limits] WARNING : \t{}".format(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger))
+                xs_obs_limits.append(0)
+                xs_exp_limits.append(0)
+                xs_exp_limits_1sigma.append(0)
+                xs_exp_limits_1sigma_up.append(0)
+                xs_exp_limits_2sigma.append(0)
+                xs_exp_limits_2sigma_up.append(0)
+                continue
+            log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger))
 
             foundMethod = False
             middle = 0
@@ -504,6 +515,8 @@ def main():
         postfix += "_fitTrigger"
     elif args.correctTrigger:
         postfix += "_correctTrigger"
+    if args.useMCTrigger:
+        postfix += "_useMCTrigger"
     fileName = limit_config.paths["limit_plots"] + '/xs_limit_%s_%s_%s_%s.%s'%(args.method,args.analysis, args.model + postfix, args.fit_function, args.fileFormat.lower())
     if args.timesAE:
         fileName = fileName.replace("xs_limit", "xsAE_limit")

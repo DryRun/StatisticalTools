@@ -20,7 +20,7 @@ titles = {"KS":"d_{KS}", "AD":"A^{2}", "saturated":""}
 
 if __name__ == "__main__":
 	# input parameters
-	parser = ArgumentParser(description='Script that runs limit calculation for specified mass points')
+	parser = ArgumentParser(description='Run goodness of fit tests using combine')
 	parser.add_argument('--analyses', type=str, default="trigbbh_CSVTM,trigbbl_CSVTM", help="Analysis names")
 	parser.add_argument('--models', type=str, default="Hbb", help="Model names")
 	parser.add_argument('--qcd', action='store_true', help="Use QCD instead of data (assumes no trigger emulation)")
@@ -133,17 +133,19 @@ if __name__ == "__main__":
 					first = False
 
 				if args.plot:
-					data_file = TFile(limit_config.paths["gof"] + "/higgsCombinegof_{}.GoodnessOfFit.mH{}.123456.root".format(job_name, mass), "READ")
-					toy_file = TFile(limit_config.paths["gof"] + "/higgsCombinegof_{}.GoodnessOfFit.mH{}.123456.root".format(job_name, mass), "READ")
+					# higgsCombinegof_trigbbh_CSVTM_Hbb_m750_f1_AD.GoodnessOfFit.mH750.root
+					# higgsCombinegof_trigbbh_CSVTM_Hbb_m750_f1_AD_toys.GoodnessOfFit.mH750.123456.root
+					data_file = TFile(limit_config.paths["gof"] + "/higgsCombine{}.GoodnessOfFit.mH{}.{}.root".format(job_name, mass, args.seed), "READ")
+					toy_file = TFile(limit_config.paths["gof"] + "/higgsCombine{}_toys.GoodnessOfFit.mH{}.{}.root".format(job_name, mass, args.seed), "READ")
 					data_tree = data_file.Get("limit")
 					data_tree.GetEntry(0)
 					data_gof = data_tree.GetLeaf("limit").GetValue(0)
 					toy_tree = toy_file.Get("limit")
 					toy_gofs = []
-					toy_gof_hist = TH1D("toy_gof_" + job_name, "toy_gof_" + job_name, 1000, 0., 10.)
+					toy_gof_hist = TH1D("toy_gof_" + job_name, "toy_gof_" + job_name, 50, 0., 10.)
 					total_toys = 0
 					gt_toys = 0
-					for entry in xrange(len(toy_tree.GetEntriesFast())):
+					for entry in xrange(toy_tree.GetEntriesFast()):
 						toy_tree.GetEntry(entry)
 						this_gof = toy_tree.GetLeaf("limit").GetValue(0)
 						toy_gofs.append(this_gof)
@@ -154,20 +156,20 @@ if __name__ == "__main__":
 
 					c = TCanvas("c_gof_" + job_name, "c_gof_" + job_name, 800, 600)
 					x_min = 0.
-					x_max = max(max(list), data_gof) * 1.2
+					x_max = max(max(toy_gofs), data_gof) * 1.2
 					frame =  TH1D("frame_" + job_name, "frame_" + job_name, 100, x_min, x_max)
 					frame.GetXaxis().SetTitle(titles[args.algo])
 					frame.SetMinimum(0.)
-					frame.SetMaximum(toy_gof_hist.GetMaximum(0.))
+					frame.SetMaximum(toy_gof_hist.GetMaximum()*1.3)
 					frame.Draw("axis")
 					toy_gof_hist.Draw("hist same")
 					data_gof_line = TLine(data_gof, frame.GetMinimum(), data_gof, frame.GetMaximum())
 					data_gof_line.SetLineStyle(1)
 					data_gof_line.SetLineWidth(3)
-					data_gof_line.SetLineColor(seaborn.GetColorRoot(2, "default"))
+					data_gof_line.SetLineColor(seaborn.GetColorRoot("default", 2))
 					data_gof_line.Draw("same")
 
-					myText(0.6, 0.7, kBlack, "p={}".format(round(1.*gt_toys/total_toys, 2)))
-					myText(0.6, 0.8, kBlack, "Data GOF=".format(round(data_gof, 2)))
+					Root.myText(0.6, 0.7, kBlack, "p={}".format(round(1.*gt_toys/total_toys, 2)), 0.5)
+					Root.myText(0.6, 0.8, kBlack, "Data GOF=".format(round(data_gof, 2)), 0.5)
 
 					c.SaveAs(limit_config.paths["gof"] + "/figures/" + c.GetName() + ".pdf")

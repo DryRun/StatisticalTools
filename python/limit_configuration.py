@@ -54,7 +54,7 @@ limit_m2sigma_estimates = {
 }
 
 # Get the path to a workspace. 
-def get_workspace_filename(analysis_name, model, mass, fitBonly=False, correctTrigger=False, fitTrigger=False, qcd=False, useMCTrigger=False):
+def get_workspace_filename(analysis_name, model, mass, fitBonly=False, correctTrigger=False, fitTrigger=False, qcd=False, useMCTrigger=False, fitOffB=False):
 	path = paths["datacards"] + "/workspace_" + analysis_name + "_" + model + "_" + str(mass)
 	if qcd:
 		path += "_qcd"
@@ -66,23 +66,29 @@ def get_workspace_filename(analysis_name, model, mass, fitBonly=False, correctTr
 		path += "_fitTrigger"
 	if useMCTrigger:
 		path += "_useMCTrigger"
+	if fitOffB:
+		path += "_fitOffB"
 	path += ".root"
 	return path
 	
-def get_datacard_filename(analysis_name, model, mass, fit_function, correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False):
+def get_datacard_filename(analysis_name, model, mass, fit_function, correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False, fitOffB=False, fitBonly=False):
 	path = paths["datacards"] + "/datacard_" + analysis_name + "_" + model + "_" + str(mass) + "_" + fit_function
 	if qcd:
 		path += "_qcd"
+	if fitBonly:
+		path += "_fitBonly"
 	if correctTrigger:
 		path += "_correctTrigger"
 	if fitTrigger:
 		path += "_fitTrigger"
 	if useMCTrigger:
 		path += "_useMCTrigger"
+	if fitOffB:
+		path += "_fitOffB"
 	path += ".txt"
 	return path
 
-def get_combine_log_path(analysis_name, model, mass, fit_function, method, systematics=True, frozen_nps=None, what="limits", correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False):
+def get_combine_log_path(analysis_name, model, mass, fit_function, method, systematics=True, frozen_nps=None, what="limits", correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False, fitOffB=False, fitBonly=False):
 	postfix = ""
 	if not systematics:
 		postfix += "_noSyst"
@@ -90,17 +96,21 @@ def get_combine_log_path(analysis_name, model, mass, fit_function, method, syste
 		postfix += "_" + frozen_nps.replace(",", "_")
 	if qcd:
 		postfix += "_qcd"
+	if fitBonly:
+		path += "_fitBonly"
 	if correctTrigger:
 		postfix += "_correctTrigger"
 	if fitTrigger:
-		path += "_fitTrigger"
+		postfix += "_fitTrigger"
 	if useMCTrigger:
-		path += "_useMCTrigger"
+		postfix += "_useMCTrigger"
+	if fitOffB:
+		postfix += "_fitOffB"
 	path = paths["combine_logs"] + "/" + what + "_" + method + "_" + analysis_name + "_" + model + "_m" + str(mass) + postfix + "_" + fit_function + ".log"
 	return path
 
 # Example: limits_HybridNewGrid_trigbbh_CSVTM_Hbb_m1200_f3_exp2.log
-def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, method="HybridNewGrid", systematics=True, frozen_nps=None, correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False):
+def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, method="HybridNewGrid", systematics=True, frozen_nps=None, correctTrigger=False, fitTrigger=False, useMCTrigger=False, qcd=False, fitOffB=False):
 	postfix = ""
 	if not systematics:
 		postfix += "_noSyst"
@@ -114,6 +124,8 @@ def get_combine_log_path_grid(analysis_name, model, mass, fit_function, what, me
 		postfix += "_useMCTrigger"
 	if fitTrigger:
 		path += "_fitTrigger"
+	if fitOffB:
+		path += "_fitOffB"
 	path = paths["combine_logs"] + "/limits_" + method + "_" + analysis_name + "_" + model + "_m" + str(mass) + postfix + "_" + fit_function + "_" + what + ".log"
 	return path
 

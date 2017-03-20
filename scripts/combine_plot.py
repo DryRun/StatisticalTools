@@ -38,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument('--fitTrigger', action='store_true', help="Use model with trigger fit (has to have been specified in create_datacards.py)")
     parser.add_argument('--fitBonly', action='store_true', help="Background-only fit")
     parser.add_argument('--fit_function', type=str, default="f1", help="Name of central fit function")
+    parser.add_argument("--sb", action="store_true", help="Draw S+B fit")
     args = parser.parse_args()
 
     for model in args.models.split(","):
@@ -61,8 +62,15 @@ if __name__ == "__main__":
                     postfix += "_qcd"
                 job_name = "%s_%s_m%i%s_%s"%(analysis, model, int(mass), postfix, args.fit_function)
                 fit_filename = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Logs/plots_{}/mlfit_{}.root".format(job_name, job_name)
+                print "Loading fit results from {}".format(fit_filename)
                 fit_file = TFile(fit_filename, "READ")
-                background_fit_hist = fit_file.Get("shapes_fit_b/bin1/total_background")
+                if args.sb:
+                    background_fit_hist = fit_file.Get("shapes_fit_s/bin1/total_background")
+                    signal_fit_hist = fit_file.Get("shapes_fit_s/bin1/total_signal")
+                    total_fit_hist = signal_fit_hist.Clone()
+                    total_fit_hist.Add(background_fit_hist)
+                else:
+                    background_fit_hist = fit_file.Get("shapes_fit_b/bin1/total_background")
 
                 data_fitrange = background_fit_hist.Clone()
                 data_fitrange.Reset()
@@ -70,6 +78,9 @@ if __name__ == "__main__":
                     data_bin = data.GetXaxis().FindBin(background_fit_hist.GetBinCenter(bin))
                     data_fitrange.SetBinContent(bin, data.GetBinContent(data_bin))
                     data_fitrange.SetBinError(bin, data.GetBinError(data_bin))
+                # Normalize background to data?
+                #print "Scaling background by {}".format(data_fitrange.Integral() / background_fit_hist.Integral())
+                #background_fit_hist.Scale(data_fitrange.Integral() / background_fit_hist.Integral())
                 print "KS prob = {}".format(background_fit_hist.KolmogorovTest(data_fitrange))
                 print "KS d = {}".format(background_fit_hist.KolmogorovTest(data_fitrange, "M"))
                 print "chi2 prob = {}".format(background_fit_hist.Chi2Test(data_fitrange))
@@ -81,11 +92,34 @@ if __name__ == "__main__":
                 else:
                     data_name = "Data 2012"
                 plotter.add_data(data, data_name)
-                plotter.add_mc(background_fit_hist, "Dijet Fit", color=17)
+                if args.sb:
+                    plotter.add_mc(background_fit_hist, "S+B fit, B only", color=17)
+                else:
+                    plotter.add_mc(background_fit_hist, "Dijet Fit", color=17)
                 if "bbl" in analysis or "eta1p7" in analysis:
                     x_range = [0., 1200.]
                 elif "bbh" in analysis or "eta2p2" in analysis:
                     x_range = [0., 1800.]
                 pull_dataerrors = args.qcd
 
-                plotter.draw(logy=True, draw_pull=True, x_range=x_range, pull_range=[-4., 4.], save_tag="mlfit_{}".format(job_name), cms_label="Internal", color_scheme="cubehelixhuge", complex_rebinning=dijet_binning, legend_position="topright", pull_dataerrors=pull_dataerrors)
+                save_tag="mlfit_{}".format(job_name)
+                if args.sb:
+                    save_tag += "_sbfit_b"
+                plotter.draw(logy=True, draw_pull=True, x_range=x_range, pull_range=[-4., 4.], save_tag=save_tag, cms_label="Internal", color_scheme="cubehelixhuge", complex_rebinning=dijet_binning, legend_position="topright", pull_dataerrors=pull_dataerrors, lumi_string="19.7 fb^{-1} (8 TeV)", y_title="Events / GeV")
+
+                if args.sb:
+                    plotter_sb = root_plots.DataMCPlot()
+                    if args.qcd:
+                        data_name = "QCD MC"
+                    else:
+                        data_name = "Data 2012"
+                    plotter_sb.add_data(data, data_name)
+                    plotter_sb.add_mc(total_fit_hist, "S+B fit, total", color=17)
+                    if "bbl" in analysis or "eta1p7" in analysis:
+                        x_range = [0., 1200.]
+                    elif "bbh" in analysis or "eta2p2" in analysis:
+                        x_range = [0., 1800.]
+                    pull_dataerrors = args.qcd
+                    save_tag="mlfit_{}".format(job_name)
+                    save_tag += "_sbfit_sb"
+                    plotter_sb.draw(logy=True, draw_pull=True, x_range=x_range, pull_range=[-4., 4.], save_tag=save_tag, cms_label="Internal", color_scheme="cubehelixhuge", complex_rebinning=dijet_binning, legend_position="topright", pull_dataerrors=pull_dataerrors, lumi_string="19.7 fb^{-1} (8 TeV)", y_title="Events / GeV")

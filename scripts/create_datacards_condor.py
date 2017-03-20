@@ -11,25 +11,30 @@ analyses = []
 masses = {}
 mjj_min = {}
 mjj_max = {}
-for sr in ["trigbbl", "trigbbh"]:
-	for wp in ["CSVT", "CSVM", "CSVL", "CSVTL", "CSVML"]:
+for sr in ["trigbbl", "trigbbh"]: # trigbbl
+#	for wp in ["CSVT", "CSVM", "CSVL", "CSVTL", "CSVML", "CSVTM"]:
+	for wp in ["CSVTM"]:
 		analysis = sr + "_" + wp
 		analyses.append(analysis)
 		if sr == "trigbbl":
-			masses[analysis] = range(350, 850, 50)
+			#masses[analysis] = range(350, 850, 50)
+			masses[analysis] = [750]
 			mjj_min[analysis] = 296
 			mjj_max[analysis] = 1058
 		else:
-			masses[analysis] = range(600, 1250, 50)
+			#masses[analysis] = range(600, 1250, 50)
+			masses[analysis] = [750]
 			mjj_min[analysis] = 526
 			mjj_max[analysis] = 1607
 #masses = {"trigbbl_CSVTM":range(350, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
 #masses = {"trigbbh_CSVTM":[1200]}
 #mjj_min = {"trigbbl_CSVTM":296, "trigbbh_CSVTM":526}
 #mjj_max = {"trigbbl_CSVTM":1058, "trigbbh_CSVTM":1607}
-useMCTrigger = True
+useMCTrigger = False
 do_qcd = False
+fitOffB = False
 
+#for model in ["Hbb", "RSG", "ZPrime"]:
 for model in ["Hbb"]:
 	for analysis in analyses:
 		for mass in masses[analysis]:
@@ -45,9 +50,14 @@ for model in ["Hbb"]:
 				signal_pdf_file = analysis_config.get_signal_fit_file(analysis, model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
 			else:
 				if analysis == "trigbbl_CSVTM":
-					notrig_analysis = "trigbbl_notrig_CSVTM"
+					notrig_analysis = "NoTrigger_eta1p7_CSVTM"
 				elif analysis == "trigbbh_CSVTM":
-					notrig_analysis = "trigbbh_notrig_CSVTM"
+					notrig_analysis = "NoTrigger_eta2p2_CSVTM"
+				elif analysis == "trigbbl_CSVM":
+					notrig_analysis = "NoTrigger_eta1p7_CSVM"
+				elif analysis == "trigbbh_CSVM":
+					notrig_analysis = "NoTrigger_eta2p2_CSVM"
+
 				else:
 					print "ERROR : I don't know a no-trigger variant of analysis {}. Please make one, or specify useMCTrigger.".format(analysis) 
 					sys.exit(1)
@@ -55,7 +65,11 @@ for model in ["Hbb"]:
 			input_files = [data_file_path, signal_pdf_file]
 			command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
 			command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
-			command += " --correctTrigger --runFit --condor --useMCTrigger"
+			command += " --correctTrigger --runFit --condor"
+			if useMCTrigger:
+				command += " --useMCTrigger"
+			if fitOffB:
+				command += " --fitOffB"
 			run_script_path = datacard_directory + "/run_dc_{}_{}_{}.sh".format(model, analysis, mass)
 			run_script = open(run_script_path, "w")
 			run_script.write("#!/bin/bash\n")
@@ -68,7 +82,11 @@ for model in ["Hbb"]:
 				# Run another job with fitBonly, for plotting
 				command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
 				command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
-				command += " --correctTrigger --runFit --condor --fitBonly --useMCTrigger"
+				command += " --correctTrigger --runFit --condor --fitBonly"
+				if useMCTrigger:
+					command += " --useMCTrigger"
+				if fitOffB:
+					command += " --fitOffB"
 				run_script_path = datacard_directory + "/run_dc_{}_{}_{}_fitBonly.sh".format(model, analysis, mass)
 				run_script = open(run_script_path, "w")
 				run_script.write("#!/bin/bash\n")
