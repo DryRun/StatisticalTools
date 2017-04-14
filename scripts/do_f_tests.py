@@ -350,10 +350,10 @@ def calculate_chi2(model_hist, data_hist):
 	return chi2
 
 def calculate_andersondarling(model_hist, data_hist):
-	ad_ts = array('d', [0])
-	ad_prob = data_hist.AndersonDarlingTest(model_hist, ad_ts)
+	ad_prob = data_hist.AndersonDarlingTest(model_hist)
+	ad_ts = data_hist.AndersonDarlingTest(model_hist, "T")
 	print "AD test result: {}".format(ad_prob)
-	return (ad_prob, ad_ts[0])
+	return (ad_prob, ad_ts)
 
 if __name__ == "__main__":
 	from argparse import ArgumentParser
