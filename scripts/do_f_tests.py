@@ -115,6 +115,7 @@ def ftest(npars, npar_functions, analysis):
 	chi2 = {}
 	ndf = {}
 	ad = {}
+	ks = {}
 	first = True
 	for npar, functions in npar_functions.iteritems():
 		for function in functions:
@@ -143,6 +144,7 @@ def ftest(npars, npar_functions, analysis):
 			chi2[function] = calculate_chi2(fit_hist, data_hist)
 			ndf[function] = data_hist.GetNbinsX() - npar
 			ad[function] = calculate_andersondarling(fit_hist, data_hist)
+			ks[function] = calculate_ks(fit_hist, data_hist)
 
 	print "Printing F-test results for this family:"
 	print "\\begin{table}\n"
@@ -172,12 +174,12 @@ def ftest(npars, npar_functions, analysis):
 
 	print "\nPrinting quality of fit results:"
 	print "\\begin{table}\n"
-	print "\t\\begin{tabular}{|c|c|c|}\n"
+	print "\t\\begin{tabular}{|c|c|c|c|}\n"
 	print "\t\t\\hline\n"
-	print "\t\tFunction & $\\chi^2/$NDF ($p$) & AD test statistic ($p$)\\\\\n\t\t\\hline\n"
+	print "\t\tFunction & $\\chi^2/$NDF ($p$) & KS test statistic ($p$) & AD test statistic ($p$)\\\\\n\t\t\\hline\n"
 	for i in xrange(len(npars) - 1):
 		for f in npar_functions[npars[i]]:
-			print "\t\t{}/{} ({}) & {} ({}) \\\\\n\t\t\\hline\n".format(chi2[f], ndf[f], TMath.Prob(chi2[f], ndf[f]), ad[f][1], ad[f][0])
+			print "\t\t{}/{} ({}) & {} ({}) & {} ({}) \\\\\n\t\t\\hline\n".format(chi2[f], ndf[f], TMath.Prob(chi2[f], ndf[f]), ks[f][1], ks[f][0], ad[f][1], ad[f][0])
 	print "\t\\end{tabular}\n"
 	print "\t\\caption{}\n"
 	print "\t\\label{table:fit-quality-family}\n"
@@ -350,14 +352,15 @@ def calculate_chi2(model_hist, data_hist):
 	return chi2
 
 def calculate_andersondarling(model_hist, data_hist):
-	print "[debug] {} {}".format(model_hist.GetNbinsX(), data_hist.GetNbinsX())
-	for bin in xrange(1, model_hist.GetNbinsX() + 1):
-		print "[debug] \tBin {} : model = {} +/- {}".format(bin, model_hist.GetBinContent(bin), model_hist.GetBinError(bin))
-		print "[debug] \t\tdata = {} +/- {}".format(data_hist.GetBinContent(bin), data_hist.GetBinError(bin)) 
 	ad_prob = data_hist.AndersonDarlingTest(model_hist)
 	ad_ts = data_hist.AndersonDarlingTest(model_hist, "T")
-	print "AD test result: {}".format(ad_prob)
 	return (ad_prob, ad_ts)
+
+def calculate_ks(model_hist, data_hist):
+	ks_prob = data_hist.KolmogorovTest(model_hist)
+	ks_ts = data_hist.KolmogorovTest(model_hist, "M")
+	print "KS test result: {}".format(ks_prob)
+	return (ks_prob, ks_ts)
 
 if __name__ == "__main__":
 	from argparse import ArgumentParser
