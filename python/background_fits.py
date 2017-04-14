@@ -1,4 +1,5 @@
 import CMSDIJET.StatisticalTools.trigger_efficiency as trigger_efficiency
+from ROOT import TMath
 
 def BackgroundFit_f1(x, par):
 	return par[0] * (1. - (x[0] / 8.e3))**par[1] / ((x[0] / 8.e3)**(par[2] + par[3] * TMath.Log((x[0] / 8.e3))))
@@ -38,10 +39,13 @@ def BackgroundFit_f3_trigcorr_bbl(x, par):
 	return par[0] / (1 + par[1] * (x[0] / 8.e3))**par[2] * trigger_efficiency.trigger_efficiency_bbl(x[0])
 
 def BackgroundFit_f4_trigcorr_bbl(x, par):
-	if 1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2 <= 0:
+	den = 1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2
+	if den <= 0:
 		return 0
+	elif den**par[3] <= 0:
+		return 0 # Float problem???
 	else:
-		return par[0] / ((1 + par[1]*x[0]/8.e3 + par[2] * (x[0]/8.e3)**2)**par[3]) * trigger_efficiency.trigger_efficiency_bbl(x[0])
+		return par[0] / ((den)**par[3]) * trigger_efficiency.trigger_efficiency_bbl(x[0])
 
 def BackgroundFit_f5_trigcorr_bbl(x, par):
 	return par[0] * (x[0]/8.e3)**(-1.*par[1]) * (1. - (x[0]/8.e3)**(1./3.))**par[2] * trigger_efficiency.trigger_efficiency_bbl(x[0])

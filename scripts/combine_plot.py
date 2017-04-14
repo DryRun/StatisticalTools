@@ -37,6 +37,7 @@ if __name__ == "__main__":
     parser.add_argument('--correctTrigger', action='store_true', help="Use model with trigger correction (has to have been specified in create_datacards.py)")
     parser.add_argument('--fitTrigger', action='store_true', help="Use model with trigger fit (has to have been specified in create_datacards.py)")
     parser.add_argument('--fitBonly', action='store_true', help="Background-only fit")
+    parser.add_argument('--fitOffB', action='store_true', help="Fit background-only efficiency")
     parser.add_argument('--fit_function', type=str, default="f1", help="Name of central fit function")
     parser.add_argument("--sb", action="store_true", help="Draw S+B fit")
     args = parser.parse_args()
@@ -47,7 +48,7 @@ if __name__ == "__main__":
                 mass = int(mass_str)
 
                 # Data histogram
-                workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, fitBonly=args.fitBonly, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger, qcd=args.qcd), "READ")
+                workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, fitBonly=args.fitBonly, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger, qcd=args.qcd, fitOffB=args.fitOffB), "READ")
                 workspace = workspace_file.Get("w")
                 mjj = workspace.var("mjj")
                 data = workspace.data("data_obs").createHistogram("data", mjj, RooFit.Binning(5000, 0., 5000.))
@@ -58,6 +59,8 @@ if __name__ == "__main__":
                     postfix += "_fitTrigger"
                 if args.correctTrigger:
                     postfix += "_correctTrigger"
+                if args.fitOffB:
+                    postfix += "_fitOffB"
                 if args.qcd:
                     postfix += "_qcd"
                 job_name = "%s_%s_m%i%s_%s"%(analysis, model, int(mass), postfix, args.fit_function)

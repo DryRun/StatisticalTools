@@ -14,6 +14,8 @@ gStyle.SetOptTitle(0)
 gStyle.SetPalette(1)
 #seaborn = Root.SeabornInterface()
 #seaborn.Initialize()
+ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/CanvasHelpers.h\"")
+gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so")
 
 # Light temperature palette
 stops = array.array('d', [0.0000, 0.1250, 0.2500, 0.3750, 0.5000, 0.6250, 0.7500, 0.8750, 1.0000])
@@ -100,7 +102,7 @@ def run_many_bias_studies(top_name, job_names, gen_datacards, gen_workspaces, fi
 # x-axis = functions (25 combinations)
 # y-axis = mass
 # One per model
-def plot_all_averages(model, analysis, injected_mu=0):
+def plot_all_averages(model, analysis, mu=0, twosig_mu_values=None):
 	#results_tree = TTree("bias_study_results", "bias_study_results")
 	#containers = {}
 	##containers["f_gen"] = array.array('i', [0])
@@ -113,6 +115,10 @@ def plot_all_averages(model, analysis, injected_mu=0):
 	#for container_name, container in containers.iteritems():
 	#	print "Making branch for " + container_name
 	#	results_tree.Branch(container_name, container)
+
+	print "[debug] model = {}, analysis = {}, mu = {}".format(model, analysis, mu)
+	print "[debug] twosig_mu_values = ",
+	print twosig_mu_values
 
 	h_avg_mu = TH2D("h_avg_mu", "h_avg_mu", 25, -0.5, 25.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
 	h_avg_pull = TH2D("h_avg_pull", "h_avg_pull", 25, -0.5, 25.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
@@ -139,14 +145,14 @@ def plot_all_averages(model, analysis, injected_mu=0):
 			y_bin = 1
 			for mass in analysis_config.simulation.limit_signal_masses[analysis]:
 				#containers["mass"][0] = mass
-				#print "[plot_all_averages] INFO : Opening " + analysis_config.get_bias_study_results(model, analysis, mass, injected_mu, f_gen, f_fit)
-				results_file = TFile(analysis_config.get_bias_study_results(model, analysis, mass, injected_mu, f_gen, f_fit), "READ")
+				#print "[plot_all_averages] INFO : Opening " + analysis_config.get_bias_study_results(model, analysis, mass, mu, f_gen, f_fit)
+				results_file = TFile(analysis_config.get_bias_study_results(model, analysis, mass, mu, f_gen, f_fit), "READ")
 				if not results_file.IsOpen():
-					print "[plot_all_averages] WARNING : Results file not found for model={}, analysis={}, mass={}, injected_mu={}, f_gen={}, f_fit={}".format(model, analysis, mass, injected_mu, f_gen, f_fit)
+					print "[plot_all_averages] WARNING : Results file not found for model={}, analysis={}, mass={}, mu={}, f_gen={}, f_fit={}".format(model, analysis, mass, mu, f_gen, f_fit)
 					continue
 				t = results_file.Get("tree_fit_sb")
 				if not t:
-					print "[plot_all_averages] WARNING : File found but tree not available for model={}, analysis={}, mass={}, injected_mu={}, f_gen={}, f_fit={}".format(model, analysis, mass, injected_mu, f_gen, f_fit)
+					print "[plot_all_averages] WARNING : File found but tree not available for model={}, analysis={}, mass={}, mu={}, f_gen={}, f_fit={}".format(model, analysis, mass, mu, f_gen, f_fit)
 					continue
 				weights = 0
 				mu_sum = 0.
@@ -159,11 +165,14 @@ def plot_all_averages(model, analysis, injected_mu=0):
 				containers = {}
 				containers["mu"] = array.array('d', [0.])
 				containers["muErr"] = array.array('d', [0.])
+				containers["fit_status"] = array.array('i', [0])
 				for branch_name, branch_container in containers.iteritems():
 					t.SetBranchStatus(branch_name, 1)
 					t.SetBranchAddress(branch_name, branch_container)
 				for entry in xrange(t.GetEntriesFast()):
 					t.GetEntry(entry)
+					if containers["fit_status"][0] == -1:
+						continue
 					if containers["muErr"][0] <= 0:
 						continue
 					if abs(containers["mu"][0] / containers["muErr"][0]) > 10:
@@ -172,6 +181,10 @@ def plot_all_averages(model, analysis, injected_mu=0):
 					mu2_sum += containers["mu"][0]**2
 					pull_sum += containers["mu"][0] / containers["muErr"][0]
 					pull2_sum += (containers["mu"][0] / containers["muErr"][0])**2
+					if mu != 0:
+						injected_mu = mu * twosig_mu_values[mass]
+					else:
+						injected_mu = 0.
 					centered_pull_sum += (containers["mu"][0] - injected_mu) / containers["muErr"][0]
 					centered_pull2_sum += ((containers["mu"][0] - injected_mu) / containers["muErr"][0])**2
 					weights += 1
@@ -207,7 +220,7 @@ def plot_all_averages(model, analysis, injected_mu=0):
 				y_bin += 1
 			x_bin += 1
 			x_bin_single_fit += 1
-	c_avg_mu = TCanvas("c_avg_mu_f_vs_mass_" + model + "_" + analysis + "_" + str(injected_mu), "c_avg_mu_f_vs_mass", 800, 600)
+	c_avg_mu = TCanvas("c_avg_mu_f_vs_mass_" + model + "_" + analysis + "_" + str(mu), "c_avg_mu_f_vs_mass", 800, 600)
 	c_avg_mu.SetRightMargin(0.2)
 	c_avg_mu.SetBottomMargin(0.15)
 	h_avg_mu.GetXaxis().SetTitle("Gen/fit function")
@@ -215,13 +228,13 @@ def plot_all_averages(model, analysis, injected_mu=0):
 	h_avg_mu.GetZaxis().SetTitle("#LT#mu#GT")
 	h_avg_mu.GetXaxis().SetTitleOffset(1.3)
 	h_avg_mu.GetYaxis().SetTitleOffset(1.1)
-	h_avg_mu.SetMinimum(injected_mu - 0.1)
-	h_avg_mu.SetMaximum(injected_mu + 0.1)
+	h_avg_mu.SetMinimum(mu - 0.1)
+	h_avg_mu.SetMaximum(mu + 0.1)
 
 	h_avg_mu.Draw("colz")
 	c_avg_mu.SaveAs(analysis_config.figure_directory + "/" + c_avg_mu.GetName() + ".pdf")
 
-	c_avg_pull = TCanvas("c_avg_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(injected_mu), "c_avg_pull_f_vs_mass", 800, 600)
+	c_avg_pull = TCanvas("c_avg_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(mu), "c_avg_pull_f_vs_mass", 800, 600)
 	c_avg_pull.SetRightMargin(0.2)
 	c_avg_pull.SetBottomMargin(0.15)
 	h_avg_pull.GetXaxis().SetTitle("Gen/fit function")
@@ -229,13 +242,13 @@ def plot_all_averages(model, analysis, injected_mu=0):
 	h_avg_pull.GetZaxis().SetTitle("#LT#mu/#sigma_{#mu}#GT")
 	h_avg_pull.GetXaxis().SetTitleOffset(1.3)
 	h_avg_pull.GetYaxis().SetTitleOffset(1.1)
-	if injected_mu == 0:
+	if mu == 0:
 		h_avg_pull.SetMinimum(-5.)
 		h_avg_pull.SetMaximum(5.)
 	h_avg_pull.Draw("colz")
 	c_avg_pull.SaveAs(analysis_config.figure_directory + "/" + c_avg_pull.GetName() + ".pdf")
 
-	c_avg_centered_pull = TCanvas("c_avg_centered_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(injected_mu), "c_avg_centered_pull_f_vs_mass", 800, 600)
+	c_avg_centered_pull = TCanvas("c_avg_centered_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(mu), "c_avg_centered_pull_f_vs_mass", 800, 600)
 	c_avg_centered_pull.SetRightMargin(0.2)
 	c_avg_centered_pull.SetBottomMargin(0.15)
 	h_avg_centered_pull.GetXaxis().SetTitle("Gen/fit function")
@@ -248,7 +261,7 @@ def plot_all_averages(model, analysis, injected_mu=0):
 	h_avg_centered_pull.Draw("colz")
 	c_avg_centered_pull.SaveAs(analysis_config.figure_directory + "/" + c_avg_centered_pull.GetName() + ".pdf")
 
-	c_rms_pull = TCanvas("c_rms_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(injected_mu), "c_rms_pull_f_vs_mass", 800, 600)
+	c_rms_pull = TCanvas("c_rms_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(mu), "c_rms_pull_f_vs_mass", 800, 600)
 	c_rms_pull.SetRightMargin(0.2)
 	c_rms_pull.SetBottomMargin(0.15)
 	h_rms_pull.GetXaxis().SetTitle("Gen/fit function")
@@ -262,7 +275,7 @@ def plot_all_averages(model, analysis, injected_mu=0):
 	c_rms_pull.SaveAs(analysis_config.figure_directory + "/" + c_rms_pull.GetName() + ".pdf")
 
 	for f_fit in fit_functions:
-		c_avg_centered_pull_single_fit = TCanvas("c_avg_centered_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(injected_mu) + "_" + f_fit, "c_avg_centered_pull_f_vs_mass", 800, 600)
+		c_avg_centered_pull_single_fit = TCanvas("c_avg_centered_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(mu) + "_" + f_fit, "c_avg_centered_pull_f_vs_mass", 800, 600)
 		c_avg_centered_pull_single_fit.SetRightMargin(0.2)
 		c_avg_centered_pull_single_fit.SetBottomMargin(0.15)
 		h_avg_centered_pull_single_fit[f_fit].GetXaxis().SetTitle("Gen/fit function")
@@ -275,7 +288,7 @@ def plot_all_averages(model, analysis, injected_mu=0):
 		h_avg_centered_pull_single_fit[f_fit].Draw("colz text")
 		c_avg_centered_pull_single_fit.SaveAs(analysis_config.figure_directory + "/" + c_avg_centered_pull_single_fit.GetName() + ".pdf")
 
-	results_file = TFile(analysis_config.bias_study_directory + "/summary_" + model + "_" + analysis + "_mu" + str(injected_mu) + ".root", "RECREATE")
+	results_file = TFile(analysis_config.bias_study_directory + "/summary_" + model + "_" + analysis + "_mu" + str(mu) + ".root", "RECREATE")
 	h_avg_mu.Write()
 	h_avg_pull.Write()
 	h_avg_centered_pull.Write()
@@ -287,11 +300,65 @@ def plot_all_averages(model, analysis, injected_mu=0):
 # One per mass point and model
 
 # Plot: pull histogram
+def plot_pull_distributions(model, analysis, mass, f_gen, f_fit, mu=0, twosig_mu_values=None):
+	h = TH1D("h", "h", 40, -5., 5.)
+	results_file = TFile(analysis_config.get_bias_study_results(model, analysis, mass, mu, f_gen, f_fit), "READ")
+	if not results_file.IsOpen():
+		print "[plot_all_averages] WARNING : Results file not found for model={}, analysis={}, mass={}, mu={}, f_gen={}, f_fit={}".format(model, analysis, mass, mu, f_gen, f_fit)
+		return
+	t = results_file.Get("tree_fit_sb")
+	if not t:
+		print "[plot_all_averages] WARNING : File found but tree not available for model={}, analysis={}, mass={}, mu={}, f_gen={}, f_fit={}".format(model, analysis, mass, mu, f_gen, f_fit)
+		return
+
+	containers = {}
+	containers["fit_status"] = array.array('i', [0])
+	containers["mu"] = array.array('d', [0.])
+	containers["muErr"] = array.array('d', [0.])
+	for branch_name, branch_container in containers.iteritems():
+		t.SetBranchStatus(branch_name, 1)
+		t.SetBranchAddress(branch_name, branch_container)
+	for entry in xrange(t.GetEntriesFast()):
+		t.GetEntry(entry)
+		if containers["fit_status"][0] == -1:
+			continue
+		if containers["muErr"][0] <= 0:
+			continue
+		if abs(containers["mu"][0] / containers["muErr"][0]) > 10:
+			continue
+
+		if mu != 0:
+			injected_mu = mu * twosig_mu_values[mass]
+		else:
+			injected_mu = 0.
+		centered_pull = (containers["mu"][0] - injected_mu) / containers["muErr"][0]
+		h.Fill(centered_pull)
+	c = TCanvas("c_pulldist_{}_{}_{}_gen{}_fit{}_mu{}".format(model, analysis, mass, f_gen, f_fit, mu), "Pull", 700, 500)
+	h.GetXaxis().SetTitle("#frac{#hat{#mu}-#mu_{inj}}{#sigma_{#hat{#mu}}}")
+	h.Draw("hist")
+	if "trigbbl_CSVTM" in analysis:
+		sr = "Low mass SR"
+	else:
+		sr = "High mass SR"
+	Root.myText(0.15, 0.85, 1, "{} / {}".format(model, sr), 0.5)
+	Root.myText(0.15, 0.8, 1, "m_{{X}}={} GeV".format(mass), 0.5)
+
+	Root.myText(0.15, 0.75, 1, "Gen {} / Fit {}".format(f_gen, f_fit), 0.5)
+	if mu == 0:
+		Root.myText(0.15, 0.7, 1, "#mu_{inj}=0", 0.5)
+	elif mu == 1:
+		Root.myText(0.15, 0.7, 1, "#mu_{inj}#approx +2#sigma_{exp}", 0.5)
+	Root.myText(0.7, 0.8, 1, "Mean={:.2f}".format(h.GetMean()), 0.5)
+	Root.myText(0.7, 0.75, 1, "RMS={:.2f}".format(h.GetRMS()), 0.5)
+
+	c.SaveAs(analysis_config.figure_directory + "/" + c.GetName() + ".pdf")
+
+
 
 if __name__ == "__main__":
 	import argparse
 	parser = argparse.ArgumentParser(description = 'Run bias studies and plot output')
-	parser.add_argument('--model', type=str, default="Hbb,RSG,ZPrime", help='Model name')
+	parser.add_argument('--model', type=str, default="Hbb,RSG", help='Model name')
 	parser.add_argument('--analysis', type=str, default="trigbbl_CSVTM,trigbbh_CSVTM", help='Analysis name')
 	parser.add_argument('--run', action='store_true', help='Run bias studies')
 	parser.add_argument('--retry', action='store_true', help='Rerun failed bias studies')
@@ -315,7 +382,7 @@ if __name__ == "__main__":
 				if args.mu == 0:
 					job_mu_values[model][analysis][mass] = 0.
 				else:
-					workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True), "READ")
+					workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False), "READ")
 					#workspace_file = TFile(datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root", "READ")
 					workspace = workspace_file.Get("w")
 					signal_norm = workspace.var("signal_norm").getVal()
@@ -357,10 +424,10 @@ if __name__ == "__main__":
 						for f_fit in fit_functions:
 							name = model + "_" + analysis + "_m" + str(mass) + "_gen_" + f_gen + "_fit_" + f_fit + "_mu" + str(args.mu)
 							job_names.append(name)
-							gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, correctTrigger=True)
-							gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True)
-							fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, correctTrigger=True)
-							fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True)
+							gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False)
+							gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False)
+							fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False)
+							fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False)
 							#gen_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_gen + ".txt"
 							#gen_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
 							#fit_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_fit + ".txt"
@@ -404,7 +471,17 @@ if __name__ == "__main__":
 						run_many_bias_studies(top_name, job_names, gen_datacards=gen_datacards, fit_datacards=fit_datacards, gen_workspaces=gen_workspaces, fit_workspaces=fit_workspaces, n_toys=args.n_toys, mu=args.mu, dry_run=args.dry_run)
 
 	if args.plots:
+		print job_mu_values
 		for model in models:
 			for analysis in analyses:
-				for mu in [0, 1]:
-					plot_all_averages(model, analysis, injected_mu=mu)
+				if analysis == "trigbbl_CSVTM":
+					gen_functions = ["f1", "f3", "f4"]
+					fit_functions = ["f1"]
+				else:
+					gen_functions = ["f1", "f2", "f4", "f5"]
+					fit_functions = ["f1"]
+				plot_all_averages(model, analysis, mu=args.mu, twosig_mu_values=job_mu_values[model][analysis])
+				for mass in masses[analysis]:
+					for f_gen in gen_functions:
+						for f_fit in fit_functions:
+							plot_pull_distributions(model, analysis, mass, f_gen, f_fit, mu=args.mu, twosig_mu_values=job_mu_values[model][analysis])

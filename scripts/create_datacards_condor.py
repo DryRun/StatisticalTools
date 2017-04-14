@@ -11,7 +11,7 @@ analyses = []
 masses = {}
 mjj_min = {}
 mjj_max = {}
-for sr in ["trigbbl", "trigbbh"]: # trigbbl
+for sr in ["trigbbl"]: # trigbbl
 #	for wp in ["CSVT", "CSVM", "CSVL", "CSVTL", "CSVML", "CSVTM"]:
 	for wp in ["CSVTM"]:
 		analysis = sr + "_" + wp
@@ -32,7 +32,7 @@ for sr in ["trigbbl", "trigbbh"]: # trigbbl
 #mjj_max = {"trigbbl_CSVTM":1058, "trigbbh_CSVTM":1607}
 useMCTrigger = False
 do_qcd = False
-fitOffB = False
+fitOffB = True
 
 #for model in ["Hbb", "RSG", "ZPrime"]:
 for model in ["Hbb"]:
@@ -64,7 +64,11 @@ for model in ["Hbb"]:
 				signal_pdf_file = analysis_config.get_signal_fit_file(notrig_analysis, model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
 			input_files = [data_file_path, signal_pdf_file]
 			command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
-			command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
+			if fitOffB:
+				command += " --massMin {} --massMax {} --mass {}".format(270, mjj_max[analysis], mass)
+			else:
+				command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
+			#command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
 			command += " --correctTrigger --runFit --condor"
 			if useMCTrigger:
 				command += " --useMCTrigger"
@@ -81,7 +85,10 @@ for model in ["Hbb"]:
 			if model == "Hbb" and mass == 750:
 				# Run another job with fitBonly, for plotting
 				command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
-				command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
+				if fitOffB:
+					command += " --massMin {} --massMax {} --mass {}".format(270, mjj_max[analysis], mass)
+				else:
+					command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
 				command += " --correctTrigger --runFit --condor --fitBonly"
 				if useMCTrigger:
 					command += " --useMCTrigger"

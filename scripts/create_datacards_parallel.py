@@ -328,13 +328,22 @@ def run_single_mass(args, mass):
         # Load RooHistPdf
         if "bbl" in args.analysis or "eta1p7" in args.analysis:
             eta_region = "eta1p7"
+            offline_btag_eff_vars = {
+                "p0":RooRealVar("offline_btag_eff_p0", "offline_btag_eff_p0",  6.56018e-03,  6.56018e-03 - 10.*3.82505e-04,  6.56018e-03 + 10.*3.82505e-04),
+                "p1":RooRealVar("offline_btag_eff_p1", "offline_btag_eff_p1", -9.05607e-06, -9.05607e-06 - 10.*1.13679e-06, -9.05607e-06 + 10.*1.13679e-06),
+                "p2":RooRealVar("offline_btag_eff_p2", "offline_btag_eff_p2",  3.92846e-09,  3.92846e-09 - 10.*7.90724e-10,  3.92846e-09 + 10.*7.90724e-10),
+            }
+            offline_btag_eff_formula = RooFormulaVar("offline_btag_eff", "max(@0+(@1*@3)+(@2*@3*@3), 0.)", RooArgList(offline_btag_eff_vars["p0"], offline_btag_eff_vars["p1"], offline_btag_eff_vars["p2"], mjj))
         elif "bbh" in args.analysis or "eta2p2" in args.analysis:
             eta_region = "eta2p2"
-        f_offline_btag_eff = TFile(analysis_config.get_offline_btag_file("CSVTM", eta_region))
-        h_offline_btag_eff = f_offline_btag_eff.Get("h_offline_btag_eff")
-        print h_offline_btag_eff
-        offline_btag_eff_rdh = RooDataHist("rdh_offline_btag_eff", "rdh_offline_btag_eff", RooArgList(mjj), h_offline_btag_eff)
-        offline_btag_eff_pdf = RooHistPdf("pdf_offline_btag_eff", "pdf_offline_btag_eff", RooArgSet(mjj), offline_btag_eff_rdh)
+            offline_btag_eff_vars = {"p0":RooRealVar("offline_btag_eff_p0", "offline_btag_eff_p0",  1., 1., 1.)}
+            offline_btag_eff_formula = RooFormulaVar("offline_btag_eff", "@0", RooArgList(offline_btag_eff_vars["p0"]))
+
+        #f_offline_btag_eff = TFile(analysis_config.get_offline_btag_file("CSVTM", eta_region))
+        #h_offline_btag_eff = f_offline_btag_eff.Get("h_offline_btag_eff")
+        #print h_offline_btag_eff
+        #offline_btag_eff_rdh = RooDataHist("rdh_offline_btag_eff", "rdh_offline_btag_eff", RooArgList(mjj), h_offline_btag_eff)
+        #offline_btag_eff_pdf = RooHistPdf("pdf_offline_btag_eff", "pdf_offline_btag_eff", RooArgSet(mjj), offline_btag_eff_rdh)
 
     for fit_function in fit_functions:
         print "[create_datacards] INFO : On fit function {}".format(fit_function)
@@ -373,12 +382,12 @@ def run_single_mass(args, mass):
         background_pdf_name = background_pdfs_notrig[fit_function].GetName()
         background_pdfs_notrig[fit_function].SetName(background_pdf_name + "_notrig")
         if args.fitTrigger and args.fitOffB:
-            background_pdf_intermediate = RooProdPdf(background_pdf_name + "_intermediate", background_pdf_name + "_intermediate", offline_btag_eff_pdf, background_pdfs_notrig[fit_function])
+            background_pdf_intermediate = RooEffProd(background_pdf_name + "_intermediate", background_pdf_name + "_intermediate", background_pdfs_notrig[fit_function], offline_btag_eff_formula)
             background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdf_intermediate, trigeff_pt_formula)
         elif args.fitTrigger and not args.fitOffB:
             background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], trigeff_pt_formula)
         elif args.fitOffB and not args.fitTrigger:
-            background_pdfs[fit_function] = RooProdPdf(background_pdf_name, background_pdf_name, offline_btag_eff_pdf, background_pdfs_notrig[fit_function])
+            background_pdfs[fit_function] = RooEffProd(background_pdf_name, background_pdf_name, background_pdfs_notrig[fit_function], offline_btag_eff_formula)
         else:
             background_pdfs[fit_function] = background_pdfs_notrig[fit_function]
             background_pdfs[fit_function].SetName(background_pdf_name)
@@ -457,6 +466,9 @@ def run_single_mass(args, mass):
                     var.setConstant(True)
             if args.fitTrigger:
                 trigeff_btag_var.setConstant(True)
+            if args.fitOffB:
+                for var in offline_btag_eff_vars.values():
+                    var.setConstant(True)
             fit_results[fit_function] = models[fit_function].fitTo(rooDataHist, RooFit.Save(kTRUE), RooFit.Extended(kTRUE), RooFit.Strategy(args.fitStrategy), RooFit.Verbose(0))
             print "[create_datacards] INFO : Done with fit {}. Printing results.".format(fit_function)
             fit_results[fit_function].Print()
@@ -465,6 +477,9 @@ def run_single_mass(args, mass):
                     var.setConstant(False)
             if args.fitTrigger:
                 trigeff_btag_var.setConstant(False)
+            if args.fitOffB:
+                for var in offline_btag_eff_vars.values():
+                    var.setConstant(False)
             print "[create_datacards] DEBUG : End args.runFit if block."
 
 
@@ -631,6 +646,10 @@ def run_single_mass(args, mass):
         # Trigger efficiency
         if not args.useMCTrigger:
             datacard.write("trigeff_btag  param  {}  {}\n".format(trigger_efficiency.online_btag_eff[args.analysis][0], trigger_efficiency.online_btag_eff[args.analysis][1]))
+        if args.fitOffB:
+            datacard.write("offline_btag_eff_p0  param   6.56018e-03  3.82505e-04\n")
+            datacard.write("offline_btag_eff_p1  param  -9.05607e-06  1.13679e-06\n")
+            datacard.write("offline_btag_eff_p2  param   3.92846e-09  7.90724e-10\n")
         if args.fitTrigger:
             for trigeff_var_name, trigeff_var in trigeff_vars.iteritems():
                 datacard.write("{}  param  {}  {}\n".format(trigeff_var_name, trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][0], trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][1]))
@@ -644,11 +663,63 @@ def run_single_mass(args, mass):
     #print '>> Datacards and workspaces created and stored in %s/'%( os.path.join(os.getcwd(),args.output_path) )
     print "Done with mass {}.".format(mass)
 
+# Trigger efficiencies from sigmoid fits in data_trigeff.py
+# Low mass SR: from SingleMu24i
+#FCN=70.0935 FROM MIGRAD    STATUS=CONVERGED     111 CALLS         112 TOTAL
+#                    EDM=1.33375e-08    STRATEGY= 1      ERROR MATRIX ACCURATE 
+# EXT PARAMETER                                   STEP         FIRST   
+# NO.   NAME      VALUE            ERROR          SIZE      DERIVATIVE 
+#  1  p0           1.81702e+02   2.98899e+00   4.23687e-05   5.97146e-03
+#  2  p1           2.84601e+01   4.29932e+00   1.02809e-02  -2.96637e-05
+#  3  p2           1.70232e-01   5.16347e-03   1.13945e-05   1.00190e-02
+
+
+# High mass SR: from BJet80_70
+#  FCN=231.256 FROM MIGRAD    STATUS=CONVERGED     327 CALLS         328 TOTAL
+#                      EDM=9.87131e-12    STRATEGY= 1      ERROR MATRIX ACCURATE 
+#   EXT PARAMETER                                   STEP         FIRST   
+#   NO.   NAME      VALUE            ERROR          SIZE      DERIVATIVE 
+#    1  p0           3.49560e+02   1.32009e-01   1.87586e-06   3.42063e-03
+#    2  p1           2.56580e+01   1.51589e-01   9.46291e-04   3.25475e-05
+#    3  p2           9.91876e-01   4.52400e-04   2.91511e-06  -7.90908e-03
 def CorrectTriggerEfficiency(hist, analysis):
     hist_corr = hist.Clone()
     hist_corr.SetName(hist.GetName() + "_trigcorr")
     if "bbl" in analysis:
-        mjj_min = 296
+        mjj_min = 244
+        mjj_max = 5000
+    elif "bbh" in analysis:
+        mjj_min = 526
+        mjj_max = 5000
+    bin_min = hist_corr.GetXaxis().FindBin(mjj_min + 1.e-5)
+    bin_max = hist_corr.GetXaxis().FindBin(mjj_max - 1.e-5)
+
+    trigeff_tf1 = ROOT.TF1("sigmoid_" + analysis, "(1. / (1. + TMath::Exp(-1. * (x - [0]) / [1])))", mjj_min, mjj_max)
+    if "bbl" in analysis:
+        trigeff_tf1.SetParameter(0, 1.81702e+02)
+        trigeff_tf1.SetParameter(1, 2.84601e+01)
+    elif "bbh" in analysis:
+        trigeff_tf1.SetParameter(0, 3.49560e+02)
+        trigeff_tf1.SetParameter(1, 2.56580e+01)
+
+    for bin in xrange(1, hist_corr.GetNbinsX() + 1):
+        if bin < bin_min or bin > bin_max:
+            hist_corr.SetBinContent(bin, 0)
+            hist_corr.SetBinError(bin, 0)
+        else:
+            old_content = hist_corr.GetBinContent(bin)
+            old_error = hist_corr.GetBinError(bin)
+            this_trigeff = trigeff_tf1.Eval(hist_corr.GetXaxis().GetBinCenter(bin))
+            hist_corr.SetBinContent(bin, old_content / this_trigeff)
+            hist_corr.SetBinError(bin, old_error / this_trigeff)
+    return hist_corr
+
+
+def CorrectTriggerEfficiencyOld(hist, analysis):
+    hist_corr = hist.Clone()
+    hist_corr.SetName(hist.GetName() + "_trigcorr")
+    if "bbl" in analysis:
+        mjj_min = 244
         mjj_max = 5000
     elif "bbh" in analysis:
         mjj_min = 526
@@ -658,15 +729,15 @@ def CorrectTriggerEfficiency(hist, analysis):
 
     # Fit background*eff
     if "bbl" in analysis:
-        background_fit_times_eff = ROOT.TF1("tmp_background_fit_times_eff", BackgroundFit_f4_trigcorr_bbl, mjj_min, mjj_max, 4)
-        background_fit_times_eff.SetParameter(1, 41.)
-        background_fit_times_eff.SetParameter(2, -45.)
-        background_fit_times_eff.SetParameter(3, 10.)
+        background_fit_times_eff = ROOT.TF1("tmp_background_fit_times_eff", BackgroundFit_f1_trigcorr_bbl, mjj_min, mjj_max, 4)
+        background_fit_times_eff.SetParameter(1, -32.)
+        background_fit_times_eff.SetParameter(2, 19.)
+        background_fit_times_eff.SetParameter(3, 1.8)
     elif "bbh" in analysis:
-        background_fit_times_eff = ROOT.TF1("tmp_background_fit_times_eff", BackgroundFit_f4_trigcorr_bbh, mjj_min, mjj_max, 4)
-        background_fit_times_eff.SetParameter(1, 35.)
-        background_fit_times_eff.SetParameter(2, -28.)
-        background_fit_times_eff.SetParameter(3, 10.)
+        background_fit_times_eff = ROOT.TF1("tmp_background_fit_times_eff", BackgroundFit_f1_trigcorr_bbh, mjj_min, mjj_max, 4)
+        background_fit_times_eff.SetParameter(1, -13)
+        background_fit_times_eff.SetParameter(2, 14.)
+        background_fit_times_eff.SetParameter(3, 1.2)
     background_fit_times_eff.SetParameter(0, hist_corr.Integral(bin_min, bin_max))
     background_fit_times_eff.SetParameter(0, hist_corr.Integral(bin_min, bin_max) / background_fit_times_eff.Integral(mjj_min, mjj_max))
     hist_corr.Fit(background_fit_times_eff, "QR0")
