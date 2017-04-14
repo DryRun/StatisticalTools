@@ -10,7 +10,7 @@ ROOT.gROOT.SetBatch(True)
 import CMSDIJET.StatisticalTools.limit_configuration as limit_config
 import CMSDIJET.StatisticalTools.trigger_efficiency as trigger_efficiency
 from CMSDIJET.StatisticalTools.systematics import *
-from CMSDIJET.StatisticalTools.roofit_functions import *
+from CMSDIJET.StatisticalTools.roofit_functions_huge import *
 from CMSDIJET.StatisticalTools.background_fits import *
 import signal_fits
 
@@ -53,7 +53,8 @@ def main():
     parser.add_argument("-f", "--final_state", dest="final_state", default="qq",
                         help="Final state (e.g. qq, qg, gg)",
                         metavar="FINAL_STATE")
-    parser.add_argument("--fit_functions", dest="fit_functions", default="f1,f2,f3,f4,f5", help="List of fit functions")
+    #parser.add_argument("--fit_functions", dest="fit_functions", default="f1,f2,f3,f4,f5", help="List of fit functions")
+    parser.add_argument("--fit_functions", dest="fit_functions", default="all", help="List of fit functions")
 
     #parser.add_argument("-f2", "--type", dest="atype", required=True, help="Type (e.g. hG, lG, hR, lR)")
 
@@ -161,7 +162,10 @@ def main():
 
 def run_single_mass(args, mass):
     print "[run_single_mass] INFO : Creating datacard and workspace for m = %i GeV..."%(int(mass))
-    fit_functions = args.fit_functions.split(",")
+    if args.fit_functions == "all":
+        fit_functions = ["dijet4", "dijet5", "modexp4", "polyx6", "atlas4", "atlas5", "polypower4", "rational3", "rational4"]
+    else:
+        fit_functions = args.fit_functions.split(",")
 
     # import ROOT stuff
     from ROOT import gStyle, TFile, TH1F, TH1D, TGraph, kTRUE, kFALSE, TCanvas, TLegend, TPad, TLine

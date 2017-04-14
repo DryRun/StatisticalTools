@@ -32,10 +32,10 @@ for sr in ["trigbbl"]: # trigbbl
 #mjj_max = {"trigbbl_CSVTM":1058, "trigbbh_CSVTM":1607}
 useMCTrigger = False
 do_qcd = False
-fitOffB = True
+fitOffB = False
 
-#for model in ["Hbb", "RSG", "ZPrime"]:
-for model in ["Hbb"]:
+for model in ["Hbb", "RSG", "ZPrime"]:
+#for model in ["Hbb"]:
 	for analysis in analyses:
 		for mass in masses[analysis]:
 			if do_qcd:
