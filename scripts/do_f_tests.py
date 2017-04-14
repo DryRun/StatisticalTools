@@ -177,7 +177,7 @@ def ftest(npars, npar_functions, analysis):
 	print "\t\\begin{tabular}{|c|c|c|c|}\n"
 	print "\t\t\\hline\n"
 	print "\t\tFunction & $\\chi^2/$NDF ($p$) & KS test statistic ($p$) & AD test statistic ($p$)\\\\\n\t\t\\hline\n"
-	for i in xrange(len(npars) - 1):
+	for i in xrange(len(npars)):
 		for f in npar_functions[npars[i]]:
 			print "\t\t{} & {}/{} ({}) & {} ({}) & {} ({}) \\\\\n\t\t\\hline\n".format(f, chi2[f], ndf[f], TMath.Prob(chi2[f], ndf[f]), ks[f][1], ks[f][0], ad[f][1], ad[f][0])
 	print "\t\\end{tabular}\n"
