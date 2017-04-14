@@ -177,7 +177,7 @@ def ftest(npars, npar_functions, analysis):
 	print "\t\tFunction & $\\chi^2/$NDF ($p$) & AD test statistic ($p$)\\\\\n\t\t\\hline\n"
 	for i in xrange(len(npars) - 1):
 		for f in npar_functions[npars[i]]:
-			print "\t\t{}/{} ({}) & {} ({}) \\\\\n\t\t\\hline\n".format(chi2[f], ndf[f], TMath.Prob(chi2[f], ndf[f]), ad[1], ad[0])
+			print "\t\t{}/{} ({}) & {} ({}) \\\\\n\t\t\\hline\n".format(chi2[f], ndf[f], TMath.Prob(chi2[f], ndf[f]), ad[f][1], ad[f][0])
 	print "\t\\end{tabular}\n"
 	print "\t\\caption{}\n"
 	print "\t\\label{table:fit-quality-family}\n"
@@ -350,9 +350,10 @@ def calculate_chi2(model_hist, data_hist):
 	return chi2
 
 def calculate_andersondarling(model_hist, data_hist):
-	ad_ts = array.array('d', [0])
+	ad_ts = array('d', [0])
 	ad_prob = data_hist.AndersonDarlingTest(model_hist, ad_ts)
-	return ad_prob, ad_ts[0]
+	print "AD test result: {}".format(ad_prob)
+	return (ad_prob, ad_ts[0])
 
 if __name__ == "__main__":
 	from argparse import ArgumentParser
