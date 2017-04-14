@@ -351,6 +351,9 @@ def calculate_chi2(model_hist, data_hist):
 
 def calculate_andersondarling(model_hist, data_hist):
 	print "[debug] {} {}".format(model_hist.GetNbinsX(), data_hist.GetNbinsX())
+	for bin in xrange(1, model_hist.GetNbinsX() + 1):
+		print "[debug] \tBin {} : model = {} +/- {}".format(bin, model_hist.GetBinContent(bin), model_hist.GetBinError(bin))
+		print "[debug] \t\tdata = {} +/- {}".format(data_hist.GetBinContent(bin), data_hist.GetBinError(bin)) 
 	ad_prob = data_hist.AndersonDarlingTest(model_hist)
 	ad_ts = data_hist.AndersonDarlingTest(model_hist, "T")
 	print "AD test result: {}".format(ad_prob)
