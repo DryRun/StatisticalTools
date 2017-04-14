@@ -350,6 +350,7 @@ def calculate_chi2(model_hist, data_hist):
 	return chi2
 
 def calculate_andersondarling(model_hist, data_hist):
+	print "[debug] {} {}".format(model_hist.GetNbinsX(), data_hist.GetNbinsX())
 	ad_prob = data_hist.AndersonDarlingTest(model_hist)
 	ad_ts = data_hist.AndersonDarlingTest(model_hist, "T")
 	print "AD test result: {}".format(ad_prob)
