@@ -11,19 +11,17 @@ analyses = []
 masses = {}
 mjj_min = {}
 mjj_max = {}
-for sr in ["trigbbl"]: # trigbbl
-#	for wp in ["CSVT", "CSVM", "CSVL", "CSVTL", "CSVML", "CSVTM"]:
+for sr in ["trigbbl", "trigbbh"]:
 	for wp in ["CSVTM"]:
 		analysis = sr + "_" + wp
 		analyses.append(analysis)
 		if sr == "trigbbl":
-			#masses[analysis] = range(350, 850, 50)
-			masses[analysis] = [750]
+			masses[analysis] = range(350, 850, 50)
 			mjj_min[analysis] = 296
 			mjj_max[analysis] = 1058
 		else:
 			#masses[analysis] = range(600, 1250, 50)
-			masses[analysis] = [750]
+			masses[analysis] = [1000]
 			mjj_min[analysis] = 526
 			mjj_max[analysis] = 1607
 #masses = {"trigbbl_CSVTM":range(350, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
@@ -34,8 +32,7 @@ useMCTrigger = False
 do_qcd = False
 fitOffB = False
 
-for model in ["Hbb", "RSG", "ZPrime"]:
-#for model in ["Hbb"]:
+for model in ["Hbb", "ZPrime", "RSG"]:
 	for analysis in analyses:
 		for mass in masses[analysis]:
 			if do_qcd:
@@ -65,7 +62,7 @@ for model in ["Hbb", "RSG", "ZPrime"]:
 			input_files = [data_file_path, signal_pdf_file]
 			command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
 			if fitOffB:
-				command += " --massMin {} --massMax {} --mass {}".format(270, mjj_max[analysis], mass)
+				command += " --massMin {} --massMax {} --mass {}".format(296, mjj_max[analysis], mass)
 			else:
 				command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
 			#command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)

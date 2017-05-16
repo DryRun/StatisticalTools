@@ -38,11 +38,15 @@ sigmoid_parameters = {
 		"trigeff_p1":[2.38978e+01, 3.33254e-01],
 	}, 
 }
+
+# Online b-tag efficiency: [value, statistical uncertainty, systematic uncertainty]
+# Central value+stat unc from constant fit
+# Systematic from linear fit, maximum deviation over fitted range
 online_btag_eff = {
-	"trigbbl_CSVTM":[1.82719e-01, 3.99115e-03],
-	"trigbbh_CSVTM":[4.89446e-01, 5.91335e-03],
-	"trigbbl_CSVM":[1.33787e-01, 2.90406e-03],
-	"trigbbh_CSVM":[4.06002e-01, 4.26919e-03],
+	"trigbbl_CSVTM":[1.82719e-01, 3.99115e-03, 6.5605944e-03],
+	"trigbbh_CSVTM":[4.89446e-01, 5.91335e-03, 2.60350752e-02],
+	"trigbbl_CSVM":[1.33787e-01, 2.90406e-03], # Linear not fitted because you're not using CSVM
+	"trigbbh_CSVM":[4.06002e-01, 4.26919e-03], # Linear not fitted because you're not using CSVM
 
 }
 # Change to this! It's the real efficiency measurement.

@@ -40,15 +40,20 @@ def mlfit(fit_function, analysis, condor=True):
 
 	# Make background pdf
 	background_pdf, background_parameters = make_background_pdf(fit_function, mjj, collision_energy=8000.)
+	set_initial_values(background_parameters, fit_function, analysis)
 	background_norm = RooRealVar('background_' + fit_function + '_norm', 'background_' + fit_function + '_norm', data_integral, 0., 1.e8)
 	background_epdf = RooExtendPdf('ebackground_' + fit_function, 'ebackground_' + fit_function, background_pdf, background_norm)
 
 	# Make S+B model
-	signal_norm = RooRealVar('signal_norm', 'signal_norm', 0., 0., 1e+06)
-	signal_norm.setConstant()
+	signal_norm = RooRealVar('signal_norm', 'signal_norm', 0., 0., 1e+08)
 	signal_epdf = RooExtendPdf("esignal", "esignal", signal_rhp, signal_norm)
 	#model = RooAddPdf("model_" + fit_function, "s+b", RooArgList(background_epdf, signal_epdf))
 	model = background_epdf
+
+	# Note: in the first iteration, you did an initial fit to set the initial values.
+	# Now that you have a first iteration, you are using those results as the starting point.
+	# This way, the whole family starts from the same place.
+	signal_norm.setConstant()
 	fit_result = model.fitTo(data_rdh, RooFit.Save(True), RooFit.Extended(True), RooFit.Verbose(0))
 	signal_norm.setConstant(False)
 
@@ -116,6 +121,7 @@ def ftest(npars, npar_functions, analysis):
 	ndf = {}
 	ad = {}
 	ks = {}
+	nll = {}
 	first = True
 	for npar, functions in npar_functions.iteritems():
 		for function in functions:
@@ -138,7 +144,6 @@ def ftest(npars, npar_functions, analysis):
 			fit_hist.SetDirectory(0)
 			for bin in xrange(1, fit_hist.GetNbinsX() + 1):
 				fit_hist.SetBinError(bin, 0)
-			fit_file.Close()
 
 			rss[function] = calculate_rss(fit_hist, data_hist)
 			chi2[function] = calculate_chi2(fit_hist, data_hist)
@@ -146,11 +151,15 @@ def ftest(npars, npar_functions, analysis):
 			ad[function] = calculate_andersondarling(fit_hist, data_hist)
 			ks[function] = calculate_ks(fit_hist, data_hist)
 
+			nll[function] = fit_file.Get("fit_b").minNll()
+
+			fit_file.Close()
+
 	print "Printing F-test results for this family:"
-	print "\\begin{table}\n"
-	print "\t\\begin{tabular}{|c|c|c|c|}\n"
+	print "\\begin{table}"
+	print "\t\\begin{tabular}{|c|c|c|c|c|}"
 	print "\t\t\\hline\n"
-	print "\t\t$f_1$ ($n_1$) & $f_2$ ($n_2$) & $F_{21}$ & CL$_{21}$\\\\\n\t\t\\hline\n"
+	print "\t\t$f_1$ & $f_2$ & $F_{21}$ & CL$_{21}$ & Choose $f_2$ \\\\\n\t\t\\hline"
 
 	for i in xrange(len(npars) - 1):
 		n1 = npars[i]
@@ -166,78 +175,127 @@ def ftest(npars, npar_functions, analysis):
 					continue
 				f21 = ((rss[f1]-rss[f2]) / (n2 - n1)) / (rss[f2] / (data_hist.GetNbinsX() - n2))
 				cl21 = 1. - TMath.FDistI(f21, n2 - n1, data_hist.GetNbinsX() - n2)
-				print "\t\t{}\t&\t{}\t&\t{}\t&\t{}\t\\\\\n\t\t\\hline\n".format(f1, f2, f21, cl21)
-	print "\t\\end{tabular}\n"
-	print "\t\\caption{}\n"
-	print "\t\\label{table:ftest-family}\n"
-	print "\\end{table}\n"
-
-	print "\nPrinting quality of fit results:"
-	print "\\begin{table}\n"
-	print "\t\\begin{tabular}{|c|c|c|c|}\n"
-	print "\t\t\\hline\n"
-	print "\t\tFunction & $\\chi^2/$NDF ($p$) & KS test statistic ($p$) & AD test statistic ($p$)\\\\\n\t\t\\hline\n"
-	for i in xrange(len(npars)):
-		for f in npar_functions[npars[i]]:
-			print "\t\t{} & {}/{} ({}) & {} ({}) & {} ({}) \\\\\n\t\t\\hline\n".format(f, chi2[f], ndf[f], TMath.Prob(chi2[f], ndf[f]), ks[f][1], ks[f][0], ad[f][1], ad[f][0])
-	print "\t\\end{tabular}\n"
-	print "\t\\caption{}\n"
-	print "\t\\label{table:fit-quality-family}\n"
+				if cl21 < 0.05:
+					sigsymbol = "$\\bullet$"
+				else:
+					sigsymbol = "$\\circ$"
+				print "\t\t{}\t&\t{}\t&\t{:.2f}\t&\t{:.2e}\t&\t{}\t\\\\\n\t\t\\hline".format(f1, f2, f21, cl21, sigsymbol)
+	print "\t\\end{tabular}"
+	print "\t\\caption{}"
+	print "\t\\label{table:ftest-family}"
 	print "\\end{table}\n"
 
 
-
-def make_data_fit_plots(fit_functions_npar, analysis):
+def qof_table(fit_functions, analysis):
 	top_directory = "{}/{}".format(ftest_dir, analysis)
 
 	# Loop over all functions, and plot/calculate stuff for each
 	rss = {}
 	chi2 = {}
 	ndf = {}
+	ad = {}
+	ks = {}
+	nll = {}
 	first = True
-	for function, npar in fit_functions_npar.iteritems():
+	for f in fit_functions:
 		if first:
-			data_file = TFile(top_directory + "/" + function + "/workspace.root", "READ")
+			data_file = TFile(top_directory + "/" + f + "/workspace.root", "READ")
 			data_rdh = data_file.Get("w").data("data_obs")
 			mjj = data_file.Get("w").var("mjj")
 			data_hist = data_rdh.createHistogram("mjj", int(mjj.getMax()-mjj.getMin()))
 			data_hist.SetDirectory(0)
 			data_file.Close()
 			first = False
-		fit_file = TFile(top_directory + "/" + function + "/mlfit.root", "READ")
-		if not fit_file.IsOpen():
-			print "[make_data_fit_plots] WARNING : Couldn't open file {}. Skipping.".format(top_directory + "/" + function + "/mlfit.root")
-			continue
-		fit_hist = fit_file.Get("shapes_fit_b/bin1/background_{}".format(function))
+		fit_file = TFile(top_directory + "/" + f + "/mlfit.root", "READ")
+		fit_hist = fit_file.Get("shapes_fit_b/bin1/background_{}".format(f))
 		if not fit_hist:
-			print "[make_data_fit_plots] WARNING : Couldn't find histogram {} in file {}. Skipping.".format("shapes_fit_b/bin1/background_{}".format(function), top_directory + "/" + function + "/mlfit.root")
+			print "[ftest] ERROR : Couldn't find histogram {} in file {}. Abandoning.".format("shapes_fit_b/bin1/background_{}".format(f), top_directory + "/" + f + "/mlfit.root")
+			rss[f] = None
+			chi2[f] = None
+			ndf[f] = None
 			continue
 		fit_hist.SetDirectory(0)
 		for bin in xrange(1, fit_hist.GetNbinsX() + 1):
 			fit_hist.SetBinError(bin, 0)
+
+		rss[f] = calculate_rss(fit_hist, data_hist)
+		chi2[f] = calculate_chi2(fit_hist, data_hist)
+		ndf[f] = data_hist.GetNbinsX() - npar
+		ad[f] = calculate_andersondarling(fit_hist, data_hist)
+		ks[f] = calculate_ks(fit_hist, data_hist)
+
+		nll[f] = fit_file.Get("fit_b").minNll()
+
 		fit_file.Close()
 
-		chi2[function] = calculate_chi2(fit_hist, data_hist)
-		ndf[function] = int(data_hist.GetNbinsX() - npar)
+	print "\nPrinting quality of fit results:"
+	print "\\begin{table}"
+	print "\t\\begin{tabular}{|c|c|c|c|}" # c|
+	print "\t\t\\hline"
+	print "\t\tFunction & Min NLL & $\\chi^2/$NDF ($p$) & KS test statistic ($p$) \\\\\n\t\t\\hline" # & AD test statistic ($p$)
+	for f in fit_functions:
+			print "\t\t{} & {:.2e} & {:.2f}/{} ({:.2f}) & {:.2e} ({:.2f}) \\\\\n\t\t\\hline\n".format(f, nll[f], chi2[f], ndf[f], TMath.Prob(chi2[f], ndf[f]), ks[f][1], ks[f][0]) # & {:.2f} ({:.2f}) || , ad[f][1], ad[f][0]
+	print "\t\\end{tabular}"
+	print "\t\\caption{}"
+	print "\t\\label{table:fit-quality-family}"
+	print "\\end{table}\n"
 
-		make_data_fit_plot(data_hist, fit_hist, function, analysis, chi2[function], ndf[function])
+def make_data_fit_plots(family_fit_functions, analysis):
+	top_directory = "{}/{}".format(ftest_dir, analysis)
+
+	# Loop over all functions, and plot/calculate stuff for each
+	rss = {}
+	chi2 = {}
+	ndf = {}
+	for family, fit_functions in family_fit_functions.iteritems():
+		first = True
+		fit_hists = {}
+		for fit_function in fit_functions:
+			if first:
+				data_file = TFile(top_directory + "/" + fit_function + "/workspace.root", "READ")
+				data_rdh = data_file.Get("w").data("data_obs")
+				mjj = data_file.Get("w").var("mjj")
+				data_hist = data_rdh.createHistogram("mjj", int(mjj.getMax()-mjj.getMin()))
+				data_hist.SetDirectory(0)
+				data_file.Close()
+				first = False
+			fit_file = TFile(top_directory + "/" + fit_function + "/mlfit.root", "READ")
+			if not fit_file.IsOpen():
+				print "[make_data_fit_plots] WARNING : Couldn't open file {}. Skipping.".format(top_directory + "/" + fit_function + "/mlfit.root")
+				continue
+			fit_hists[fit_function] = fit_file.Get("shapes_fit_b/bin1/background_{}".format(fit_function))
+			if not fit_hists[fit_function]:
+				print "[make_data_fit_plots] WARNING : Couldn't find histogram {} in file {}. Skipping.".format("shapes_fit_b/bin1/background_{}".format(function), top_directory + "/" + function + "/mlfit.root")
+				continue
+			fit_hists[fit_function].SetDirectory(0)
+			for bin in xrange(1, fit_hists[fit_function].GetNbinsX() + 1):
+				fit_hists[fit_function].SetBinError(bin, 0)
+			fit_file.Close()
+
+			chi2[fit_function] = calculate_chi2(fit_hists[fit_function], data_hist)
+			ndf[fit_function] = int(data_hist.GetNbinsX() - npar)
+
+		make_data_fit_plot(data_hist, fit_hists, family, analysis)
 		this_binning = array("d", [])
 		for bin_value in dijet_binning:
 			if bin_value >= data_hist.GetXaxis().GetXmin() and bin_value <= data_hist.GetXaxis().GetXmax():
 				this_binning.append(bin_value)
-		make_data_fit_plot(data_hist, fit_hist, function, analysis + "_coarse", chi2[function], ndf[function], binning=this_binning)
+		make_data_fit_plot(data_hist, fit_hists, family, analysis + "_coarse", binning=this_binning)
 
-def make_data_fit_plot(data_hist, fit_hist, function, analysis, chi2, ndf, binning=None):
-	save_tag = function + "_" + analysis
+def make_data_fit_plot(data_hist, fit_hists, fit_family, analysis, binning=None):
+	save_tag = fit_family + "_" + analysis
 	if binning:
 		data_hist = data_hist.Rebin(len(binning) - 1, data_hist.GetName() + "_coarse", binning)
-		fit_hist = fit_hist.Rebin(len(binning) - 1, fit_hist.GetName() + "_coarse", binning)
 		for bin in xrange(1, data_hist.GetNbinsX() + 1):
 			bin_width = data_hist.GetXaxis().GetBinWidth(bin)
 			data_hist.SetBinContent(bin, data_hist.GetBinContent(bin) / bin_width)
-			fit_hist.SetBinContent(bin, fit_hist.GetBinContent(bin) / bin_width)
 			data_hist.SetBinError(bin, data_hist.GetBinError(bin) / bin_width)
-			fit_hist.SetBinError(bin, fit_hist.GetBinError(bin) / bin_width)
+		for fit_function in fit_hists.keys():
+			fit_hists[fit_function] = fit_hists[fit_function].Rebin(len(binning) - 1, fit_hists[fit_function].GetName() + "_coarse", binning)
+			for bin in xrange(1, data_hist.GetNbinsX() + 1):
+				bin_width = data_hist.GetXaxis().GetBinWidth(bin)
+				fit_hists[fit_function].SetBinContent(bin, fit_hists[fit_function].GetBinContent(bin) / bin_width)
+				fit_hists[fit_function].SetBinError(bin, fit_hists[fit_function].GetBinError(bin) / bin_width)
 
 	c = TCanvas("c_data_vs_fit_{}".format(save_tag), "c_{}".format(save_tag), 800, 1000)
 	top = TPad("top", "top", 0., 0.5, 1., 1.)
@@ -253,17 +311,19 @@ def make_data_fit_plot(data_hist, fit_hist, function, analysis, chi2, ndf, binni
 	x_min -= initial_xrange * 0.15
 	frame_top = TH1D("frame_top", "frame_top", 100, x_min, x_max)
 	frame_top.SetMinimum(0.1)
-	frame_top.SetMaximum(max(data_hist.GetMaximum(), fit_hist.GetMaximum()) * 10.)
+	frame_top.SetMaximum(max(data_hist.GetMaximum(), max([x.GetMaximum() for x in fit_hists.values()])) * 10.)
 	frame_top.GetXaxis().SetLabelSize(0)
 	frame_top.GetXaxis().SetTitleSize(0)
 	frame_top.GetYaxis().SetTitle("Events / GeV")
 	frame_top.Draw("axis")
 
-	fit_hist.SetMarkerStyle(20)
-	fit_hist.SetMarkerSize(0)
-	fit_hist.SetLineWidth(2)
-	fit_hist.SetLineColor(seaborn.GetColorRoot("default", 2))
-	fit_hist.Draw("hist same")
+	for style_counter, fit_function in enumerate(sorted(fit_hists.keys())):
+		fit_hists[fit_function].SetMarkerStyle(20)
+		fit_hists[fit_function].SetMarkerSize(0)
+		fit_hists[fit_function].SetLineStyle(style_counter % 4 + 1)
+		fit_hists[fit_function].SetLineWidth(2)
+		fit_hists[fit_function].SetLineColor(seaborn.GetColorRoot("default", style_counter))
+		fit_hists[fit_function].Draw("hist same")
 
 	data_hist.SetMarkerStyle(20)
 	data_hist.SetMarkerSize(1)
@@ -276,7 +336,8 @@ def make_data_fit_plot(data_hist, fit_hist, function, analysis, chi2, ndf, binni
 	l.SetFillColor(0)
 	l.SetBorderSize(0)
 	l.AddEntry(data_hist, "Data", "p")
-	l.AddEntry(fit_hist, "Fit", "l")
+	for style_counter, fit_function in enumerate(sorted(fit_hists.keys())):
+		l.AddEntry(fit_hists[fit_function], fit_function, "l")
 	l.Draw()
 
 	print analysis
@@ -285,9 +346,9 @@ def make_data_fit_plot(data_hist, fit_hist, function, analysis, chi2, ndf, binni
 	else:
 		sr_text = "High mass SR"
 	Root.myText(0.3, 0.24, 1, sr_text, 0.5)
-	Root.myText(0.3, 0.20, 1, function, 0.5)
-	chi2_text = "#chi^{{2}}/NDF = {:.2f}/{}, p={:.2f}".format(chi2, ndf, TMath.Prob(chi2, ndf))
-	Root.myText(0.3, 0.16, 1, chi2_text, 0.5)
+	Root.myText(0.3, 0.20, 1, fit_family, 0.5)
+	#chi2_text = "#chi^{{2}}/NDF = {:.2f}/{}, p={:.2f}".format(chi2, ndf, TMath.Prob(chi2, ndf))
+	#Root.myText(0.3, 0.16, 1, chi2_text, 0.5)
 
 	c.cd()
 	bottom = TPad("bottom", "bottom", 0., 0., 1., 0.5)
@@ -300,25 +361,36 @@ def make_data_fit_plot(data_hist, fit_hist, function, analysis, chi2, ndf, binni
 	frame_bottom.SetMinimum(-3.)
 	frame_bottom.SetMaximum(3.)
 	frame_bottom.GetXaxis().SetTitle("m_{jj} [GeV]")
-	frame_bottom.GetYaxis().SetTitle("#frac{data - exp}{#sigma_{stat}(exp)}")
+	frame_bottom.GetYaxis().SetTitle("#frac{data - fit}{#sqrt{fit}}")
 	frame_bottom.Draw("axis")
-	pull_hist = data_hist.Clone()
-	pull_hist.Reset()
-	for bin in xrange(1, data_hist.GetNbinsX() + 1):
-		if fit_hist.GetBinContent(bin) > 0:
-			if binning:
-				bin_width = data_hist.GetXaxis().GetBinWidth(bin)
-				pull_hist.SetBinContent(bin, sqrt(bin_width) * (data_hist.GetBinContent(bin) - fit_hist.GetBinContent(bin)) / sqrt(fit_hist.GetBinContent(bin)))
 
-			else:
-				pull_hist.SetBinContent(bin, (data_hist.GetBinContent(bin) - fit_hist.GetBinContent(bin)) / sqrt(fit_hist.GetBinContent(bin)))
-	pull_hist.SetMarkerStyle(20)
-	pull_hist.SetMarkerSize(0)
-	pull_hist.SetLineColor(1)
-	pull_hist.SetLineWidth(1)
-	pull_hist.SetFillStyle(1001)
-	pull_hist.SetFillColor(seaborn.GetColorRoot("default", 2))
-	pull_hist.Draw("hist same ][")
+	zero = TLine(x_min, 0., x_max, 0.)
+
+	pull_hists = {}
+	for style_counter, fit_function in enumerate(sorted(fit_hists.keys())):
+		pull_hists[fit_function] = data_hist.Clone()
+		pull_hists[fit_function].Reset()
+		for bin in xrange(1, data_hist.GetNbinsX() + 1):
+			if fit_hists[fit_function].GetBinContent(bin) > 0:
+				if binning:
+					bin_width = data_hist.GetXaxis().GetBinWidth(bin)
+					pull_hists[fit_function].SetBinContent(bin, sqrt(bin_width) * (data_hist.GetBinContent(bin) - fit_hists[fit_function].GetBinContent(bin)) / sqrt(fit_hists[fit_function].GetBinContent(bin)))
+
+				else:
+					pull_hists[fit_function].SetBinContent(bin, (data_hist.GetBinContent(bin) - fit_hists[fit_function].GetBinContent(bin)) / sqrt(fit_hists[fit_function].GetBinContent(bin)))
+		pull_hists[fit_function].SetMarkerStyle(20)
+		pull_hists[fit_function].SetMarkerSize(0)
+		pull_hists[fit_function].SetLineColor(seaborn.GetColorRoot("default", style_counter))
+		pull_hists[fit_function].SetLineWidth(2)
+		pull_hists[fit_function].SetLineStyle(style_counter % 4 + 1)
+		#pull_hists[fit_function].SetFillStyle(1001)
+		#pull_hists[fit_function].SetFillColor(seaborn.GetColorRoot("default", style_counter))
+		pull_hists[fit_function].Draw("hist same ][")
+	zero = TLine(x_min, 0., x_max, 0.)
+	zero.SetLineStyle(1)
+	zero.SetLineWidth(2)
+	zero.SetLineColor(1)
+	zero.Draw("same")
 
 	c.cd()
 	c.SaveAs("{}/figures/{}.pdf".format(ftest_dir, c.GetName()))
@@ -359,7 +431,6 @@ def calculate_andersondarling(model_hist, data_hist):
 def calculate_ks(model_hist, data_hist):
 	ks_prob = data_hist.KolmogorovTest(model_hist)
 	ks_ts = data_hist.KolmogorovTest(model_hist, "M")
-	print "KS test result: {}".format(ks_prob)
 	return (ks_prob, ks_ts)
 
 if __name__ == "__main__":
@@ -373,13 +444,15 @@ if __name__ == "__main__":
 	action_group = parser.add_mutually_exclusive_group()
 	action_group.add_argument("--mlfit", action="store_true", help="Run fits")
 	action_group.add_argument("--ftest", action="store_true", help="Run f-test (have to run mlfit first)")
+	action_group.add_argument("--qof", action="store_true", help="Make quality of fit table")
 	action_group.add_argument("--plots", action="store_true", help="Make data-fit plots")
 	args = parser.parse_args()
 
 	analyses = args.analyses.split(",")
 
 	family_npars = {
-		"dijet":[4,5,6],
+		"dijet":[3,4,5,6],
+		"dijet4_OffB":[4,5,6],
 		"rational":[3,4],
 		"modexp":[3,4,5],
 		"polyx":[5,6,7],
@@ -393,9 +466,11 @@ if __name__ == "__main__":
 	npar_fit_functions = {}
 	family_npar_fit_functions = {}
 	if args.all:
-		fit_families = ["dijet", "rational", "modexp", "polyx", "atlas", "polypower"]
+		fit_families = ["dijet", "polyx", "atlas", "polypower", "modexp", "dijet4_OffB"]
 		fit_functions = []
+		family_fit_functions = {}
 		for fit_family in fit_families:
+			family_fit_functions[fit_family] = []
 			family_npar_fit_functions[fit_family] = {}
 			for npar in family_npars[fit_family]:
 				fit_functions.append(fit_family + str(npar))
@@ -406,10 +481,13 @@ if __name__ == "__main__":
 					family_npar_fit_functions[fit_family][npar] = []
 				npar_fit_functions[npar].append(fit_family + str(npar))
 				family_npar_fit_functions[fit_family][npar].append(fit_family + str(npar))
+				family_fit_functions[fit_family].append(fit_family + str(npar))
 	elif args.family:
 		fit_families = [args.family]
 		fit_functions = []
+		family_fit_functions = {}
 		for fit_family in fit_families:
+			family_fit_functions[fit_family] = []
 			family_npar_fit_functions[fit_family] = {}
 			for npar in family_npars[fit_family]:
 				fit_functions.append(fit_family + str(npar))
@@ -420,6 +498,7 @@ if __name__ == "__main__":
 					family_npar_fit_functions[fit_family][npar] = []
 				npar_fit_functions[npar].append(fit_family + str(npar))
 				family_npar_fit_functions[fit_family][npar].append(fit_family + str(npar))
+				family_fit_functions[fit_family].append(fit_family + str(npar))
 	elif args.functions:
 		if args.ftest or args.plots:
 			print "[do_f_tests] ERROR : Cannot specify args.functions in ftest or plots mode"
@@ -437,7 +516,11 @@ if __name__ == "__main__":
 			for fit_family in fit_families:
 				ftest(family_npars[fit_family], family_npar_fit_functions[fit_family], analysis)
 
-		pass
+	if args.qof:
+		for analysis in analyses:
+			qof_table(fit_functions, analysis)
+
+
 	if args.plots:
 		for analysis in analyses:
-			make_data_fit_plots(fit_functions_npar, analysis)
+			make_data_fit_plots(family_fit_functions, analysis)

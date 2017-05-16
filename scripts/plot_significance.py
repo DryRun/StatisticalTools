@@ -15,7 +15,6 @@ gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so
 def main():
     # usage description
     usage = "Example: ./scripts/plotSignificance.py -l logs -f qq --massrange 1200 6000 100"
-
     # input parameters
     parser = ArgumentParser(description='Script that plots significance for specified mass points',epilog=usage)
     parser.add_argument('analysis', type=str, help='Analysis name')
@@ -26,7 +25,7 @@ def main():
                         default='ProfileLikelihood',
                         help="Method to calculate upper limits",
                         metavar="METHOD")
-    parser.add_argument('--fit_function', type=str, default="f4", help="Name of fit function used for background estimate")
+    parser.add_argument('--fit_function', type=str, default="dijet4", help="Name of fit function used for background estimate")
 
     parser.add_argument("--sigRange", dest="sigRange", type=float, default=2.5, help="Significance range to plot (default: %(default)f)")
 
@@ -39,6 +38,12 @@ def main():
     parser.add_argument("--lumi_sqrtS", dest="lumi_sqrtS", default='19.7 fb^{-1} (13 TeV)', help="Integrated luminosity and center-of-mass energy (default: %(default)s)")
 
     parser.add_argument("--printResults", dest="printResults", default=False, action="store_true", help="Print results to the screen")
+    parser.add_argument('--fitTrigger', action='store_true', help="Use trigger fit")
+    parser.add_argument('--correctTrigger', action='store_true', help="Use trigger correction")
+    parser.add_argument('--useMCTrigger', action='store_true', help="Use MC trigger emulation")
+    parser.add_argument("--noSyst", action="store_true", help="Make plots for limits without systematics")
+    parser.add_argument("--freezeNuisances", type=str, help="Make plots for limits with frozen nuisance parameters")
+
 
     mass_group = parser.add_mutually_exclusive_group(required=True)
     mass_group.add_argument("--mass",
@@ -83,7 +88,7 @@ def main():
     for mass in input_masses:
         masses.append(mass)
         print ">> Reading results for resonance with m = %i GeV..."%(int(mass))
-        log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, what="significance", correctTrigger=True), 'r')
+        log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, what="significance", systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger), 'r')
 
         if args.method == 'theta': logName = logName.replace('significance_','')
 

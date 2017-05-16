@@ -82,26 +82,31 @@ class LimitGraph:
 
 
 # Computed cross section times BR(jj) of dark matter model
-dm_x = array('d', [528.7733914858716,631.2905390292997,795.7485275479014,980.9839334973528,1166.2193394468052,1331.0361216730032,1578.3102214269736,1825.7147916200695,2073.0541265936026,2217.3544322672033,2454.5170729888905,2701.98687840155,2928.9075896518298,3104.1946246179077,3310.4357712666806,3475.513494371131,3568.343211809438])
-dm_y = array('d', [57.269239965262344,26.146418729332762,10.943588903119819,4.998039360562294,2.2826513012206147,1.3151916426227461,0.6008150098368491,0.30829460763931776,0.1492637583468037,0.09943936422165509,0.0556698333169542,0.03027483510044679,0.018491825891702274,0.011967992892333293,0.007309405483957529,0.005313471607526083,0.004337281648532702])
+# 13 TeV values
+#dm_x = array('d', [528.7733914858716,631.2905390292997,795.7485275479014,980.9839334973528,1166.2193394468052,1331.0361216730032,1578.3102214269736,1825.7147916200695,2073.0541265936026,2217.3544322672033,2454.5170729888905,2701.98687840155,2928.9075896518298,3104.1946246179077,3310.4357712666806,3475.513494371131,3568.343211809438])
+#dm_y = array('d', [57.269239965262344,26.146418729332762,10.943588903119819,4.998039360562294,2.2826513012206147,1.3151916426227461,0.6008150098368491,0.30829460763931776,0.1492637583468037,0.09943936422165509,0.0556698333169542,0.03027483510044679,0.018491825891702274,0.011967992892333293,0.007309405483957529,0.005313471607526083,0.004337281648532702])
+
+# 8 TeV values from Bogdan
+dm_x = array('d', [400, 500, 700, 1000, 1300, 1500, 2000, 2300, 2400, 3000, 4000, 5000])
+dm_y = array('d', [122.59814203237992,50.135970631685996,12.276050098847596,2.38572459898666,0.616459792663593,0.2752307540653187,0.043874144927211766,0.015493830332160183,0.011048705099045492,0.001478458283748929,0.00005101771602514974,0.0000019151463694130615,])
 dm_sigma_times_BRjj = TGraph(len(dm_x), dm_x, dm_y)
 
 # Parton luminosity ratio 8/13
-parton_lumi_qq_x = array('d', [212.44114380327838,256.61539097505755,189.6759157071346,166.63007851997236,148.77397175424056,129.29446527108541,231.60316570875963,293.6875978919667,281.275999744092,356.6759221822652,370.4099179447112,395.1955101394775,408.20347685923906,330.71672989214755,318.45447138645915,459.6711606703674,495.7524682412154,561.2799896042493,621.896007068797,621.896007068797,707.9075738492571,731.2085424206072,775.9371322362275,810.176171052523,869.066435119888,897.6719910415933,994.6170133018367,1078.4937378238508,1126.0834038140092,1207.936402435694,1268.06383234535,1360.2371356456406,1405.0097075435822,1507.1373628002914,1556.745195264016,1678.9399444796177,1743.5884184831468,1840.2852206152222])
-parton_lumi_qq_y = array('d', [1. / x for x in [1.9084845217716158,1.9701099766065029,1.8782550849899042,1.8483835132927056,1.8191060463151,1.7900970823130031,1.938989007634503,2.017576452165467,2.0016431192325372,2.09898276099542,2.115644783157695,2.149272912557035,2.1662868937909714,2.0660513546505883,2.049779911668458,2.235602848865901,2.2889166804078145,2.380596053538979,2.47573150572491,2.47573150572491,2.615193824659969,2.656414604730997,2.7407557944954624,2.805749111310745,2.9174930594233572,2.98654717428537,3.203741702660958,3.409888265666115,3.54530646023206,3.773266592268887,3.9537405526141987,4.273729358185959,4.443259768096302,4.840253677824623,5.071429377205673,5.6546923942954574,5.971016709192964,6.554715672402531]])
-parton_lumi_qq = TGraph(len(parton_lumi_qq_x), parton_lumi_qq_x, parton_lumi_qq_y)
+#parton_lumi_qq_x = array('d', [212.44114380327838,256.61539097505755,189.6759157071346,166.63007851997236,148.77397175424056,129.29446527108541,231.60316570875963,293.6875978919667,281.275999744092,356.6759221822652,370.4099179447112,395.1955101394775,408.20347685923906,330.71672989214755,318.45447138645915,459.6711606703674,495.7524682412154,561.2799896042493,621.896007068797,621.896007068797,707.9075738492571,731.2085424206072,775.9371322362275,810.176171052523,869.066435119888,897.6719910415933,994.6170133018367,1078.4937378238508,1126.0834038140092,1207.936402435694,1268.06383234535,1360.2371356456406,1405.0097075435822,1507.1373628002914,1556.745195264016,1678.9399444796177,1743.5884184831468,1840.2852206152222])
+#parton_lumi_qq_y = array('d', [1. / x for x in [1.9084845217716158,1.9701099766065029,1.8782550849899042,1.8483835132927056,1.8191060463151,1.7900970823130031,1.938989007634503,2.017576452165467,2.0016431192325372,2.09898276099542,2.115644783157695,2.149272912557035,2.1662868937909714,2.0660513546505883,2.049779911668458,2.235602848865901,2.2889166804078145,2.380596053538979,2.47573150572491,2.47573150572491,2.615193824659969,2.656414604730997,2.7407557944954624,2.805749111310745,2.9174930594233572,2.98654717428537,3.203741702660958,3.409888265666115,3.54530646023206,3.773266592268887,3.9537405526141987,4.273729358185959,4.443259768096302,4.840253677824623,5.071429377205673,5.6546923942954574,5.971016709192964,6.554715672402531]])
+#parton_lumi_qq = TGraph(len(parton_lumi_qq_x), parton_lumi_qq_x, parton_lumi_qq_y)
 
 
-def PartonLuminosityRatio(x, initial_state):
-	ratio = -1.
-	if initial_state == "gg":
-		ratio = (1.43368e-21*(x**6)+-2.037e-17*(x**5)+1.14943e-13*(x**4)+-3.31131e-10*(x**3)+5.43977e-07*x*x+-0.000607347*x+0.483842)
-	elif initial_state == "qq":
-		ratio = parton_lumi_qq.Eval(x)
-	else:
-		print "[PartonLuminosityRatio] ERROR : initial_state={} not known.".format(initial_state)
-		sys.exit(1)
-	return ratio
+#def PartonLuminosityRatio(x, initial_state):
+#	ratio = -1.
+#	if initial_state == "gg":
+#		ratio = (1.43368e-21*(x**6)+-2.037e-17*(x**5)+1.14943e-13*(x**4)+-3.31131e-10*(x**3)+5.43977e-07*x*x+-0.000607347*x+0.483842)
+#	elif initial_state == "qq":
+#		ratio = parton_lumi_qq.Eval(x)
+#	else:
+#		print "[PartonLuminosityRatio] ERROR : initial_state={} not known.".format(initial_state)
+#		sys.exit(1)
+#	return ratio
 
 # Branching ratios of vector/axial vector Z' to quarks, assuming equal coupling to quarks and no other decays
 quark_masses = {
@@ -137,7 +142,7 @@ def ZpBranchingRatio(m_med, selected_decays=["b"], zp_type="vector"):
 # gDM = Z'-DM coupling
 # gQ = Z'-quark coupling
 # mDM = dark matter mass
-def ConvertXSToGB(xs_limit, gDM=1, gQ=0.25, mDM=1.):
+def ConvertXSToGB(xs_limit, gDM=1, gQ=1./6., mDM=1.):
 	gb_x = array('d', [])
 	gb_y = array('d', [])
 	for i in xrange(xs_limit.GetN()):
@@ -145,12 +150,12 @@ def ConvertXSToGB(xs_limit, gDM=1, gQ=0.25, mDM=1.):
 		this_xs = xs_limit.GetY()[i]
 		width_DM_total = avtotwidth(2, gDM,gQ,this_mass,mDM)
 		width_qq   = avtotwidth(2, 0., gQ,this_mass,mDM)
-		this_gB = math.sqrt(this_xs / (dm_sigma_times_BRjj.Eval(this_mass)*ZpBranchingRatio(this_mass, selected_decays=["u","d","s","c","b"])) * width_qq / width_DM_total) * 0.25 * 6.
+		this_gB = math.sqrt(this_xs / (dm_sigma_times_BRjj.Eval(this_mass)*ZpBranchingRatio(this_mass, selected_decays=["u","d","s","c","b"])) * width_qq / width_DM_total) * gQ * 6.
 		gb_x.append(this_mass)
 		gb_y.append(this_gB)
 	return TGraph(len(gb_x), gb_x, gb_y)
 
-def ConvertGBToXS(gb_limit, gDM=1, gQ=0.25, mDM=1.):
+def ConvertGBToXS(gb_limit, gDM=1, gQ=1./6., mDM=1.):
 	xs_x = array('d', [])
 	xs_y = array('d', [])
 	for i in xrange(gb_limit.GetN()):
@@ -158,7 +163,7 @@ def ConvertGBToXS(gb_limit, gDM=1, gQ=0.25, mDM=1.):
 		this_gb = gb_limit.GetY()[i]
 		width_DM_total = avtotwidth(2, gDM,gQ,this_mass,mDM)
 		width_qq   = avtotwidth(2, 0., gQ,this_mass,mDM)
-		this_xs = (this_gb / (0.25 * 6.))**2 * width_DM_total / width_qq * (dm_sigma_times_BRjj.Eval(this_mass)*ZpBranchingRatio(this_mass, selected_decays=["u","d","s","c","b"]))
+		this_xs = (this_gb / (gQ * 6.))**2 * width_DM_total / width_qq * (dm_sigma_times_BRjj.Eval(this_mass)*ZpBranchingRatio(this_mass, selected_decays=["u","d","s","c","b"]))
 		xs_x.append(this_mass)
 		xs_y.append(this_xs)
 	return TGraph(len(xs_x), xs_x, xs_y)
@@ -418,37 +423,37 @@ if __name__ == "__main__":
 
 	if args.bb_comparison:
 		# 8 TeV bb
-		f_Xbb_8TeVl = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root", "READ")
+		f_Xbb_8TeVl = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_ZPrime_dijet4.root", "READ")
 		gr_Xbb_8TeVl_exp = f_Xbb_8TeVl.Get("graph_exp")
 		BR_bb_8TeVl = []
 		for i in xrange(gr_Xbb_8TeVl_exp.GetN()):
 			mass = gr_Xbb_8TeVl_exp.GetX()[i]
-			gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i] / PartonLuminosityRatio(mass, "gg")) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
-			BR_bb_8TeVl.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
+			gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i]) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
+			BR_bb_8TeVl.append(ZpBranchingRatio(mass, selected_decays=["c", "b"]) )
 		limit_collection["CMS bb, 2012 low exp"] = LimitGraph()
 		limit_collection["CMS bb, 2012 low exp"].LoadXSBR(gr_Xbb_8TeVl_exp, BR_bb_8TeVl)
 
 		gr_Xbb_8TeVl_obs = f_Xbb_8TeVl.Get("graph_obs")
 		for i in xrange(gr_Xbb_8TeVl_obs.GetN()):
 			mass = gr_Xbb_8TeVl_obs.GetX()[i]
-			gr_Xbb_8TeVl_obs.SetPoint(i, mass, gr_Xbb_8TeVl_obs.GetY()[i] / PartonLuminosityRatio(mass, "gg"))
+			gr_Xbb_8TeVl_obs.SetPoint(i, mass, gr_Xbb_8TeVl_obs.GetY()[i])
 		limit_collection["CMS bb, 2012 low obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 low obs"].LoadXSBR(gr_Xbb_8TeVl_obs, BR_bb_8TeVl)
 
-		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f1.root", "READ")
+		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_ZPrime_dijet4.root", "READ")
 		gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
 		BR_bb_8TeVh = []
 		for i in xrange(gr_Xbb_8TeVh_exp.GetN()):
 			mass = gr_Xbb_8TeVh_exp.GetX()[i]
-			gr_Xbb_8TeVh_exp.SetPoint(i, mass, gr_Xbb_8TeVh_exp.GetY()[i] / PartonLuminosityRatio(mass, "gg"))
-			BR_bb_8TeVh.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
+			gr_Xbb_8TeVh_exp.SetPoint(i, mass, gr_Xbb_8TeVh_exp.GetY()[i])
+			BR_bb_8TeVh.append(ZpBranchingRatio(mass, selected_decays=["c", "b"]) )
 		limit_collection["CMS bb, 2012 high exp"] = LimitGraph()
 		limit_collection["CMS bb, 2012 high exp"].LoadXSBR(gr_Xbb_8TeVh_exp, BR_bb_8TeVh)
 
 		gr_Xbb_8TeVh_obs = f_Xbb_8TeVh.Get("graph_obs")
 		for i in xrange(gr_Xbb_8TeVh_obs.GetN()):
 			mass = gr_Xbb_8TeVh_obs.GetX()[i]
-			gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i] / PartonLuminosityRatio(mass, "gg"))
+			gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i])
 			print "[debug] Set point {} {}".format(mass, gr_Xbb_8TeVh_obs.GetY()[i])
 		limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
@@ -458,12 +463,12 @@ if __name__ == "__main__":
 
 	elif args.gB:
 		# 8 TeV bb
-		f_Xbb_8TeVl = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_RSG_f4.root", "READ")
+		f_Xbb_8TeVl = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_ZPrime_dijet4.root", "READ")
 		gr_Xbb_8TeVl_exp = f_Xbb_8TeVl.Get("graph_exp")
 		BR_bb_8TeVl = []
 		for i in xrange(gr_Xbb_8TeVl_exp.GetN()):
 			mass = gr_Xbb_8TeVl_exp.GetX()[i]
-			gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i] / PartonLuminosityRatio(mass, "qq")) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
+			gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i]) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
 			BR_bb_8TeVl.append(ZpBranchingRatio(mass, selected_decays=["b"]))
 			#print "[debug] BR(Z-->bb, M={} GeV) = {}".format(mass, BR_bb_8TeVl[-1])
 		limit_collection["CMS bb, 2012 low exp"] = LimitGraph()
@@ -472,16 +477,16 @@ if __name__ == "__main__":
 		gr_Xbb_8TeVl_obs = f_Xbb_8TeVl.Get("graph_obs")
 		for i in xrange(gr_Xbb_8TeVl_obs.GetN()):
 			mass = gr_Xbb_8TeVl_obs.GetX()[i]
-			gr_Xbb_8TeVl_obs.SetPoint(i, mass, gr_Xbb_8TeVl_obs.GetY()[i] / PartonLuminosityRatio(mass, "qq"))
+			gr_Xbb_8TeVl_obs.SetPoint(i, mass, gr_Xbb_8TeVl_obs.GetY()[i])
 		limit_collection["CMS bb, 2012 low obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 low obs"].LoadXSBR(gr_Xbb_8TeVl_obs, BR_bb_8TeVl)
 
-		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_Hbb_f1.root", "READ")
+		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_ZPrime_dijet4.root", "READ")
 		gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
 		BR_bb_8TeVh = []
 		for i in xrange(gr_Xbb_8TeVh_exp.GetN()):
 			mass = gr_Xbb_8TeVh_exp.GetX()[i]
-			gr_Xbb_8TeVh_exp.SetPoint(i, mass, gr_Xbb_8TeVh_exp.GetY()[i] / PartonLuminosityRatio(mass, "qq"))
+			gr_Xbb_8TeVh_exp.SetPoint(i, mass, gr_Xbb_8TeVh_exp.GetY()[i])
 			BR_bb_8TeVh.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
 		limit_collection["CMS bb, 2012 high exp"] = LimitGraph()
 		limit_collection["CMS bb, 2012 high exp"].LoadXSBR(gr_Xbb_8TeVh_exp, BR_bb_8TeVh)
@@ -489,7 +494,7 @@ if __name__ == "__main__":
 		gr_Xbb_8TeVh_obs = f_Xbb_8TeVh.Get("graph_obs")
 		for i in xrange(gr_Xbb_8TeVh_obs.GetN()):
 			mass = gr_Xbb_8TeVh_obs.GetX()[i]
-			gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i] / PartonLuminosityRatio(mass, "qq"))
+			gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i])
 		limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
 

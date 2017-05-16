@@ -83,8 +83,8 @@ def make_signal_pdf_systematic(fit_function, mjj, tag=None, mass=None):
 			"xi_0":RooRealVar("xi_0", "xi_0", 0., -1.5, -1.e-3),
 			"rho1_0":RooRealVar("rho1_0", "rho1_0", 0.5, 0., 10.),
 			"rho2_0":RooRealVar("rho2_0", "rho2_0", 0.5, 1.e-3, 10.),
-			"alpha_jes":RooRealVar("alpha_jes", "alpha_jes", 0., -20., 20.),
-			"alpha_jer":RooRealVar("alpha_jer", "alpha_jer", 0., -20., 20.),
+			"alpha_jes":RooRealVar("alpha_jes", "alpha_jes", 0., -4., 4.),
+			"alpha_jer":RooRealVar("alpha_jer", "alpha_jer", 0., -4., 4.),
 			"dsigp":RooRealVar("dsigp", "dsigp", 0., -1.e10, 1.e10),
 			"dxp":RooRealVar("dxp", "dxp", 0., -1.e10, 1.e10),
 		}
@@ -362,7 +362,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 			signal_pdf.SetName("signal_pdf")
 
 		# Some fits are special and need help
-		if "trigbbl" in analysis:
+		if "trigbbl" in analysis or "NoTrigger_eta1p7" in analysis:
 			#if (analysis == "trigbbl_CSVTM" or analysis == "trigbbll_CSVTM" or analysis == "trigbbl_notrig_CSVTM"):
 			xi_initial = -0.1 + (-0.45 + 0.1) / (900 - 400) * (mass - 400)
 			signal_vars["xi"].setMax(-0.05)
@@ -376,40 +376,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 
 			sigp_initial = 35 + (100 -35) / (900 - 400) * (mass - 400)
 			signal_vars["sigp"].setVal(sigp_initial)
-			if "CSVM" in analysis and mass == 350:
-				signal_vars["xp"].setVal(325.)
-				signal_vars["rho2"].setVal(0.02)
-				signal_vars["xi"].setMax(-0.02)
-				signal_vars["xi"].setVal(-0.08)
-			elif "CSVM" in analysis and mass == 400:
-				signal_vars["xp"].setVal(3.7008e+02)
-				signal_vars["rho2"].setVal(4.4137e-02)
-				signal_vars["xi"].setVal(-1.3378e-01)
-				signal_vars["sigp"].setVal(4.7188e+01)
-			if "CSVL" in analysis and mass == 350:
-				signal_vars["xp"].setVal(325.)
-				signal_vars["rho2"].setVal(0.02)
-				signal_vars["xi"].setMax(-0.02)
-				signal_vars["xi"].setVal(-0.08)
-			if "CSVM" in analysis and mass == 500:
-				signal_vars["xp"].setVal(475.)
-				signal_vars["rho2"].setVal(0.06)
-				signal_vars["xi"].setVal(-0.2)
-			if "CSVTM" in analysis and mass == 500:
-				signal_vars["xp"].setVal(475.)
-				signal_vars["rho2"].setVal(0.06)
-				signal_vars["xi"].setVal(-0.2)
-			if "CSVM" in analysis and mass == 600:
-				signal_vars["xp"].setVal(5.5885e+02)
-				signal_vars["rho2"].setVal(7.2476e-02)
-				signal_vars["xi"].setVal(-2.4311e-01)
-				signal_vars["sigp"].setVal(6.9726e+01)
-			if "CSVTL" in analysis and mass == 600:
-				signal_vars["xp"].setVal(5.5398e+02)
-				signal_vars["rho2"].setVal(7.4604e-02)
-				signal_vars["xi"].setVal(-1.9649e-01)
-				signal_vars["sigp"].setVal(7.2282e+01)
-			if "trigbbl_CSVTM" in analysis and mass == 600:
+			if mass == 600:
 				signal_vars["xp"].setVal(5.5398e+02)
 				signal_vars["rho2"].setVal(7.4604e-02)
 				signal_vars["xi"].setVal(-1.9649e-01)
@@ -435,8 +402,12 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 				signal_vars["rho2"].setMax(0.2)
 			elif mass == 900:
 				signal_vars["sigp"].setMin(70.)
+			if model == "ZPrime" and mass == 400 and "CSVTM" in analysis:
+				signal_vars["rho2"].setMin(0.02)
+				signal_vars["sigp"].setMax(80.)
+				signal_vars["xi"].setMin(-0.5)
 
-		elif "trigbbh" in analysis:
+		elif "trigbbh" in analysis or "NoTrigger_eta2p2" in analysis:
 			#elif analysis == "trigbbh_CSVTM" or analysis == "trigbbh_notrig_CSVTM":
 			sigp_initial = 55. + (160.-55.) / (1200 - 600) * (mass - 600)
 			signal_vars["sigp"].setVal(sigp_initial)
@@ -493,6 +464,11 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 				signal_vars_syst[variation_name]["norm"] = RooRealVar(signal_pdfs_syst[variation_name].GetName() + "_norm", signal_pdfs_syst[variation_name].GetName() + "_norm", histograms_syst[variation_name].Integral(), histograms_syst[variation_name].Integral() / 50., histograms_syst[variation_name].Integral() * 50.)
 				signal_epdfs_syst[variation_name] = ROOT.RooExtendPdf("signal_epdf__" + variation_name, "signal_epdf__" + variation_name, signal_pdfs_syst[variation_name], signal_vars_syst[variation_name]["norm"])
 
+		print "[signal_fits] INFO : Printing starting parameters"
+		for varname, var in signal_vars.iteritems():
+			print "[signal_fits] INFO : \t{}".format(varname),
+			var.Print()
+
 		print "[signal_fits] INFO : Fitting " + fit_function + " nominal"
 		fit_results = signal_epdf.fitTo(signal_rdh, RooFit.Save(kTRUE))
 		print fit_results
@@ -546,6 +522,7 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 	print "[signal_fits] INFO : Done with this point."
 
 def fit_parameter_table(analysis, model, masses):
+	print "Saving table to " + analysis_config.figure_directory + "/table_bukin_parameters_{}_{}.tex".format(analysis, model)
 	table = open(analysis_config.figure_directory + "/table_bukin_parameters_{}_{}.tex".format(analysis, model), 'w')
 	variables = ["xp", "sigp", "rho2", "xi"]
 	variables_pretty = {"xp":"$x_p$", "sigp":"$\\sigma_p$", "rho2":"$\\rho_2$", "xi":"$\\xi$"}

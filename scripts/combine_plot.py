@@ -29,8 +29,8 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
     # input parameters
     parser = ArgumentParser(description="Make a plot from a combine MaxLikelihood run")
-    parser.add_argument('--analyses', type=str, default="NoTrigger_eta1p7_CSVTM,NoTrigger_eta2p2_CSVTM", help="Analysis names")
-    parser.add_argument('--models', type=str, default="Hbb,RSG", help="Model names")
+    parser.add_argument('--analyses', type=str, default="trigbbl_CSVTM,trigbbh_CSVTM", help="Analysis names")
+    parser.add_argument('--models', type=str, default="Hbb", help="Model names")
     parser.add_argument('--masses', type=str, default="750", help="Mass points")
 
     parser.add_argument('--qcd', action='store_true', help="Use QCD instead of data (assumes no trigger emulation)")
@@ -38,8 +38,9 @@ if __name__ == "__main__":
     parser.add_argument('--fitTrigger', action='store_true', help="Use model with trigger fit (has to have been specified in create_datacards.py)")
     parser.add_argument('--fitBonly', action='store_true', help="Background-only fit")
     parser.add_argument('--fitOffB', action='store_true', help="Fit background-only efficiency")
-    parser.add_argument('--fit_function', type=str, default="f1", help="Name of central fit function")
+    parser.add_argument('--fit_function', type=str, default="dijet4", help="Name of central fit function")
     parser.add_argument("--sb", action="store_true", help="Draw S+B fit")
+    parser.add_argument('--table', action='store_true', help="Print table of fit parameters")
     args = parser.parse_args()
 
     for model in args.models.split(","):
@@ -126,3 +127,20 @@ if __name__ == "__main__":
                     save_tag="mlfit_{}".format(job_name)
                     save_tag += "_sbfit_sb"
                     plotter_sb.draw(logy=True, draw_pull=True, x_range=x_range, pull_range=[-4., 4.], save_tag=save_tag, cms_label="Internal", color_scheme="cubehelixhuge", complex_rebinning=dijet_binning, legend_position="topright", pull_dataerrors=pull_dataerrors, lumi_string="19.7 fb^{-1} (8 TeV)", y_title="Events / GeV")
+
+                if args.table:
+                    print "\\begin{table}"
+                    print "\t\\begin{tabular}{|c|c|}"
+                    print "\t\t\\hline"
+                    print "\t\tParameter & Value \\\\\t\t\\hline"
+                    fit_result = fit_file.Get("fit_b")
+                    fitted_parameters = fit_result.floatParsFinal()
+                    for i in xrange(fitted_parameters.getSize()):
+                        par = fitted_parameters[i]
+                        name = par.GetName()
+                        if not args.fit_function in name:
+                            continue
+                        if "shapeBkg" in name:
+                            continue
+                        print "\t\t{}\t&\t${:.2f}\pm{:.2f}$\t\\\\\t\t\\hline".format(name, par.getVal(), par.getError())
+

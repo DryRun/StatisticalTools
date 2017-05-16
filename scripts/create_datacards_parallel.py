@@ -203,7 +203,7 @@ def run_single_mass(args, mass):
         trigeff_pt_formula, trigeff_vars = trigger_efficiency.get_var_formula(args.analysis, mjj)
         trigeff_btag_var      = RooRealVar("trigeff_btag", "trigeff_btag", 0., 1.)
         trigeff_btag_var.setVal(trigger_efficiency.online_btag_eff[args.analysis][0])
-        trigeff_btag_var.setVal(trigger_efficiency.online_btag_eff[args.analysis][0])
+        trigeff_btag_var.setConstant()
         trigeff_btag_formula  = RooFormulaVar("trigeff_btag_formula", "@0", RooArgList(trigeff_btag_var))
         #trigeff_btag_var.setConstant()
         trigeff_total_formula = RooFormulaVar("trigeff_total_formula", "@0*@1", RooArgList(trigeff_btag_var, trigeff_pt_formula))
@@ -215,7 +215,12 @@ def run_single_mass(args, mass):
 
         # Still need b-tagging efficiency to scale the MC
         if not args.useMCTrigger:
-            trigeff_btag_formula  = RooFormulaVar("trigeff_btag_formula", str(trigger_efficiency.online_btag_eff[args.analysis][0]), RooArgList())
+            trigeff_btag_var      = RooRealVar("trigeff_btag", "trigeff_btag", 0., 1.)
+            trigeff_btag_var.setVal(trigger_efficiency.online_btag_eff[args.analysis][0])
+            trigeff_btag_var.setConstant()
+            trigeff_btag_formula  = RooFormulaVar("trigeff_btag_formula", "@0", RooArgList(trigeff_btag_var))
+            # Use a RooRealVar instead! You want to be able to apply a systematic in combine. 
+            # trigeff_btag_formula  = RooFormulaVar("trigeff_btag_formula", str(trigger_efficiency.online_btag_eff[args.analysis][0]), RooArgList())
     else:
         hData = hData_notrigcorr
     if args.qcd:
@@ -398,7 +403,7 @@ def run_single_mass(args, mass):
         
         # Initial values
         if "trigbbh" in args.analysis:
-            if fit_function == "f1":
+            if fit_function == "dijet4":
                 if mass == 650:
                     background_parameters[fit_function]["p1"].setVal(-2.2473e+01)
                     background_parameters[fit_function]["p2"].setVal(1.4923e+01)
@@ -412,11 +417,11 @@ def run_single_mass(args, mass):
             elif fit_function == "f2":
                 background_parameters[fit_function]["p1"].setVal(6.06731321562)
                 background_parameters[fit_function]["p2"].setVal(6.06264502704)
-            elif fit_function == "f3":
+            elif fit_function == "polypower3":
                 background_parameters[fit_function]["p1"].setVal(50.0270215343)
                 background_parameters[fit_function]["p2"].setVal(8.17180937688)
                 background_parameters[fit_function]["p1"].setMin(20.)
-            elif fit_function == "f4":
+            elif fit_function == "polypower4":
                 background_parameters[fit_function]["p1"].setVal(31.3765210572)
                 background_parameters[fit_function]["p2"].setVal(-22.5800092219)
                 background_parameters[fit_function]["p3"].setVal(9.94548656557)
@@ -429,18 +434,18 @@ def run_single_mass(args, mass):
                 background_parameters[fit_function]["p3"].setVal(0.)
                 background_parameters[fit_function]["p4"].setVal(10.)
         elif "trigbbl" in args.analysis:
-            if fit_function == "f1":
+            if fit_function == "dijet4":
                 background_parameters[fit_function]["p1"].setVal(-32.4727133488)
                 background_parameters[fit_function]["p2"].setVal(18.7641649883)
                 background_parameters[fit_function]["p3"].setVal(1.84028034937)
             elif fit_function == "f2":
                 background_parameters[fit_function]["p1"].setVal(4.96261586452)
                 background_parameters[fit_function]["p2"].setVal(19.0848105961)
-            if fit_function == "f3":
+            if fit_function == "polypower3":
                 background_parameters[fit_function]["p1"].setVal(60.0000032579)
                 background_parameters[fit_function]["p2"].setVal(8.00317534363)
                 background_parameters[fit_function]["p1"].setMin(60.)
-            elif fit_function == "f4":
+            elif fit_function == "polypower4":
                 background_parameters[fit_function]["p1"].setVal(25.4109169544)
                 background_parameters[fit_function]["p2"].setVal(-42.56719661)
                 background_parameters[fit_function]["p3"].setVal(12.3295648189)
@@ -468,7 +473,6 @@ def run_single_mass(args, mass):
             if args.fitTrigger:
                 for var_name, var in trigeff_vars.iteritems():
                     var.setConstant(True)
-            if args.fitTrigger:
                 trigeff_btag_var.setConstant(True)
             if args.fitOffB:
                 for var in offline_btag_eff_vars.values():
@@ -640,6 +644,8 @@ def run_single_mass(args, mass):
         datacard.write('rate         1         1\n')
         datacard.write('------------------------------\n')
         datacard.write('lumi  lnN    %f         -\n'%(1.+systematics["luminosity"]))
+        if not args.useMCTrigger:
+            datacard.write('bon  lnN    %f         -\n'%(1.+ (trigger_efficiency.online_btag_eff[args.analysis][2] / trigger_efficiency.online_btag_eff[args.analysis][0])))
         #datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
         datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
         #datacard.write('bkg   lnN     -         1.03\n')
@@ -647,9 +653,6 @@ def run_single_mass(args, mass):
             datacard.write("alpha_jes  param  0.0  1.0\n")
         if "jer" in systematics:
             datacard.write("alpha_jer  param  0.0  1.0\n")
-        # Trigger efficiency
-        if not args.useMCTrigger:
-            datacard.write("trigeff_btag  param  {}  {}\n".format(trigger_efficiency.online_btag_eff[args.analysis][0], trigger_efficiency.online_btag_eff[args.analysis][1]))
         if args.fitOffB:
             datacard.write("offline_btag_eff_p0  param   6.56018e-03  3.82505e-04\n")
             datacard.write("offline_btag_eff_p1  param  -9.05607e-06  1.13679e-06\n")

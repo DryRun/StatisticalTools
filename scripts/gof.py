@@ -26,11 +26,12 @@ if __name__ == "__main__":
 	parser.add_argument('--qcd', action='store_true', help="Use QCD instead of data (assumes no trigger emulation)")
 	parser.add_argument('--correctTrigger', action='store_true', help="Use model with trigger correction (has to have been specified in create_datacards.py)")
 	parser.add_argument('--fitTrigger', action='store_true', help="Use model with trigger fit (has to have been specified in create_datacards.py)")
-	parser.add_argument('--fit_function', type=str, default="f4", help="Name of central fit function")
+	parser.add_argument('--fit_function', type=str, default="dijet4", help="Name of central fit function")
 	parser.add_argument('--algo', type=str, default="AD", help="GoF statistic: AD, saturated, KS")
 	parser.add_argument('--toys', type=int, help="Number of toys")
 	parser.add_argument('--seed', type=int, default=123456, help="Random seed")
 	parser.add_argument('--cplots', action="store_true", help="Make combine plots (not sure if this does anything)")
+	parser.add_argument('--no_signal', action='store_true', help="Fix signal strength to zero")
 	parser.add_argument('--signal', type=float, help="Fixed signal strength")
 	parser.add_argument('-m', '--masses', type=str, help='Manually specify masses (comma-separated list). Otherwise, taken from limit_configuration.')
 	parser.add_argument('--no_retar', action='store_true', help='Don\'t retar CMSSW directory before submitting')
@@ -60,6 +61,9 @@ if __name__ == "__main__":
 			for mass in masses[analysis]:
 
 				job_name = '{}_{}_{}_m{}_{}_{}'.format(prefix, analysis, model, int(mass), args.fit_function, args.algo)
+				if args.no_signal:
+					job_name += "_mu0"
+
 				log_name = job_name + ".log"
 				
 				if args.fit:
@@ -71,7 +75,9 @@ if __name__ == "__main__":
 					)
 					if args.cplots:
 						combine_options += " --plots "
-					if args.signal != None:
+					if args.no_signal:
+						combine_options += " --fixedSignalStrength 0"
+					elif args.signal != None:
 						combine_options += " --fixedSignalStrength {} ".format(args.signal)
 
 					cmd = "combine {} {} 2>&1 | tee {}".format(
@@ -86,6 +92,10 @@ if __name__ == "__main__":
 							job_name + "_toys",
 							mass
 						)
+						if args.no_signal:
+							combine_toy_options += " --fixedSignalStrength 0"
+						elif args.signal != None:
+							combine_toy_options += " --fixedSignalStrength {} ".format(args.signal)
 
 						toy_cmd = "combine {} {} -t {} 2>&1 | tee {}".format(
 							combine_toy_options, 
@@ -135,7 +145,7 @@ if __name__ == "__main__":
 				if args.plot:
 					# higgsCombinegof_trigbbh_CSVTM_Hbb_m750_f1_AD.GoodnessOfFit.mH750.root
 					# higgsCombinegof_trigbbh_CSVTM_Hbb_m750_f1_AD_toys.GoodnessOfFit.mH750.123456.root
-					data_file = TFile(limit_config.paths["gof"] + "/higgsCombine{}.GoodnessOfFit.mH{}.{}.root".format(job_name, mass, args.seed), "READ")
+					data_file = TFile(limit_config.paths["gof"] + "/higgsCombine{}.GoodnessOfFit.mH{}.root".format(job_name, mass), "READ")
 					toy_file = TFile(limit_config.paths["gof"] + "/higgsCombine{}_toys.GoodnessOfFit.mH{}.{}.root".format(job_name, mass, args.seed), "READ")
 					data_tree = data_file.Get("limit")
 					data_tree.GetEntry(0)

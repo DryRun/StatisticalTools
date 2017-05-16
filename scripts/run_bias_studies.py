@@ -12,10 +12,11 @@ gROOT.SetBatch(True)
 gStyle.SetOptStat(0)
 gStyle.SetOptTitle(0)
 gStyle.SetPalette(1)
-#seaborn = Root.SeabornInterface()
-#seaborn.Initialize()
 ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/CanvasHelpers.h\"")
+ROOT.gInterpreter.Declare("#include \"MyTools/RootUtils/interface/SeabornInterface.h\"")
 gSystem.Load("~/Dijets/CMSSW_7_4_15/lib/slc6_amd64_gcc491/libMyToolsRootUtils.so")
+seaborn = Root.SeabornInterface()
+seaborn.Initialize()
 
 # Light temperature palette
 stops = array.array('d', [0.0000, 0.1250, 0.2500, 0.3750, 0.5000, 0.6250, 0.7500, 0.8750, 1.0000])
@@ -102,7 +103,7 @@ def run_many_bias_studies(top_name, job_names, gen_datacards, gen_workspaces, fi
 # x-axis = functions (25 combinations)
 # y-axis = mass
 # One per model
-def plot_all_averages(model, analysis, mu=0, twosig_mu_values=None):
+def plot_all_averages(model, analysis, gen_functions, fit_functions, mu=0, twosig_mu_values=None):
 	#results_tree = TTree("bias_study_results", "bias_study_results")
 	#containers = {}
 	##containers["f_gen"] = array.array('i', [0])
@@ -120,22 +121,22 @@ def plot_all_averages(model, analysis, mu=0, twosig_mu_values=None):
 	print "[debug] twosig_mu_values = ",
 	print twosig_mu_values
 
-	h_avg_mu = TH2D("h_avg_mu", "h_avg_mu", 25, -0.5, 25.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
-	h_avg_pull = TH2D("h_avg_pull", "h_avg_pull", 25, -0.5, 25.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
-	h_avg_centered_pull = TH2D("h_avg_centered_pull", "h_avg_pull", 25, -0.5, 25.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
-	h_rms_pull = TH2D("h_rms_pull", "h_rms_pull", 25, -0.5, 25.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
+	h_avg_mu = TH2D("h_avg_mu", "h_avg_mu", len(fit_functions)*len(gen_functions), 0.5, len(fit_functions)*len(gen_functions)+0.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
+	h_avg_pull = TH2D("h_avg_pull", "h_avg_pull", len(fit_functions)*len(gen_functions), 0.5, len(fit_functions)*len(gen_functions)+0.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
+	h_avg_centered_pull = TH2D("h_avg_centered_pull", "h_avg_pull", len(fit_functions)*len(gen_functions), 0.5, len(fit_functions)*len(gen_functions)+0.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
+	h_rms_pull = TH2D("h_rms_pull", "h_rms_pull", len(fit_functions)*len(gen_functions), 0.5, len(fit_functions)*len(gen_functions)+0.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
 	h_avg_centered_pull_single_fit = {}
+	h_avg_centered_pull_single_fit_single_gen = {}
 	x_bin = 1
-	if analysis == "trigbbl_CSVTM":
-		fit_functions = ["f1", "f4"]
-	else:
-		fit_functions = ["f1", "f4", "f5"]
 	for f_fit in fit_functions:
-		h_avg_centered_pull_single_fit[f_fit] = TH2D("h_avg_centered_pull_" + f_fit, "h_avg_pull_" + f_fit, len(fit_functions), -0.5, len(fit_functions) + 0.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
+		h_avg_centered_pull_single_fit_single_gen[f_fit] = {}
+		h_avg_centered_pull_single_fit[f_fit] = TH2D("h_avg_centered_pull_" + f_fit, "h_avg_pull_" + f_fit, len(gen_functions), -0.5, len(gen_functions) + 0.5, len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
 		h_avg_centered_pull_single_fit[f_fit].SetDirectory(0)
 		x_bin_single_fit = 1
 		#containers["f_fit"][0] = int(f_fit[1:])
-		for f_gen in fit_functions:
+		for f_gen in gen_functions:
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen] = TH1D("h_avg_centered_pull_fit{}_gen{}".format(f_fit, f_gen), "h_avg_centered_pull_fit{}_gen{}".format(f_fit, f_gen), len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetDirectory(0)
 			#containers["f_gen"][0] = int(f_gen[1:])
 			h_avg_mu.GetXaxis().SetBinLabel(x_bin, "Gen " + f_gen + " / Fit " + f_fit)
 			h_avg_pull.GetXaxis().SetBinLabel(x_bin, "Gen " + f_gen + " / Fit " + f_fit)
@@ -209,9 +210,10 @@ def plot_all_averages(model, analysis, mu=0, twosig_mu_values=None):
 
 				h_avg_mu.SetBinContent(x_bin, y_bin, mu_avg)
 				h_avg_pull.SetBinContent(x_bin, y_bin, pull_avg)
-				h_avg_centered_pull.SetBinContent(x_bin, y_bin, centered_pull_avg)
+				h_avg_centered_pull.SetBinContent(x_bin, h_avg_centered_pull.GetYaxis().FindBin(mass), centered_pull_avg)
 				h_rms_pull.SetBinContent(x_bin, y_bin, pull_rms)
-				h_avg_centered_pull_single_fit[f_fit].SetBinContent(x_bin_single_fit, y_bin, centered_pull_avg)
+				h_avg_centered_pull_single_fit[f_fit].SetBinContent(x_bin_single_fit, h_avg_centered_pull_single_fit[f_fit].GetYaxis().FindBin(mass), centered_pull_avg)
+				h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetBinContent(h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].GetXaxis().FindBin(mass), centered_pull_avg)
 				#containers["average_mu"][0] = mu_avg
 				#containers["average_pull"][0] = pull_avg
 				#containers["average_pull_centered"][0] = centered_pull_avg
@@ -287,7 +289,17 @@ def plot_all_averages(model, analysis, mu=0, twosig_mu_values=None):
 		h_avg_centered_pull_single_fit[f_fit].SetMaximum(3)
 		h_avg_centered_pull_single_fit[f_fit].Draw("colz text")
 		c_avg_centered_pull_single_fit.SaveAs(analysis_config.figure_directory + "/" + c_avg_centered_pull_single_fit.GetName() + ".pdf")
-
+		for f_gen in gen_functions:
+			c_avg_centered_pull_single_fit_single_gen = TCanvas("c_avg_centered_pull_f_vs_mass_" + model + "_" + analysis + "_" + str(mu) + "_fit" + f_fit + "_gen" + f_gen, "c_avg_centered_pull_f_vs_mass", 800, 600)
+			c_avg_centered_pull_single_fit_single_gen.SetGrid()
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].GetXaxis().SetTitle("Signal mass [GeV]")
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].GetYaxis().SetTitle("#LT(#mu-#mu_{inj})/#sigma_{#mu}#GT")
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetMinimum(-1.)
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetMaximum(1.)
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetLineColor(seaborn.GetColorRoot("default", 2))
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetLineWidth(2)
+			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].Draw("hist")
+			c_avg_centered_pull_single_fit_single_gen.SaveAs(analysis_config.figure_directory + "/" + c_avg_centered_pull_single_fit_single_gen.GetName() + ".pdf")
 	results_file = TFile(analysis_config.bias_study_directory + "/summary_" + model + "_" + analysis + "_mu" + str(mu) + ".root", "RECREATE")
 	h_avg_mu.Write()
 	h_avg_pull.Write()
@@ -407,11 +419,15 @@ if __name__ == "__main__":
 		for model in models:
 			for analysis in analyses:
 				if analysis == "trigbbl_CSVTM":
-					gen_functions = ["f1", "f3", "f4"]
-					fit_functions = ["f1"]
+					gen_functions = ["dijet4", "polypower4", "polyx6"]
+					fit_functions = ["dijet4"]
+					#gen_functions = ["f1", "f3", "f4"]
+					#fit_functions = ["f1"]
 				else:
-					gen_functions = ["f1", "f2", "f4", "f5"]
-					fit_functions = ["f1"]
+					gen_functions = ["dijet4", "polypower4"]
+					fit_functions = ["dijet4"]
+					#gen_functions = ["f1", "f2", "f4", "f5"]
+					#fit_functions = ["f1"]
 				for mass in masses[analysis]:
 					names = []
 					gen_datacards = {}
@@ -475,12 +491,16 @@ if __name__ == "__main__":
 		for model in models:
 			for analysis in analyses:
 				if analysis == "trigbbl_CSVTM":
-					gen_functions = ["f1", "f3", "f4"]
-					fit_functions = ["f1"]
+					gen_functions = ["dijet4", "polypower4", "polyx6"]
+					fit_functions = ["dijet4"]
+					#gen_functions = ["f1", "f3", "f4"]
+					#fit_functions = ["f1"]
 				else:
-					gen_functions = ["f1", "f2", "f4", "f5"]
-					fit_functions = ["f1"]
-				plot_all_averages(model, analysis, mu=args.mu, twosig_mu_values=job_mu_values[model][analysis])
+					gen_functions = ["dijet4", "polypower4"]
+					fit_functions = ["dijet4"]
+					#gen_functions = ["f1", "f2", "f4", "f5"]
+					#fit_functions = ["f1"]
+				plot_all_averages(model, analysis, gen_functions, fit_functions, mu=args.mu, twosig_mu_values=job_mu_values[model][analysis])
 				for mass in masses[analysis]:
 					for f_gen in gen_functions:
 						for f_fit in fit_functions:
