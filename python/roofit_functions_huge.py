@@ -6,6 +6,29 @@ import sys
 import ROOT
 from ROOT import *
 
+#def make_background_pdf_offb_lowmass(function_name, mjj, collision_energy=8000.):
+#	raw_pdf, parameters = make_background_pdf(function_name, mjj, collision_energy)
+#	parameters["offbeff_p0"] = RooRealVar("offline_btag_eff_p0", "offline_btag_eff_p0",  6.78251e-03,  6.78251e-03 - 10.*7.66906e-05,  6.78251e-03 + 10.*7.66906e-05),
+#	parameters["offbeff_p1"] = RooRealVar("offline_btag_eff_p1", "offline_btag_eff_p1", -9.55614e-06, -9.55614e-06 - 10.*1.04286e-07, -9.55614e-06 + 10.*1.04286e-07),
+#	parameters["offbeff_p2"] = RooRealVar("offline_btag_eff_p2", "offline_btag_eff_p2",  4.39468e-09,  4.39468e-09 - 1.e-07,  4.39468e-09 + 1.e-07),
+#	offline_btag_eff_formula = RooFormulaVar("offline_btag_eff", "max(@0+(@1*@3)+(@2*@3*@3), 0.)", RooArgList(parameters["offbeff_p0"], parameters["offbeff_p1"], parameters["offbeff_p2"], mjj))
+#	name_original = raw_pdf.GetName()
+#	raw_pdf.SetName(name_original + "_raw")
+#	pdf = RooEffProd(name_original, name_original, raw_pdf, offline_btag_eff_formula)
+#	return pdf, parameters, offline_btag_eff_formula
+#
+#def make_background_pdf_offb_highmass(function_name, mjj, collision_energy=8000.):
+#	raw_pdf, parameters = make_background_pdf(function_name, mjj, collision_energy)
+#	parameters["offbeff_p0"] = RooRealVar("offline_btag_eff_p0", "offline_btag_eff_p0", -1.72721e-03, -1.72721e-03 - 10.*3.04992e-05, -1.72721e-03 + 10.*3.04992e-05),
+#	parameters["offbeff_p1"] = RooRealVar("offline_btag_eff_p1", "offline_btag_eff_p1",  1.72562e-06,  1.72562e-06 - 10.*3.23472e-08,  1.72562e-06 + 10.*3.23472e-08),
+#	parameters["offbeff_p2"] = RooRealVar("offline_btag_eff_p2", "offline_btag_eff_p2",  8.74866e-03,  8.74866e-03 - 10.*7.81413e-05,  8.74866e-03 + 10.*7.81413e-05),
+#	parameters["offbeff_p3"] = RooRealVar("offline_btag_eff_p2", "offline_btag_eff_p2", -1.67123e-03, -1.67123e-03 - 10.*4.30607e-05, -1.67123e-03 + 10.*4.30607e-05),
+#	offline_btag_eff_formula = RooFormulaVar("offline_btag_eff", "max(@0+@1*@4+ @2*exp(@3*@4), 0.)", RooArgList(parameters["offbeff_p0"], parameters["offbeff_p1"], parameters["offbeff_p2"], parameters["offbeff_p3"], mjj))
+#	name_original = raw_pdf.GetName()
+#	raw_pdf.SetName(name_original + "_raw")
+#	pdf = RooEffProd(name_original, name_original, raw_pdf, offline_btag_eff_formula)
+#	return pdf, parameters, offline_btag_eff_formula
+
 def make_background_pdf(function_name, mjj, collision_energy=8000.):
 	fit_parameters = {}
 	if function_name == "dijet3":

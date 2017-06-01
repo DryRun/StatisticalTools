@@ -440,14 +440,14 @@ def main():
     if args.timesAE:
         frame.GetYaxis().SetRangeUser(1e-03,1e+01)
     else:
-        frame.GetYaxis().SetRangeUser(1e-02,1e+02)
+        frame.GetYaxis().SetRangeUser(1e-01,2e+02)
     frame.Draw("axis")
 
     if len(xs_exp_limits_2sigma) > 0 and (args.method == "Asymptotic" or args.method == "HybridNewGrid"):
         graph_exp_2sigma.GetXaxis().SetTitle("Resonance mass [GeV]")
         graph_exp_2sigma.GetYaxis().SetTitle("#sigma #times #it{B} [pb]")
         graph_exp_2sigma.GetYaxis().SetTitleOffset(1.1)
-        graph_exp_2sigma.GetYaxis().SetRangeUser(1e-03,1e+02)
+        #graph_exp_2sigma.GetYaxis().SetRangeUser(1e-03,1e+02)
         #graph_exp_2sigma.GetXaxis().SetNdivisions(1005)
 
         graph_exp_2sigma.Draw("F")

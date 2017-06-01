@@ -17,22 +17,24 @@ for sr in ["trigbbl", "trigbbh"]:
 		analyses.append(analysis)
 		if sr == "trigbbl":
 			masses[analysis] = range(350, 850, 50)
+			#masses[analysis] = [750]
 			mjj_min[analysis] = 296
 			mjj_max[analysis] = 1058
 		else:
-			#masses[analysis] = range(600, 1250, 50)
-			masses[analysis] = [1000]
+			masses[analysis] = range(600, 1250, 50)
+			#masses[analysis] = [750]
 			mjj_min[analysis] = 526
 			mjj_max[analysis] = 1607
 #masses = {"trigbbl_CSVTM":range(350, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
 #masses = {"trigbbh_CSVTM":[1200]}
-#mjj_min = {"trigbbl_CSVTM":296, "trigbbh_CSVTM":526}
-#mjj_max = {"trigbbl_CSVTM":1058, "trigbbh_CSVTM":1607}
+mjj_min = {"trigbbl_CSVTM":296, "trigbbh_CSVTM":526}
+mjj_max = {"trigbbl_CSVTM":1058, "trigbbh_CSVTM":1607}
 useMCTrigger = False
 do_qcd = False
 fitOffB = False
 
 for model in ["Hbb", "ZPrime", "RSG"]:
+#for model in ["Hbb"]:
 	for analysis in analyses:
 		for mass in masses[analysis]:
 			if do_qcd:
@@ -61,16 +63,16 @@ for model in ["Hbb", "ZPrime", "RSG"]:
 				signal_pdf_file = analysis_config.get_signal_fit_file(notrig_analysis, model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
 			input_files = [data_file_path, signal_pdf_file]
 			command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
-			if fitOffB:
-				command += " --massMin {} --massMax {} --mass {}".format(296, mjj_max[analysis], mass)
-			else:
-				command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
+			#if fitOffB:
+			#	command += " --massMin {} --massMax {} --mass {}".format(296, mjj_max[analysis], mass)
+			#else:
+			command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
 			#command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
 			command += " --correctTrigger --runFit --condor"
 			if useMCTrigger:
 				command += " --useMCTrigger"
 			if fitOffB:
-				command += " --fitOffB"
+				command += " --fitOffB --fit_functions dijet4"
 			run_script_path = datacard_directory + "/run_dc_{}_{}_{}.sh".format(model, analysis, mass)
 			run_script = open(run_script_path, "w")
 			run_script.write("#!/bin/bash\n")
@@ -82,10 +84,9 @@ for model in ["Hbb", "ZPrime", "RSG"]:
 			if model == "Hbb" and mass == 750:
 				# Run another job with fitBonly, for plotting
 				command = "python $CMSSW_BASE/src/CMSDIJET/StatisticalTools/scripts/create_datacards_parallel.py {} {}".format(analysis, model)
-				if fitOffB:
-					command += " --massMin {} --massMax {} --mass {}".format(270, mjj_max[analysis], mass)
-				else:
-					command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
+				#if fitOffB:
+				#	command += " --massMin {} --massMax {} --mass {}".format(270, mjj_max[analysis], mass)
+				command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
 				command += " --correctTrigger --runFit --condor --fitBonly"
 				if useMCTrigger:
 					command += " --useMCTrigger"

@@ -338,15 +338,20 @@ def run_single_mass(args, mass):
         if "bbl" in args.analysis or "eta1p7" in args.analysis:
             eta_region = "eta1p7"
             offline_btag_eff_vars = {
-                "p0":RooRealVar("offline_btag_eff_p0", "offline_btag_eff_p0",  6.56018e-03,  6.56018e-03 - 10.*3.82505e-04,  6.56018e-03 + 10.*3.82505e-04),
-                "p1":RooRealVar("offline_btag_eff_p1", "offline_btag_eff_p1", -9.05607e-06, -9.05607e-06 - 10.*1.13679e-06, -9.05607e-06 + 10.*1.13679e-06),
-                "p2":RooRealVar("offline_btag_eff_p2", "offline_btag_eff_p2",  3.92846e-09,  3.92846e-09 - 10.*7.90724e-10,  3.92846e-09 + 10.*7.90724e-10),
+                "p0":RooRealVar("offline_btag_eff_p0", "offline_btag_eff_p0",  6.78251e-03,  6.78251e-03 - 10.*7.66906e-05,  6.78251e-03 + 10.*7.66906e-05),
+                "p1":RooRealVar("offline_btag_eff_p1", "offline_btag_eff_p1", -9.55614e-06, -9.55614e-06 - 10.*1.04286e-07, -9.55614e-06 + 10.*1.04286e-07),
+                "p2":RooRealVar("offline_btag_eff_p2", "offline_btag_eff_p2",  4.39468e-09,  4.39468e-09 - 1.e-07,  4.39468e-09 + 1.e-07),
             }
             offline_btag_eff_formula = RooFormulaVar("offline_btag_eff", "max(@0+(@1*@3)+(@2*@3*@3), 0.)", RooArgList(offline_btag_eff_vars["p0"], offline_btag_eff_vars["p1"], offline_btag_eff_vars["p2"], mjj))
         elif "bbh" in args.analysis or "eta2p2" in args.analysis:
             eta_region = "eta2p2"
-            offline_btag_eff_vars = {"p0":RooRealVar("offline_btag_eff_p0", "offline_btag_eff_p0",  1., 1., 1.)}
-            offline_btag_eff_formula = RooFormulaVar("offline_btag_eff", "@0", RooArgList(offline_btag_eff_vars["p0"]))
+            offline_btag_eff_vars = {
+                "p0":RooRealVar("offline_btag_eff_p0", "offline_btag_eff_p0", -1.72721e-03, -1.72721e-03 - 10.*3.04992e-05, -1.72721e-03 + 10.*3.04992e-05),
+                "p1":RooRealVar("offline_btag_eff_p1", "offline_btag_eff_p1",  1.72562e-06,  1.72562e-06 - 10.*3.23472e-08,  1.72562e-06 + 10.*3.23472e-08),
+                "p2":RooRealVar("offline_btag_eff_p2", "offline_btag_eff_p2",  8.74866e-03,  8.74866e-03 - 10.*7.81413e-05,  8.74866e-03 + 10.*7.81413e-05),
+                "p3":RooRealVar("offline_btag_eff_p3", "offline_btag_eff_p3", -1.67123e-03, -1.67123e-03 - 10.*4.30607e-05, -1.67123e-03 + 10.*4.30607e-05),
+            }
+            offline_btag_eff_formula = RooFormulaVar("offline_btag_eff", "max(@0+@1*@4+ @2*exp(@3*@4), 0.)", RooArgList(offline_btag_eff_vars["p0"],offline_btag_eff_vars["p1"],offline_btag_eff_vars["p2"],offline_btag_eff_vars["p3"], mjj))
 
         #f_offline_btag_eff = TFile(analysis_config.get_offline_btag_file("CSVTM", eta_region))
         #h_offline_btag_eff = f_offline_btag_eff.Get("h_offline_btag_eff")
@@ -654,9 +659,16 @@ def run_single_mass(args, mass):
         if "jer" in systematics:
             datacard.write("alpha_jer  param  0.0  1.0\n")
         if args.fitOffB:
-            datacard.write("offline_btag_eff_p0  param   6.56018e-03  3.82505e-04\n")
-            datacard.write("offline_btag_eff_p1  param  -9.05607e-06  1.13679e-06\n")
-            datacard.write("offline_btag_eff_p2  param   3.92846e-09  7.90724e-10\n")
+            if eta_region == "eta1p7":
+                datacard.write("offline_btag_eff_p0  param   6.78251e-03  3.82505e-04\n")
+                datacard.write("offline_btag_eff_p1  param  -9.55614e-06  1.13679e-06\n")
+                datacard.write("offline_btag_eff_p2  param   4.39468e-09  7.90724e-10\n")
+            elif eta_region == "eta2p2":
+                datacard.write("offline_btag_eff_p0  param  -1.72721e-03  3.04992e-05\n")
+                datacard.write("offline_btag_eff_p1  param   1.72562e-06  3.23472e-08\n")
+                datacard.write("offline_btag_eff_p2  param   8.74866e-03  7.81413e-05\n")
+                datacard.write("offline_btag_eff_p3  param  -1.67123e-03  4.30607e-05\n")
+
         if args.fitTrigger:
             for trigeff_var_name, trigeff_var in trigeff_vars.iteritems():
                 datacard.write("{}  param  {}  {}\n".format(trigeff_var_name, trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][0], trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][1]))

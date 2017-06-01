@@ -87,7 +87,7 @@ def main():
 
     for mass in input_masses:
         masses.append(mass)
-        print ">> Reading results for resonance with m = %i GeV..."%(int(mass))
+        #print ">> Reading results for resonance with m = %i GeV..."%(int(mass))
         log_file = open(limit_config.get_combine_log_path(args.analysis, args.model, mass, args.fit_function, args.method, what="significance", systematics=(not args.noSyst), frozen_nps=args.freezeNuisances, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger), 'r')
 
         if args.method == 'theta': logName = logName.replace('significance_','')
@@ -142,7 +142,7 @@ def main():
 
     graph_sig = TGraph(len(masses),masses,significances)
     graph_sig.GetXaxis().SetTitle("Resonance mass [GeV]")
-    graph_sig.GetYaxis().SetTitle("Significance (local)")
+    graph_sig.GetYaxis().SetTitle("p_0")
     graph_sig.GetYaxis().SetTitleOffset(1.2)
     graph_sig.GetYaxis().SetRangeUser(0.,args.sigRange)
     graph_sig.SetLineWidth(2)
@@ -170,7 +170,7 @@ def main():
     c.SetGridy()
     fileName = limit_config.paths["limit_plots"] + '/significance_%s_%s_%s_%s.%s'%(args.method,args.analysis, args.model + args.postfix, args.fit_function, args.fileFormat.lower())
     c.SaveAs(fileName)
-    print "Significance plot saved to '%s'"%(fileName)
+    #print "Significance plot saved to '%s'"%(fileName)
 
     graph_p0 = TGraph(len(masses), masses, p0_values)
     graph_p0.GetXaxis().SetTitle("Resonance mass [GeV]")
@@ -189,14 +189,15 @@ def main():
     graph_p0.Draw("ALP")
 
     # draw the lumi text on the canvas
-    #CMS_lumi.extraText = args.extraText
-    #CMS_lumi.lumi_sqrtS = args.lumi_sqrtS # used with iPeriod = 0 (free form)
-    #iPos = 0
-    #iPeriod = 0
+    # draw the lumi text on the canvas
+    CMS_lumi.extraText = args.extraText
+    CMS_lumi.lumi_sqrtS = args.lumi_sqrtS # used with iPeriod = 0 (free form)
+    iPos = 11
+    iPeriod = 0
 
-    #CMS_lumi.CMS_lumi(c_p0, iPeriod, iPos)
+    CMS_lumi.CMS_lumi(c, iPeriod, iPos)
 
-    Root.CMSLabel(0.2, 0.2, "Preliminary", 1, 0.65)
+    #Root.CMSLabel(0.2, 0.2, "Internal", 1, 0.65)
 
     gPad.RedrawAxis()
 

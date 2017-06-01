@@ -1,5 +1,5 @@
 systematics = {
-	 "luminosity":0.026,
+	 "luminosity":0.022,
 	 "jes":0.01,
 	 "jer":0.1
 }

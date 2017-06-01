@@ -47,9 +47,9 @@ python plot_significance.py trigbbl_CSVTM ZPrime -M HybridNew --fit_function dij
 
 
 # Max likelihood fits for testing offline b-tag fit
-python run_combine.py -M MaxLikelihoodFit --correctTrigger --analyses trigbbl_CSVTM --fit_function dijet4 --condor --no_retar -v3 --models Hbb --masses 750
+python run_combine.py -M MaxLikelihoodFit --fitOffB --fitBonly --correctTrigger --analyses trigbbl_CSVTM --fit_function dijet4 --condor --no_retar -v3 --models Hbb --masses 750
+python run_combine.py -M MaxLikelihoodFit --fitOffB --fitBonly --correctTrigger --analyses trigbbh_CSVTM --fit_function dijet4 --condor --no_retar -v3 --models Hbb --masses 750
 python run_combine.py -M MaxLikelihoodFit --correctTrigger --analyses trigbbl_CSVTM --fit_function dijet4 --condor --no_retar -v3  --models RSG --masses 750
-python run_combine.py -M MaxLikelihoodFit --correctTrigger --analyses trigbbh_CSVTM --fit_function dijet4 --condor --no_retar -v3 --models Hbb --masses 750
 python run_combine.py -M MaxLikelihoodFit --correctTrigger --analyses trigbbh_CSVTM --fit_function dijet4 --condor --no_retar -v3  --models RSG --masses 750
 
 
