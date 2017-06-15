@@ -120,11 +120,11 @@ if __name__ == "__main__":
                     signal_histograms[signal_name].SetName("h_" + signal_name)
                     signal_histograms[signal_name].SetDirectory(0)
                     if signal_model == "Hbb":
-                        signal_legends[signal_name] = "Spin-0, "
+                        signal_legends[signal_name] = "Scalar, "
                     elif signal_model == "RSG":
-                        signal_legends[signal_name] = "Spin-2, "
+                        signal_legends[signal_name] = "RS graviton, "
                     elif signal_model == "ZPrime":
-                        signal_legends[signal_name] = "Spin-1, "
+                        signal_legends[signal_name] = "Z', "
                     signal_legends[signal_name] += "m={} GeV".format(signal_mass)
                     workspace_file.Close()
 

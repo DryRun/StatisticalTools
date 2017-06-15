@@ -32,10 +32,12 @@ class LimitGraph:
 		self._xs_limit = None
 		self._xsBR_limit = None
 		self._gB_limit = None
+		self._gq_limit = None
 
 	def LoadXS(self, xs_limit, br=None):
 		self._xs_limit = xs_limit
 		self._gB_limit = ConvertXSToGB(self._xs_limit)
+		self._gq_limit = ConvertXSToGQ(self._xs_limit)
 		if br:
 			if len(br) != xs_limit.GetN():
 				print "[LimitGraph] ERROR : len(br)={} != xs_limit.GetN()={}".format(len(br), xs_limit.GetN())
@@ -47,6 +49,9 @@ class LimitGraph:
 
 	def LoadGB(self, gB_limit, br=None):
 		self._gB_limit = gB_limit
+		self._gq_limit = gB_limit.Clone()
+		for i in xrange(self._gq_limit.GetN()):
+			self._gq_limit.SetPoint(i, self._gq_limit.GetX()[i], self._gq_limit.GetY()[i] / 6.)
 		self._xs_limit = ConvertGBToXS(self._gB_limit)
 		if br:
 			if len(br) != gB_limit.GetN():
@@ -70,6 +75,7 @@ class LimitGraph:
 			else:
 				self._xs_limit.SetPoint(i, self._xs_limit.GetX()[i], 0.)
 		self._gB_limit = ConvertXSToGB(self._xs_limit)
+		self._gq_limit = ConvertXSToGQ(self._xs_limit)
 
 	def GetXS(self):
 		return self._xs_limit
@@ -79,6 +85,9 @@ class LimitGraph:
 
 	def GetGB(self):
 		return self._gB_limit
+
+	def GetGQ(self):
+		return self._gq_limit
 
 
 # Computed cross section times BR(jj) of dark matter model
@@ -155,12 +164,38 @@ def ConvertXSToGB(xs_limit, gDM=1, gQ=1./6., mDM=1.):
 		gb_y.append(this_gB)
 	return TGraph(len(gb_x), gb_x, gb_y)
 
+def ConvertXSToGQ(xs_limit, gDM=1, gQ=1./6., mDM=1.):
+	gq_x = array('d', [])
+	gq_y = array('d', [])
+	for i in xrange(xs_limit.GetN()):
+		this_mass = xs_limit.GetX()[i]
+		this_xs = xs_limit.GetY()[i]
+		width_DM_total = avtotwidth(2, gDM,gQ,this_mass,mDM)
+		width_qq   = avtotwidth(2, 0., gQ,this_mass,mDM)
+		this_gq = 1./6. * math.sqrt(this_xs / (dm_sigma_times_BRjj.Eval(this_mass)*ZpBranchingRatio(this_mass, selected_decays=["u","d","s","c","b"])) * width_qq / width_DM_total) * gQ * 6.
+		gq_x.append(this_mass)
+		gq_y.append(this_gq)
+	return TGraph(len(gq_x), gq_x, gq_y)
+
 def ConvertGBToXS(gb_limit, gDM=1, gQ=1./6., mDM=1.):
 	xs_x = array('d', [])
 	xs_y = array('d', [])
 	for i in xrange(gb_limit.GetN()):
 		this_mass = gb_limit.GetX()[i]
 		this_gb = gb_limit.GetY()[i]
+		width_DM_total = avtotwidth(2, gDM,gQ,this_mass,mDM)
+		width_qq   = avtotwidth(2, 0., gQ,this_mass,mDM)
+		this_xs = (this_gb / (gQ * 6.))**2 * width_DM_total / width_qq * (dm_sigma_times_BRjj.Eval(this_mass)*ZpBranchingRatio(this_mass, selected_decays=["u","d","s","c","b"]))
+		xs_x.append(this_mass)
+		xs_y.append(this_xs)
+	return TGraph(len(xs_x), xs_x, xs_y)
+
+def ConvertGQToXS(gq_limit, gDM=1, gQ=1./6., mDM=1.):
+	xs_x = array('d', [])
+	xs_y = array('d', [])
+	for i in xrange(gq_limit.GetN()):
+		this_mass = gq_limit.GetX()[i]
+		this_gb = 6. * gq_limit.GetY()[i]
 		width_DM_total = avtotwidth(2, gDM,gQ,this_mass,mDM)
 		width_qq   = avtotwidth(2, 0., gQ,this_mass,mDM)
 		this_xs = (this_gb / (gQ * 6.))**2 * width_DM_total / width_qq * (dm_sigma_times_BRjj.Eval(this_mass)*ZpBranchingRatio(this_mass, selected_decays=["u","d","s","c","b"]))
@@ -214,9 +249,9 @@ def avtotwidth(iType,gdm,gsm,med,mdm):
     return dm+quarks
 
 
-def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, logy=False, line_styles={}, line_colors={}, x_range=None, x_title=None, y_title=None):
-	if not what in ["gB", "xs", "xsBR"]:
-		print "[MakeLimitPlot] ERROR : what must be gB, xs, or xsBR"
+def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, logy=False, line_styles={}, line_colors={}, x_range=None, x_title=None, y_title=None, cms_label=None):
+	if not what in ["gB", "gq", "xs", "xsBR"]:
+		print "[MakeLimitPlot] ERROR : what must be gB, gq, xs, or xsBR"
 		sys.exit(1)
 
 	c = TCanvas("c_{}".format(save_tag), "c_{}".format(save_tag), 800, 600)
@@ -227,7 +262,7 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 	#if what == "gB":
 	#	l = TLegend(0.17, 0.6, 0.37, 0.9)
 	#else:
-	l = TLegend(0.64, 0.6, 0.9, 0.9)
+	l = TLegend(0.64, 0.55, 0.9, 0.85)
 	l.SetFillColor(0)
 	l.SetBorderSize(0)
 
@@ -244,6 +279,8 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 			this_x = limit_graphs[name].GetGB().GetX()[i]
 			if what == "gB":
 				this_y = limit_graphs[name].GetGB().GetY()[i]
+			elif what == "gq":
+				this_y = limit_graphs[name].GetGQ().GetY()[i]
 			elif what == "xs":
 				this_y = limit_graphs[name].GetXS().GetY()[i]
 			elif what == "xsBR":
@@ -260,6 +297,13 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 		else:
 			y_min = 0.
 			y_max = 5.
+	elif what == "gq":
+		if logy:
+			y_min = 0.03
+			y_max = 10.
+		else:
+			y_min = 0.
+			y_max = 1.
 	else:
 		if logy:
 			if y_min < 0.:
@@ -284,6 +328,8 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 	else:
 		if what == "gB":
 			frame.GetYaxis().SetTitle("g_{B}")
+		elif what == "gq":
+			frame.GetYaxis().SetTitle("g_{q}")
 		elif what == "xs":
 			frame.GetYaxis().SetTitle("#sigma [pb]")
 		elif what == "xsBR":
@@ -306,6 +352,20 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 				limit_graphs[name].GetGB().SetLineStyle(line_styles[name])
 			limit_graphs[name].GetGB().Draw("l")
 			l.AddEntry(limit_graphs[name].GetGB(), name, "l")
+		elif what == "gq":
+			if name in line_colors:
+				limit_graphs[name].GetGQ().SetLineColor(line_colors[name])
+			else:
+				limit_graphs[name].GetGQ().SetLineColor(seaborn.GetColorRoot("cubehelixlarge", style_counter, len(limit_names)))
+			if name in line_widths:
+				limit_graphs[name].GetGQ().SetLineWidth(line_widths[name])
+			else:
+				limit_graphs[name].GetGQ().SetLineWidth(2)
+			if name in line_styles:
+				limit_graphs[name].GetGQ().SetLineStyle(line_styles[name])
+			limit_graphs[name].GetGQ().Draw("l")
+			limit_graphs[name].GetGQ().Print("all")
+			l.AddEntry(limit_graphs[name].GetGQ(), name, "l")
 		elif what == "xs":
 			if name in line_colors:
 				limit_graphs[name].GetXS().SetLineColor(line_colors[name])
@@ -329,6 +389,10 @@ def MakeLimitPlot(limit_names, limit_graphs, save_tag, what="gB", logx=False, lo
 		style_counter += 1
 
 	l.Draw()
+
+	if cms_label:
+		Root.CMSLabel(0.64, 0.88, cms_label, 1, 0.5); 
+
 	c.SaveAs("{}/{}.pdf".format(analysis_config.figure_directory, c.GetName()))
 
 if __name__ == "__main__":
@@ -336,6 +400,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = 'Dijet mass spectrum fits')
 	parser.add_argument('--bb_comparison', action='store_true', help='Compare 8 TeV and 13 TeV bb analyses')
 	parser.add_argument('--gB', action='store_true', help='Compare all analyses with gB')
+	parser.add_argument('--gq', action='store_true', help='Compare all analyses with gq')
 
 	args = parser.parse_args()
 
@@ -348,11 +413,11 @@ if __name__ == "__main__":
 	limit_collection["UA2"] = LimitGraph()
 	limit_collection["UA2"].LoadGB(gr_UA2)
 	gr_CDFRun1 = csvToGraph(analysis_config.external_limits + "/CDF_Run1.csv",2,True );
-	limit_collection["CDFRun1"] = LimitGraph()
-	limit_collection["CDFRun1"].LoadGB(gr_CDFRun1)
+	limit_collection["CDF Run1"] = LimitGraph()
+	limit_collection["CDF Run1"].LoadGB(gr_CDFRun1)
 	gr_CDFRun2 = csvToGraph(analysis_config.external_limits + "/CDF_Run2.csv",6,True );
-	limit_collection["CDFRun2"] = LimitGraph()
-	limit_collection["CDFRun2"].LoadGB(gr_CDFRun2)
+	limit_collection["CDF Run2"] = LimitGraph()
+	limit_collection["CDF Run2"].LoadGB(gr_CDFRun2)
 	gr_ATLAS = csvToGraph(analysis_config.external_limits + "/gBMZB_ATLAS_all_fbinv.csv",7,False );
 	limit_collection["ATLAS jj"] = LimitGraph()
 	limit_collection["ATLAS jj"].LoadGB(gr_ATLAS)
@@ -388,8 +453,8 @@ if __name__ == "__main__":
 
 	line_styles = {
 		"UA2":2,
-		"CDFRun1":2,
-		"CDFRun2":2,
+		"CDF Run1":2,
+		"CDF Run2":2,
 		"ATLAS jj":2,
 		"CMS boosted jj":1,
 		"CMS jj":1,
@@ -401,15 +466,15 @@ if __name__ == "__main__":
 		"CMS bb, 2012 high obs":1,
 	}
 	line_widths = {
-		"CMS bb, 2012 low exp":4,
-		"CMS bb, 2012 high exp":4,
+		"CMS bb, 2012 low exp":2,
+		"CMS bb, 2012 high exp":2,
 		"CMS bb, 2012 low obs":4,
 		"CMS bb, 2012 high obs":4,
 	}
 	line_colors = {
 		"UA2":seaborn.GetColorRoot("cubehelixlarge", 1, 6),
-		"CDFRun1":seaborn.GetColorRoot("cubehelixlarge", 2, 6),
-		"CDFRun2":seaborn.GetColorRoot("cubehelixlarge", 3, 6),
+		"CDF Run1":seaborn.GetColorRoot("cubehelixlarge", 2, 6),
+		"CDF Run2":seaborn.GetColorRoot("cubehelixlarge", 3, 6),
 		"ATLAS jj":seaborn.GetColorRoot("cubehelixlarge", 4, 6),
 		"CMS jj":seaborn.GetColorRoot("cubehelixlarge", 5, 6),
 		"CMS boosted jj":seaborn.GetColorRoot("default", 5, 6),
@@ -498,9 +563,53 @@ if __name__ == "__main__":
 		limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
 		limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
 
-		limit_names = ["UA2","CDFRun1","CDFRun2","ATLAS jj","CMS jj", "CMS boosted jj", "CMS bb, 2015 obs","CMS bb, 2012 low obs", "CMS bb, 2012 low exp","CMS bb, 2012 high obs", "CMS bb, 2012 high exp"]
+		limit_names = ["UA2","CDF Run1","CDF Run2","ATLAS jj","CMS jj", "CMS boosted jj", "CMS bb, 2015 obs","CMS bb, 2012 low obs", "CMS bb, 2012 low exp","CMS bb, 2012 high obs", "CMS bb, 2012 high exp"]
 
 		#MakeLimitPlot(limit_names, limit_collection, "gB_combination_log", what="gB", logy=True, line_styles=line_styles)
 		#MakeLimitPlot(limit_names, limit_collection, "xs_combination", what="xs", line_styles=line_styles, line_colors=line_colors, x_range=[0,1500])
 		MakeLimitPlot(limit_names, limit_collection, "gB_combination", what="gB", line_styles=line_styles, line_colors=line_colors, x_title="m_{Z'} [GeV]", y_title="g_{B}", x_range=[0,1000])
 		MakeLimitPlot(limit_names, limit_collection, "gB_combination_log", what="gB", line_styles=line_styles, line_colors=line_colors, x_title="m_{Z'} [GeV]", y_title="g_{B}", x_range=[0,1000], logy=True)
+
+	elif args.gq:
+		# 8 TeV bb
+		f_Xbb_8TeVl = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbl_CSVTM_ZPrime_dijet4.root", "READ")
+		gr_Xbb_8TeVl_exp = f_Xbb_8TeVl.Get("graph_exp")
+		BR_bb_8TeVl = []
+		for i in xrange(gr_Xbb_8TeVl_exp.GetN()):
+			mass = gr_Xbb_8TeVl_exp.GetX()[i]
+			gr_Xbb_8TeVl_exp.SetPoint(i, mass, gr_Xbb_8TeVl_exp.GetY()[i]) # / ZpBranchingRatio(mass, selected_decays=["b"]) 
+			BR_bb_8TeVl.append(ZpBranchingRatio(mass, selected_decays=["b"]))
+			#print "[debug] BR(Z-->bb, M={} GeV) = {}".format(mass, BR_bb_8TeVl[-1])
+		limit_collection["CMS bb, 2012 low exp"] = LimitGraph()
+		limit_collection["CMS bb, 2012 low exp"].LoadXSBR(gr_Xbb_8TeVl_exp, BR_bb_8TeVl)
+
+		gr_Xbb_8TeVl_obs = f_Xbb_8TeVl.Get("graph_obs")
+		for i in xrange(gr_Xbb_8TeVl_obs.GetN()):
+			mass = gr_Xbb_8TeVl_obs.GetX()[i]
+			gr_Xbb_8TeVl_obs.SetPoint(i, mass, gr_Xbb_8TeVl_obs.GetY()[i])
+		limit_collection["CMS bb, 2012 low obs"] = LimitGraph()
+		limit_collection["CMS bb, 2012 low obs"].LoadXSBR(gr_Xbb_8TeVl_obs, BR_bb_8TeVl)
+
+		f_Xbb_8TeVh = TFile("~/Dijets/data/EightTeeEeVeeBee/Fits/Limits/limits_trigbbh_CSVTM_ZPrime_dijet4.root", "READ")
+		gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
+		BR_bb_8TeVh = []
+		for i in xrange(gr_Xbb_8TeVh_exp.GetN()):
+			mass = gr_Xbb_8TeVh_exp.GetX()[i]
+			gr_Xbb_8TeVh_exp.SetPoint(i, mass, gr_Xbb_8TeVh_exp.GetY()[i])
+			BR_bb_8TeVh.append(ZpBranchingRatio(mass, selected_decays=["b"]) )
+		limit_collection["CMS bb, 2012 high exp"] = LimitGraph()
+		limit_collection["CMS bb, 2012 high exp"].LoadXSBR(gr_Xbb_8TeVh_exp, BR_bb_8TeVh)
+
+		gr_Xbb_8TeVh_obs = f_Xbb_8TeVh.Get("graph_obs")
+		for i in xrange(gr_Xbb_8TeVh_obs.GetN()):
+			mass = gr_Xbb_8TeVh_obs.GetX()[i]
+			gr_Xbb_8TeVh_obs.SetPoint(i, mass, gr_Xbb_8TeVh_obs.GetY()[i])
+		limit_collection["CMS bb, 2012 high obs"] = LimitGraph()
+		limit_collection["CMS bb, 2012 high obs"].LoadXSBR(gr_Xbb_8TeVh_obs, BR_bb_8TeVh)
+
+		limit_names = ["UA2","CDF Run1","CDF Run2","ATLAS jj","CMS jj", "CMS boosted jj", "CMS bb, 2015 obs","CMS bb, 2012 low obs", "CMS bb, 2012 low exp","CMS bb, 2012 high obs", "CMS bb, 2012 high exp"]
+
+		#MakeLimitPlot(limit_names, limit_collection, "gB_combination_log", what="gB", logy=True, line_styles=line_styles)
+		#MakeLimitPlot(limit_names, limit_collection, "xs_combination", what="xs", line_styles=line_styles, line_colors=line_colors, x_range=[0,1500])
+		MakeLimitPlot(limit_names, limit_collection, "gq_combination", what="gq", line_styles=line_styles, line_colors=line_colors, x_title="m_{Z'} [GeV]", y_title="g_{q}", x_range=[0,1000], cms_label="Internal")
+		MakeLimitPlot(limit_names, limit_collection, "gq_combination_log", what="gq", line_styles=line_styles, line_colors=line_colors, x_title="m_{Z'} [GeV]", y_title="g_{q}", x_range=[0,1000], logy=True, cms_label="Internal")

@@ -91,9 +91,9 @@ for analysis in ["trigbbl_CSVTM", "trigbbh_CSVTM"]:
 	l = TLegend(0.68, 0.68, 0.88, 0.88)
 	l.SetFillColor(0)
 	l.SetBorderSize(0)
-	l.AddEntry(tg_eff["Hbb"], "Spin-0", "lpf3")
-	l.AddEntry(tg_eff["ZPrime"], "Spin-1", "lpf")
-	l.AddEntry(tg_eff["RSG"], "Spin-2", "lpf")
+	l.AddEntry(tg_eff["Hbb"], "Scalar", "lpf3")
+	l.AddEntry(tg_eff["ZPrime"], "Z'", "lpf")
+	l.AddEntry(tg_eff["RSG"], "RS Graviton", "lpf")
 	l.Draw()
 
 	Root.CMSLabel(0.15, 0.92, "Internal", 1, 0.5); 
