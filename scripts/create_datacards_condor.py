@@ -11,30 +11,34 @@ analyses = []
 masses = {}
 mjj_min = {}
 mjj_max = {}
-for sr in ["trigbbl", "trigbbh"]:
+for sr in ["trigbbl", "trigbbh"]: # ["trigbbl", "trigbbh"]:
 	for wp in ["CSVTM"]:
 		analysis = sr + "_" + wp
 		analyses.append(analysis)
 		if sr == "trigbbl":
 			masses[analysis] = range(350, 850, 50)
-			#masses[analysis] = [750]
+			masses[analysis].append(325)
+			masses[analysis].append(375)
 			mjj_min[analysis] = 296
 			mjj_max[analysis] = 1058
 		else:
 			masses[analysis] = range(600, 1250, 50)
-			#masses[analysis] = [750]
 			mjj_min[analysis] = 526
 			mjj_max[analysis] = 1607
 #masses = {"trigbbl_CSVTM":range(350, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
 #masses = {"trigbbh_CSVTM":[1200]}
 mjj_min = {"trigbbl_CSVTM":296, "trigbbh_CSVTM":526}
 mjj_max = {"trigbbl_CSVTM":1058, "trigbbh_CSVTM":1607}
-useMCTrigger = False
+useMCTrigger = True
 do_qcd = False
 fitOffB = False
 
+# Make datacards for 375 GeV
+masses["trigbbl_CSVTM"] = [375]
+analyses = ["trigbbl_CSVTM"]
+
 for model in ["Hbb", "ZPrime", "RSG"]:
-#for model in ["Hbb"]:
+#for model in ["ZPrime"]:
 	for analysis in analyses:
 		for mass in masses[analysis]:
 			if do_qcd:
@@ -56,7 +60,6 @@ for model in ["Hbb", "ZPrime", "RSG"]:
 					notrig_analysis = "NoTrigger_eta1p7_CSVM"
 				elif analysis == "trigbbh_CSVM":
 					notrig_analysis = "NoTrigger_eta2p2_CSVM"
-
 				else:
 					print "ERROR : I don't know a no-trigger variant of analysis {}. Please make one, or specify useMCTrigger.".format(analysis) 
 					sys.exit(1)
@@ -68,11 +71,12 @@ for model in ["Hbb", "ZPrime", "RSG"]:
 			#else:
 			command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
 			#command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
-			command += " --correctTrigger --runFit --condor"
+			command += " --fitTrigger --runFit --condor"
 			if useMCTrigger:
 				command += " --useMCTrigger"
 			if fitOffB:
 				command += " --fitOffB --fit_functions dijet4"
+			#command += " --dconly"
 			run_script_path = datacard_directory + "/run_dc_{}_{}_{}.sh".format(model, analysis, mass)
 			run_script = open(run_script_path, "w")
 			run_script.write("#!/bin/bash\n")
@@ -87,11 +91,12 @@ for model in ["Hbb", "ZPrime", "RSG"]:
 				#if fitOffB:
 				#	command += " --massMin {} --massMax {} --mass {}".format(270, mjj_max[analysis], mass)
 				command += " --massMin {} --massMax {} --mass {}".format(mjj_min[analysis], mjj_max[analysis], mass)
-				command += " --correctTrigger --runFit --condor --fitBonly"
+				command += " --fitTrigger --runFit --condor --fitBonly"
 				if useMCTrigger:
 					command += " --useMCTrigger"
 				if fitOffB:
 					command += " --fitOffB"
+				#command += " --dconly"
 				run_script_path = datacard_directory + "/run_dc_{}_{}_{}_fitBonly.sh".format(model, analysis, mass)
 				run_script = open(run_script_path, "w")
 				run_script.write("#!/bin/bash\n")

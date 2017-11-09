@@ -112,7 +112,7 @@ def main():
     parser.add_argument("--chi2", dest="chi2", default=False, action="store_true", help="Compute chi squared")
 
     parser.add_argument("--widefit", dest="widefit", default=False, action="store_true", help="Fit with wide bin hist")
-
+    parser.add_argument("--dconly", action="store_true", help="Only make datacard, not workspace (e.g. for adjusting systematics)")
     mass_group = parser.add_mutually_exclusive_group(required=True)
     mass_group.add_argument("--mass",
                             type=int,
@@ -163,7 +163,8 @@ def main():
 def run_single_mass(args, mass):
     print "[run_single_mass] INFO : Creating datacard and workspace for m = %i GeV..."%(int(mass))
     if args.fit_functions == "all":
-        fit_functions = ["dijet4", "dijet5", "modexp4", "polyx6", "atlas4", "atlas5", "polypower4", "rational3", "rational4"]
+        #fit_functions = ["dijet4", "dijet5", "modexp4", "polyx6", "atlas4", "atlas5", "polypower4", "rational3", "rational4"]
+        fit_functions = ["dijet4", "modexp4", "polyx6", "polypower4"]
     else:
         fit_functions = args.fit_functions.split(",")
 
@@ -266,6 +267,7 @@ def run_single_mass(args, mass):
         else:
             print "[run_single_mass] ERROR : I don't know a no-trigger variant of analysis {}. Please make one, or specify --useMCTrigger.".format(args.analysis) 
             sys.exit(1)
+        print analysis_config.simulation.simulated_masses
         signal_pdf_file = analysis_config.get_signal_fit_file(notrig_analysis, args.model, mass, "bukin", interpolated=(not mass in analysis_config.simulation.simulated_masses))
         print "[create_datacards] Loading fitted signal PDFs from " + signal_pdf_file
         if args.condor:
@@ -283,9 +285,13 @@ def run_single_mass(args, mass):
 
     # Add trigger efficiency
     if args.useMCTrigger:
-        # Signal PDF = bukin; b-tag efficiency already included in normalization
-        signal_pdf = signal_pdf_notrig
-        signal_pdf.SetName(signal_pdf_name)
+        if args.fitTrigger:
+            # Online b-tagging eff incorporated in Bukin/acceptance, so signal pdf = Bukin * pT efficiency
+            signal_pdf = RooEffProd("signal", "signal", signal_pdf_notrig, trigeff_pt_formula)
+        elif args.correctTrigger:
+            # Signal PDF = bukin; b-tag efficiency already included in normalization
+            signal_pdf = signal_pdf_notrig
+            signal_pdf.SetName(signal_pdf_name)
     else:
         if args.fitTrigger:
             # Signal PDF = bukin * total trigger efficiency
@@ -375,9 +381,11 @@ def run_single_mass(args, mass):
 
         # Add trigger efficiency
         if args.useMCTrigger:
-            # Signal PDF = bukin; b-tag efficiency already included in normalization
-            signal_pdfs[fit_function] = signal_pdfs_notrig[fit_function]
-            signal_pdfs[fit_function].SetName(signal_pdf.GetName() + "_" + fit_function)
+            if args.fitTrigger:
+                signal_pdfs[fit_function] = RooEffProd(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigeff_pt_formula)
+            else:
+                signal_pdfs[fit_function] = signal_pdfs_notrig[fit_function]
+                signal_pdfs[fit_functions].SetName(signal_pdf.GetName() + "_" + fit_function)
         elif args.fitTrigger:
             # Signal PDF = bukin * total trigger efficiency
             signal_pdfs[fit_function] = RooEffProd(signal_pdf.GetName() + "_" + fit_function, signal_pdf.GetName() + "_" + fit_function, signal_pdfs_notrig[fit_function], trigeff_total_formula)
@@ -471,13 +479,13 @@ def run_single_mass(args, mass):
 
         models[fit_function] = RooAddPdf('model_' + fit_function, 's+b', RooArgList(background_epdfs[fit_function], signal_epdfs[fit_function]))
 
-        if args.runFit:
+        if args.runFit and not args.dconly:
             print "[create_datacards] INFO : Starting fit with function {}".format(fit_function)
             models[fit_function].Print()
             # Fix the trigger efficiency for this fit
             if args.fitTrigger:
-                for var_name, var in trigeff_vars.iteritems():
-                    var.setConstant(True)
+                trigeff_vars["alpha_trigeff_p0"].setConstant(True)
+                trigeff_vars["alpha_trigeff_p1"].setConstant(True)
                 trigeff_btag_var.setConstant(True)
             if args.fitOffB:
                 for var in offline_btag_eff_vars.values():
@@ -486,10 +494,10 @@ def run_single_mass(args, mass):
             print "[create_datacards] INFO : Done with fit {}. Printing results.".format(fit_function)
             fit_results[fit_function].Print()
             if args.fitTrigger:
-                for var_name, var in trigeff_vars.iteritems():
-                    var.setConstant(False)
-            if args.fitTrigger:
-                trigeff_btag_var.setConstant(False)
+                # Current strategy: freeze the trigger nuisance parameters. 
+                trigeff_vars["alpha_trigeff_p0"].setConstant(True)
+                trigeff_vars["alpha_trigeff_p1"].setConstant(True)
+                trigeff_btag_var.setConstant(True)
             if args.fitOffB:
                 for var in offline_btag_eff_vars.values():
                     var.setConstant(False)
@@ -540,45 +548,46 @@ def run_single_mass(args, mass):
     postfix = (('_' + args.postfix) if args.postfix != '' else '')
     wsName = 'workspace_' + args.final_state + '_m' + str(mass) + postfix + '.root'
 
-    w = RooWorkspace('w','workspace')
-    signal_pdf.SetName("signal")
-    getattr(w,'import')(signal_pdf,RooFit.Rename("signal"))
-    norm = args.lumi
-    signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm/100., norm/100. / 10., norm * 10.)
-    print "[create_datacards] INFO : Set signal norm to {}".format(signal_norm.getVal())
-    signal_norm.setConstant()
-    getattr(w,'import')(signal_norm,ROOT.RooCmdArg())
-    for fit_function in fit_functions:
-        print "Importing background PDF"
-        print background_pdfs[fit_function]
-        background_pdfs[fit_function].Print()
-        getattr(w,'import')(background_pdfs[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function), RooFit.RecycleConflictNodes())
-        w.pdf("background_" + fit_function).Print()
-        getattr(w,'import')(background_norms[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function + "_norm"))
-        getattr(w,'import')(fit_results[fit_function])
-        getattr(w,'import')(signal_norms[fit_function],ROOT.RooCmdArg())
-        if args.fitBonly:
-            getattr(w,'import')(models[fit_function],ROOT.RooCmdArg(),RooFit.RecycleConflictNodes())
-    getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
-    if args.correctTrigger:
-        getattr(w,'import')(rooDataHist_notrigcorr, RooFit.Rename("data_obs_notrigcorr"))
+    if not args.dconly:
+        w = RooWorkspace('w','workspace')
+        signal_pdf.SetName("signal")
+        getattr(w,'import')(signal_pdf,RooFit.Rename("signal"))
+        norm = args.lumi
+        signal_norm = ROOT.RooRealVar("signal_norm", "signal_norm", norm/100., norm/100. / 10., norm * 10.)
+        print "[create_datacards] INFO : Set signal norm to {}".format(signal_norm.getVal())
+        signal_norm.setConstant()
+        getattr(w,'import')(signal_norm,ROOT.RooCmdArg())
+        for fit_function in fit_functions:
+            print "Importing background PDF"
+            print background_pdfs[fit_function]
+            background_pdfs[fit_function].Print()
+            getattr(w,'import')(background_pdfs[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function), RooFit.RecycleConflictNodes())
+            w.pdf("background_" + fit_function).Print()
+            getattr(w,'import')(background_norms[fit_function],ROOT.RooCmdArg(),RooFit.Rename("background_" + fit_function + "_norm"))
+            getattr(w,'import')(fit_results[fit_function])
+            getattr(w,'import')(signal_norms[fit_function],ROOT.RooCmdArg())
+            if args.fitBonly:
+                getattr(w,'import')(models[fit_function],ROOT.RooCmdArg(),RooFit.RecycleConflictNodes())
+        getattr(w,'import')(rooDataHist,RooFit.Rename("data_obs"))
+        if args.correctTrigger:
+            getattr(w,'import')(rooDataHist_notrigcorr, RooFit.Rename("data_obs_notrigcorr"))
 
-    w.Print()
-    print "Starting save"
-    if args.output_path:
-        if not os.path.isdir( os.path.join(os.getcwd(),args.output_path) ):
-            os.mkdir( os.path.join(os.getcwd(),args.output_path) )
-        workspace_output_path = os.path.join(args.output_path,wsName)
-    else:
-        workspace_output_path = limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitOffB=args.fitOffB)
-    if args.condor:
-        workspace_output_path = os.path.basename(workspace_output_path)
-    print "[create_datacards] INFO : Writing workspace to file {}".format(workspace_output_path)
-    w.writeToFile(workspace_output_path)
-    if args.correctTrigger:
-        f_workspace = TFile(workspace_output_path, "UPDATE")
-        hData.Write()
-        hData_notrigcorr.Write()
+        w.Print()
+        print "Starting save"
+        if args.output_path:
+            if not os.path.isdir( os.path.join(os.getcwd(),args.output_path) ):
+                os.mkdir( os.path.join(os.getcwd(),args.output_path) )
+            workspace_output_path = os.path.join(args.output_path,wsName)
+        else:
+            workspace_output_path = limit_config.get_workspace_filename(args.analysis, args.model, mass, fitBonly=args.fitBonly, fitTrigger=args.fitTrigger, correctTrigger=args.correctTrigger, useMCTrigger=args.useMCTrigger, qcd=args.qcd, fitOffB=args.fitOffB)
+        if args.condor:
+            workspace_output_path = os.path.basename(workspace_output_path)
+        print "[create_datacards] INFO : Writing workspace to file {}".format(workspace_output_path)
+        w.writeToFile(workspace_output_path)
+        if args.correctTrigger:
+            f_workspace = TFile(workspace_output_path, "UPDATE")
+            hData.Write()
+            hData_notrigcorr.Write()
 
     # Clean up
     for name, obj in signal_norms.iteritems():
@@ -616,11 +625,13 @@ def run_single_mass(args, mass):
         if obj:
             obj.IsA().Destructor(obj)
     rooDataHist.IsA().Destructor(rooDataHist)
-    w.IsA().Destructor(w)
+    if not args.dconly:
+        w.IsA().Destructor(w)
 
     # Make datacards only if S+B fitted
     #beffUnc = 0.3
-    boffUnc = 0.06
+    boffUnc = systematics["boff"][args.analysis][args.model].Eval(mass)
+    pdfUnc = systematics["pdfunc"][args.analysis][args.model].Eval(mass)
     for fit_function in fit_functions:
         if args.output_path:
             dcName = 'datacard_' + args.final_state + '_m' + str(mass) + postfix + '_' + fit_function + '.txt'
@@ -651,8 +662,11 @@ def run_single_mass(args, mass):
         datacard.write('lumi  lnN    %f         -\n'%(1.+systematics["luminosity"]))
         if not args.useMCTrigger:
             datacard.write('bon  lnN    %f         -\n'%(1.+ (trigger_efficiency.online_btag_eff[args.analysis][2] / trigger_efficiency.online_btag_eff[args.analysis][0])))
+        else:
+            datacard.write('bon  lnN    %f         -\n'%(1.+ systematics["bon"]))
         #datacard.write('beff  lnN    %f         -\n'%(1.+beffUnc))
         datacard.write('boff  lnN    %f         -\n'%(1.+boffUnc))
+        datacard.write('pdf  lnN    %f         -\n'%(1.+pdfUnc))
         #datacard.write('bkg   lnN     -         1.03\n')
         if "jes" in systematics:
             datacard.write("alpha_jes  param  0.0  1.0\n")
@@ -669,9 +683,11 @@ def run_single_mass(args, mass):
                 datacard.write("offline_btag_eff_p2  param   8.74866e-03  7.81413e-05\n")
                 datacard.write("offline_btag_eff_p3  param  -1.67123e-03  4.30607e-05\n")
 
-        if args.fitTrigger:
-            for trigeff_var_name, trigeff_var in trigeff_vars.iteritems():
-                datacard.write("{}  param  {}  {}\n".format(trigeff_var_name, trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][0], trigger_efficiency.sigmoid_parameters[args.analysis][trigeff_var_name][1]))
+        # Current decision: don't put in nuisance parameters for trigger efficiency sigmoid. Impact is likely small.
+        #if args.fitTrigger:
+        #    if "bbl" in args.analysis or "eta1p7" in args.analysis:
+        #        datacard.write("alpha_trigeff_p0  param  {}  {}\n".format(0.0, 1.0))
+        #        datacard.write("alpha_trigeff_p1  param  {}  {}\n".format(0.0, 1.0))
         # Background fit parameters --- flat prior
         datacard.write('background_' + fit_function + '_norm  flatParam\n')
         for par_name, par in background_parameters[fit_function].iteritems():

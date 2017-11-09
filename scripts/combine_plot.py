@@ -60,6 +60,10 @@ def calculate_ks(model_hist, data_hist):
     ks_ts = data_hist.KolmogorovTest(model_hist, "M")
     return (ks_prob, ks_ts)
 
+# Dijet fit
+def BackgroundFit_f1(x, par):
+    return par[0] * (1. - (x[0] / 8.e3))**par[1] / ((x[0] / 8.e3)**(par[2] + par[3] * TMath.Log((x[0] / 8.e3))))
+
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -72,6 +76,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--qcd', action='store_true', help="Use QCD instead of data (assumes no trigger emulation)")
     parser.add_argument('--correctTrigger', action='store_true', help="Use model with trigger correction (has to have been specified in create_datacards.py)")
+    parser.add_argument('--useMCTrigger', action='store_true', help="Use MC trigger for signal shapes")
     parser.add_argument('--fitTrigger', action='store_true', help="Use model with trigger fit (has to have been specified in create_datacards.py)")
     parser.add_argument('--fitBonly', action='store_true', help="Background-only fit")
     parser.add_argument('--fitOffB', action='store_true', help="Fit background-only efficiency")
@@ -79,6 +84,7 @@ if __name__ == "__main__":
     parser.add_argument("--sb", action="store_true", help="Draw S+B fit")
     parser.add_argument('--table', action='store_true', help="Print table of fit parameters")
     parser.add_argument('--qof', action='store_true', help="Print QOF information")
+    parser.add_argument('--tf1', action='store_true', help="Draw background fit TF1 instead of histogram")
     args = parser.parse_args()
 
     signals_to_draw = []
@@ -91,7 +97,7 @@ if __name__ == "__main__":
                 mass = int(mass_str)
 
                 # Data histogram
-                workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, fitBonly=args.fitBonly, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger, qcd=args.qcd, fitOffB=args.fitOffB), "READ")
+                workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, fitBonly=args.fitBonly, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger, qcd=args.qcd, fitOffB=args.fitOffB, useMCTrigger=args.useMCTrigger), "READ")
                 workspace = workspace_file.Get("w")
                 mjj = workspace.var("mjj")
                 data = workspace.data("data_obs").createHistogram("data", mjj, RooFit.Binning(5000, 0., 5000.))
@@ -112,7 +118,7 @@ if __name__ == "__main__":
                     signal_mass = int(signal_pair[1])
                     signal_name = signal_model + "_" + str(signal_mass)
                     signal_masses[signal_name] = signal_mass
-                    workspace_file = TFile(limit_config.get_workspace_filename(analysis, signal_model, signal_mass, fitBonly=False, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger, qcd=args.qcd, fitOffB=args.fitOffB), "READ")
+                    workspace_file = TFile(limit_config.get_workspace_filename(analysis, signal_model, signal_mass, fitBonly=False, correctTrigger=args.correctTrigger, fitTrigger=args.fitTrigger, qcd=args.qcd, fitOffB=args.fitOffB, useMCTrigger=args.useMCTrigger), "READ")
                     workspace = workspace_file.Get("w")
                     mjj = workspace.var("mjj")
                     signal_names.append(signal_name)
@@ -132,6 +138,8 @@ if __name__ == "__main__":
                 postfix = ""
                 if args.fitTrigger:
                     postfix += "_fitTrigger"
+                if args.useMCTrigger:
+                    postfix += "_useMCTrigger"
                 if args.correctTrigger:
                     postfix += "_correctTrigger"
                 if args.fitOffB:
@@ -142,6 +150,7 @@ if __name__ == "__main__":
                 fit_filename = "/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Fits/Logs/plots_{}/mlfit_{}.root".format(job_name, job_name)
                 print "Loading fit results from {}".format(fit_filename)
                 fit_file = TFile(fit_filename, "READ")
+                fit_file.ls()
                 if args.sb:
                     background_fit_hist = fit_file.Get("shapes_fit_s/bin1/total_background")
                     signal_fit_hist = fit_file.Get("shapes_fit_s/bin1/total_signal")
@@ -149,6 +158,19 @@ if __name__ == "__main__":
                     total_fit_hist.Add(background_fit_hist)
                 else:
                     background_fit_hist = fit_file.Get("shapes_fit_b/bin1/total_background")
+                if not background_fit_hist:
+                    print "ERROR : Couldn't find background_fit_hist in file " + fit_file.GetPath()
+
+                # Background fit TF1
+                if args.tf1:
+                    background_fit_result = fit_file.Get("fit_b")
+                    background_fit_tf1 = TF1("dijet_fit", BackgroundFit_f1, fit_range[0], fit_range[1], 4)
+                    background_fit_tf1.SetParameter(1, background_fit_result.floatParsFinal().find("dijet4_p1").getVal())
+                    background_fit_tf1.SetParameter(2, background_fit_result.floatParsFinal().find("dijet4_p2").getVal())
+                    background_fit_tf1.SetParameter(3, background_fit_result.floatParsFinal().find("dijet4_p3").getVal())
+                    background_fit_tf1.SetParameter(0, 1.)
+                    bkgd_norm = background_fit_result.floatParsFinal().find("shapeBkg_background_dijet4_bin1__norm").getVal()
+                    background_fit_tf1.SetParameter(0, bkgd_norm / background_fit_tf1.Integral(fit_range[0], fit_range[1]))
 
                 data_fitrange = background_fit_hist.Clone()
                 data_fitrange.Reset()
@@ -171,16 +193,20 @@ if __name__ == "__main__":
                 if args.qcd:
                     data_name = "QCD MC"
                 else:
-                    data_name = "Data 2012"
+                    data_name = "Data"
                 plotter.add_data(data, data_name)
                 if args.sb:
                     plotter.add_mc(background_fit_hist, "S+B fit, B only", color=17)
                 else:
-                    plotter.add_mc(background_fit_hist, "Dijet Fit", color=17)
+                    plotter.add_mc(background_fit_hist, "Fit", color=17)
+                if args.tf1:
+                    plotter.add_tf1(background_fit_tf1, "Fit", color=kRed)
+                    plotter.draw_tf1only(True)
+
                 if "bbl" in analysis or "eta1p7" in analysis:
-                    x_range = [0., 1200.]
+                    x_range = [200., 1150.]
                 elif "bbh" in analysis or "eta2p2" in analysis:
-                    x_range = [0., 1800.]
+                    x_range = [400., 1700.]
                 pull_dataerrors = args.qcd
 
                 for i, signal_name in enumerate(signal_names):
@@ -190,7 +216,9 @@ if __name__ == "__main__":
                 save_tag="mlfit_{}".format(job_name)
                 if args.sb:
                     save_tag += "_sbfit_b"
-                plotter.draw(logy=True, draw_pull=True, x_range=x_range, pull_range=[-4., 4.], save_tag=save_tag, cms_label="Internal", color_scheme="cubehelixhuge", complex_rebinning=dijet_binning, legend_position="topright", pull_dataerrors=pull_dataerrors, lumi_string="19.7 fb^{-1} (8 TeV)", x_title="m_{jj} [GeV]", y_title="Events / GeV", save_directory="/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures")
+                if args.tf1:
+                    save_tag += "_tf1"
+                plotter.draw(logy=True, draw_pull=True, x_range=x_range, pull_range=[-3., 3.], save_tag=save_tag, cms_label="", color_scheme="cubehelixhuge", complex_rebinning=dijet_binning, legend_position="topright", pull_dataerrors=pull_dataerrors, lumi_string="19.7 fb^{-1} (8 TeV)", x_title="m_{jj} [GeV]", y_title="Events / GeV", save_directory="/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures")
 
                 if args.sb:
                     plotter_sb = root_plots.DataMCPlot()
@@ -207,7 +235,7 @@ if __name__ == "__main__":
                     pull_dataerrors = args.qcd
                     save_tag="mlfit_{}".format(job_name)
                     save_tag += "_sbfit_sb"
-                    plotter_sb.draw(logy=True, draw_pull=True, x_range=x_range, pull_range=[-4., 4.], save_tag=save_tag, cms_label="Internal", color_scheme="cubehelixhuge", complex_rebinning=dijet_binning, legend_position="topright", pull_dataerrors=pull_dataerrors, lumi_string="19.7 fb^{-1} (8 TeV)", x_title="m_{jj} [GeV]", y_title="Events / GeV", save_directory="/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures")
+                    plotter_sb.draw(logy=True, draw_pull=True, x_range=x_range, pull_range=[-4., 4.], save_tag=save_tag, cms_label="", color_scheme="cubehelixhuge", complex_rebinning=dijet_binning, legend_position="topright", pull_dataerrors=pull_dataerrors, lumi_string="19.7 fb^{-1} (8 TeV)", x_title="m_{jj} [GeV]", y_title="Events / GeV", save_directory="/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/Results/figures")
 
                 if args.table:
                     print "\\begin{table}"

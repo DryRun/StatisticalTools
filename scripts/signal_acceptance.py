@@ -15,12 +15,13 @@ for sr in ["trigbbl", "trigbbh"]:
 		analysis = sr + "_" + wp
 		analyses.append(analysis)
 
-masses = [350, 400, 500, 600, 750, 900, 1200]
+#masses = [325, 350, 400, 500, 600, 750, 900, 1200]
 #masses = {"trigbbl_CSVTM":[400, 500, 600, 750, 900], "trigbbh_CSVTM":[600, 750, 900, 1200]}
+masses = {"trigbbl_CSVTM":[325,350,400,500,600,750,900], "trigbbh_CSVTM":[600,750,900,1200]}
 
 signal_acc_times_eff = {}
 
-use_MC_trigger = False
+use_MC_trigger = True
 
 for model in models:
 	signal_acc_times_eff[model] = {}
@@ -38,7 +39,7 @@ for model in models:
 		elif "bbh" in analysis:
 			mjj_range = [526, 1607]
 
-		for mass in masses:
+		for mass in masses[analysis]:
 			if use_MC_trigger:
 				f = TFile(analysis_config.get_b_histogram_filename(analysis, analysis_config.simulation.get_signal_tag(model, mass, "FULLSIM")))
 			else:
@@ -49,7 +50,12 @@ for model in models:
 			low_bin = f.Get("BHistograms/h_pfjet_mjj").GetXaxis().FindBin(mjj_range[0] + 1.e-5)
 			high_bin = f.Get("BHistograms/h_pfjet_mjj").GetXaxis().FindBin(mjj_range[1] - 1.e-5)
 			numerator = f.Get("BHistograms/h_pfjet_mjj").Integral(low_bin, high_bin)
-			denominator = f.Get("BHistograms/h_sample_nevents").Integral()
+			if "ZPrime" in model:
+				denominator = f.Get("BHistograms/h_input_nevents").Integral()
+				print "{} / {} den = {}".format(model, analysis, denominator)
+			else:
+				denominator = f.Get("BHistograms/h_sample_nevents").Integral()
+
 			if denominator > 0:
 				signal_acc_times_eff[model][analysis][mass] = numerator/denominator
 			else:
@@ -98,7 +104,7 @@ for analysis in analyses:
 		elif "bbh" in analysis:
 			mjj_range = [526, 1607]
 
-		for mass in masses:
+		for mass in masses[analysis]:
 			if use_MC_trigger:
 				f = TFile(analysis_config.get_b_histogram_filename(analysis, analysis_config.simulation.get_signal_tag(model, mass, "FULLSIM")))
 			else:
@@ -118,6 +124,9 @@ for analysis in analyses:
 				headers.append("m_{jj} acceptance")
 			rows[model][mass] = {}
 			inclusive = f.Get("BHistograms/h_sample_nevents").Integral()
+			# For ZPrime, h_sample_nevents includes charms decays, which you have decided to ignore.
+			if model == "ZPrime":
+				inclusive = inclusive / 2.
 			if inclusive <= 0:
 				print "ERROR : Cutflow histograms inclusive bin has zero entries"
 				sys.exit(1)
@@ -158,7 +167,7 @@ for analysis in analyses:
 			print "&",
 	print "\\\\"
 	print "\t\t\\hline"
-	for mass in masses:
+	for mass in masses[analysis]:
 		for model in models:
 			print "\t\t{}/{}\t".format(model, mass),
 			for header in headers:
@@ -172,26 +181,26 @@ for analysis in analyses:
 	print "\t\\label{{table:cut-efficiency-{}}}".format(analysis)
 	print "\\end{table}"
 
-print "\\begin{table}"
-print "\t\\centering"
-print "\t\\begin{tabular}{|c|",
-for mass in masses:
-	print "c|",
-print "}"
-print "\t\t\\hline"
-print "\t\tModel / Signal Region "
-for mass in masses:
-	print "\t&\t {} GeV".format(mass),
-print "\\\\"
-print "\t\t\\hline"
-for model in models:
-	for analysis in analyses:
-		print "\t\t{} / {}".format(model, analysis),
-		for mass in masses:
-			print "\t&\t{:.2f}\\%".format(signal_acc_times_eff[model][analysis][mass]*100),
-		print "\\\\"
-		print "\t\t\\hline"
-print "\t\\end{tabular}"
-print "\\caption{Efficiency of the event selection on signal events.}"
-print "\\label{table:total-signal-efficiency}"
-print "\\end{table}"
+#print "\\begin{table}"
+#print "\t\\centering"
+#print "\t\\begin{tabular}{|c|",
+#for mass in masses[analysis]:
+#	print "c|",
+#print "}"
+#print "\t\t\\hline"
+#print "\t\tModel / Signal Region "
+#for mass in masses[analysis]:
+#	print "\t&\t {} GeV".format(mass),
+#print "\\\\"
+#print "\t\t\\hline"
+#for model in models:
+#	for analysis in analyses:
+#		print "\t\t{} / {}".format(model, analysis),
+#		for mass in masses[analysis]:
+#			print "\t&\t{:.2f}\\%".format(signal_acc_times_eff[model][analysis][mass]*100),
+#		print "\\\\"
+#		print "\t\t\\hline"
+#print "\t\\end{tabular}"
+#print "\\caption{Efficiency of the event selection on signal events.}"
+#print "\\label{table:total-signal-efficiency}"
+#print "\\end{table}"

@@ -73,7 +73,7 @@ def make_signal_pdf(fit_function, mjj, tag=None, mass=None):
 			var.SetName(var.GetName() + tag)
 	return signal_pdf, signal_vars
 
-# Make signal PDFs for JER/JES variations, with nuisance parameter built in. 
+# Make signal PDFs for JER/JES/BOff variations, with nuisance parameter built in. 
 def make_signal_pdf_systematic(fit_function, mjj, tag=None, mass=None):
 	if fit_function == "bukin":
 		# Bukin
@@ -105,13 +105,13 @@ def make_signal_pdf_systematic(fit_function, mjj, tag=None, mass=None):
 
 
 #systematics_floating_parameters = {}
-#systematics_floating_parameters["JESUp"] = {
+#systematics_floating_parameters["BOffUp"] = {
 #	"voigt":["mean"],
 #	"bukin":["xp"],
 #	"cb":["mean", "alpha"],
 #	"cb_voigt":["mean", "cb_alpha"]
 #}
-#systematics_floating_parameters["JESDown"] = copy.deepcopy(systematics_floating_parameters["JESUp"])
+#systematics_floating_parameters["BOffDown"] = copy.deepcopy(systematics_floating_parameters["BOffUp"])
 #
 #systematics_floating_parameters["JERUp"] = {
 #	"voigt":["width", "sigma"],
@@ -140,6 +140,15 @@ def setfix_systematic_parameters(fit_function, systematic_name, central_paramete
 	}
 	systematics_floating_parameters["JERDown"] = copy.deepcopy(systematics_floating_parameters["JERUp"])
 
+	systematics_floating_parameters["BOffUp"] = {
+		"voigt":["width", "sigma"],
+		#"bukin":["sigp", "xi", "rho1", "rho2"],
+		"bukin":["sigp", "xp"],
+		"cb":["sigma", "alpha", "n"],
+		"cb_voigt":["voigt_width", "voigt_sigma", "cb_sigma", "cb_alpha", "cb_n"]
+	}
+	systematics_floating_parameters["BOffDown"] = copy.deepcopy(systematics_floating_parameters["JERUp"])
+
 	# Add norm to all lists of floating parameters
 	for name1, map1 in systematics_floating_parameters.iteritems():
 		for name2, list2 in map1.iteritems():
@@ -152,7 +161,9 @@ def setfix_systematic_parameters(fit_function, systematic_name, central_paramete
 		"JESUp":1.01,
 		"JESDown":0.99,
 		"JERUp":1.1,
-		"JERDown":0.95
+		"JERDown":0.95,
+		"BOffUp":1.,
+		"BOffDown":1.
 	}
 
 	for parameter_name in central_parameters:
@@ -287,6 +298,11 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 			systematic_variations.append("JERDown")
 			histograms_syst['JERUp'] = copy.deepcopy(histogram)
 			histograms_syst['JERDown'] = copy.deepcopy(histogram)
+		if "boff" in systematics:
+			systematic_variations.append("BOffUp")
+			systematic_variations.append("BOffDown")
+			histograms_syst['BOffUp'] = copy.deepcopy(histogram)
+			histograms_syst['BOffDown'] = copy.deepcopy(histogram)
 		for key in histograms_syst.keys():
 			histograms_syst[key].Reset()
 			histograms_syst[key].SetName(histograms_syst[key].GetName() + '_' + key)
@@ -318,6 +334,15 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 				xLowPrime = jer*(xLow-float(mass))+float(mass)
 				xUpPrime = jer*(xUp-float(mass))+float(mass)
 				histograms_syst['JERDown'].SetBinContent(i, signal_cdf.Eval(xUpPrime) - signal_cdf.Eval(xLowPrime))
+
+		# B tag SFs: histograms are already made
+		if "boff" in systematics:
+			systematic_variations.append("BOffUp")
+			systematic_variations.append("BOffDown")
+			histograms_syst['BOffUp'] = histogram_file.Get("BHistograms/h_pfjet_mjj_BTagOfflineSFUp")
+			histograms_syst['BOffDown'] = histogram_file.Get("BHistograms/h_pfjet_mjj_BTagOfflineSFDown")
+
+
 	# End making systematic variation histograms
 
 	for fit_function in fit_functions:
@@ -376,7 +401,27 @@ def signal_fit(analysis, model, mass, fit_functions, systematics=None):
 
 			sigp_initial = 35 + (100 -35) / (900 - 400) * (mass - 400)
 			signal_vars["sigp"].setVal(sigp_initial)
-			if mass == 600:
+			if mass == 325 and model == "Hbb":
+				signal_vars["xp"].setVal(305)
+				signal_vars["sigp"].setVal(34)
+				signal_vars["xi"].setVal(-0.05)
+				signal_vars["rho2"].setVal(0.03)
+			elif mass == 350 and model == "ZPrime":
+				signal_vars["xp"].setVal(325)
+				signal_vars["sigp"].setVal(37)
+				signal_vars["xi"].setVal(-0.05)
+				signal_vars["rho2"].setVal(0.033)
+			elif mass == 400 and model == "ZPrime":
+				signal_vars["xp"].setVal(372)
+				signal_vars["sigp"].setVal(46)
+				signal_vars["xi"].setVal(-0.15)
+				signal_vars["rho2"].setVal(0.042)
+			elif mass == 500 and model == "RSG":
+				signal_vars["xp"].setVal(466)
+				signal_vars["sigp"].setVal(58)
+				signal_vars["xi"].setVal(-0.24)
+				signal_vars["rho2"].setVal(0.056)
+			elif mass == 600:
 				signal_vars["xp"].setVal(5.5398e+02)
 				signal_vars["rho2"].setVal(7.4604e-02)
 				signal_vars["xi"].setVal(-1.9649e-01)
@@ -568,6 +613,9 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 	if "jes" in systematics:
 		systematic_variations.append("JESUp")
 		systematic_variations.append("JESDown")
+	if "boff" in systematics:
+		systematic_variations.append("BOffUp")
+		systematic_variations.append("BOffDown")
 
 	for fit_function in fit_functions:
 		# Load objects
@@ -594,7 +642,11 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 		signal_vars_syst = {}
 		for variation in systematic_variations:
 			signal_vars_syst[variation] = {}
-			signal_vars_syst[variation]["norm"] = RooRealVar(signal_pdfs_syst[variation].GetName() + "_norm", signal_pdfs_syst[variation].GetName() + "_norm", signal_rdhs_syst[variation].sum(False), signal_rdhs_syst[variation].sum(False) / 50., signal_rdhs_syst[variation].sum(False) * 50.)
+			signal_vars_syst[variation]["norm"] = RooRealVar(
+				signal_pdfs_syst[variation].GetName() + "_norm", signal_pdfs_syst[variation].GetName() + "_norm", 
+				signal_rdhs_syst[variation].sum(False), 
+				signal_rdhs_syst[variation].sum(False) / 50., 
+				signal_rdhs_syst[variation].sum(False) * 50.)
 			signal_epdfs_syst[variation] = ROOT.RooExtendPdf("signal_" + fit_function + "_epdf__" + variation, "signal_" + fit_function + "_epdf__" + variation, signal_pdfs_syst[variation], signal_vars_syst[variation]["norm"])
 
 		# Draw central value fit
@@ -697,6 +749,38 @@ def plot_fits(analysis, model, mass, fit_functions, systematics=[]):
 			l_jes_fit.AddEntry(frame_jes_fit.findObject(fit_function + ", JES-"), fit_function + ", JES-", "l")
 			l_jes_fit.Draw()
 			c_jes_fit.SaveAs(analysis_config.figure_directory + "/" + c_jes_fit.GetName() + ".pdf")
+
+		if "boff" in systematics:
+			frame_boff = mjj.frame()
+			c_boff = TCanvas("c_signal_hist_boff_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, "c_signal_hist_boff_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, 800, 600)
+			signal_rdh.plotOn(frame_boff, RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.Name(fit_function), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+			signal_rdhs_syst["BOffUp"].plotOn(frame_boff, RooFit.LineColor(seaborn.GetColorRoot("default", 1)), RooFit.LineStyle(2), RooFit.Name(fit_function + ", BOff+"), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+			signal_rdhs_syst["BOffDown"].plotOn(frame_boff, RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(3), RooFit.Name(fit_function + ", BOff-"), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+			frame_boff.Draw()
+			l_boff = TLegend(0.6, 0.3, 0.88, 0.88)
+			l_boff.SetFillColor(0)
+			l_boff.SetBorderSize(0)
+			l_boff.AddEntry(frame_boff.findObject(fit_function), fit_function, "l")
+			l_boff.AddEntry(frame_boff.findObject(fit_function + ", BOff+"), fit_function + ", BOff+", "l")
+			l_boff.AddEntry(frame_boff.findObject(fit_function + ", BOff-"), fit_function + ", BOff-", "l")
+			l_boff.Draw()
+			c_boff.SaveAs(analysis_config.figure_directory + "/" + c_boff.GetName() + ".pdf")
+
+			frame_boff_fit = mjj.frame()
+			c_boff_fit = TCanvas("c_signal_fits_boff_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, "c_signal_fits_boff_" + analysis + "_" + model + "_" + str(mass) + "_" + fit_function, 800, 600)
+			signal_epdf.plotOn(frame_boff_fit, RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.Name(fit_function))
+			signal_epdfs_syst["BOffUp"].plotOn(frame_boff_fit, RooFit.LineColor(seaborn.GetColorRoot("default", 1)), RooFit.LineStyle(2), RooFit.Name(fit_function + ", BOff+"))
+			signal_epdfs_syst["BOffDown"].plotOn(frame_boff_fit, RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(3), RooFit.Name(fit_function + ", BOff-"))
+			frame_boff_fit.Draw()
+			l_boff_fit = TLegend(0.6, 0.3, 0.88, 0.88)
+			l_boff_fit.SetFillColor(0)
+			l_boff_fit.SetBorderSize(0)
+			l_boff_fit.AddEntry(frame_boff_fit.findObject(fit_function), fit_function, "l")
+			l_boff_fit.AddEntry(frame_boff_fit.findObject(fit_function + ", BOff+"), fit_function + ", BOff+", "l")
+			l_boff_fit.AddEntry(frame_boff_fit.findObject(fit_function + ", BOff-"), fit_function + ", BOff-", "l")
+			l_boff_fit.Draw()
+			c_boff_fit.SaveAs(analysis_config.figure_directory + "/" + c_boff_fit.GetName() + ".pdf")
+
 		f.Close()
 
 def plot_multiple_fits(analysis, model, masses, fit_functions, systematics=[]):
@@ -709,6 +793,9 @@ def plot_multiple_fits(analysis, model, masses, fit_functions, systematics=[]):
 	if "jes" in systematics:
 		systematic_variations.append("JESUp")
 		systematic_variations.append("JESDown")
+	if "boff" in systematics:
+		systematic_variations.append("BOffUp")
+		systematic_variations.append("BOffDown")
 
 	for fit_function in fit_functions:
 		signal_rdhs = {}
@@ -722,6 +809,7 @@ def plot_multiple_fits(analysis, model, masses, fit_functions, systematics=[]):
 		signal_vars_syst = {}
 		for mass in masses:
 			# Load objects
+			print "Loading objects from {}".format(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function))
 			f = TFile(analysis_config.get_signal_fit_file(analysis, model, mass, fit_function), "READ")
 			w = f.Get("w_signal")
 			mjj = w.var("mjj")
@@ -819,6 +907,39 @@ def plot_multiple_fits(analysis, model, masses, fit_functions, systematics=[]):
 			frame_jes_fit.Draw()
 			l_jes_fit.Draw()
 			c_jes_fit.SaveAs(analysis_config.figure_directory + "/" + c_jes_fit.GetName() + ".pdf")
+
+		if "boff" in systematics:
+			frame_boff = mjj.frame()
+			c_boff = TCanvas("c_signal_hist_boff_" + analysis + "_" + model + "_multiplemasses_" + fit_function, "c_signal_hist_boff_" + analysis + "_" + model + "_multiplemasses_" + fit_function, 800, 600)
+			l_boff = TLegend(0.55, 0.6, 0.88, 0.88)
+			l_boff.SetFillColor(0)
+			l_boff.SetBorderSize(0)
+			for mass in masses:
+				signal_rdhs[mass].plotOn(frame_boff, RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.Name("Central, {} GeV".format(mass)), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+				signal_rdhs_syst[mass]["BOffUp"].plotOn(frame_boff, RooFit.LineColor(seaborn.GetColorRoot("default", 1)), RooFit.LineStyle(2), RooFit.Name("BOff+, {} GeV".format(mass)), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+				signal_rdhs_syst[mass]["BOffDown"].plotOn(frame_boff, RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(3), RooFit.Name("BOff-, {} GeV".format(mass)), RooFit.Binning(dijet_roobinning), RooFit.MarkerStyle(20), RooFit.MarkerSize(0))
+			l_boff.AddEntry(frame_boff.findObject("Central, {} GeV".format(masses[0])), "Central", "l")
+			l_boff.AddEntry(frame_boff.findObject("BOff+, {} GeV".format(masses[0])), "BOff+", "l")
+			l_boff.AddEntry(frame_boff.findObject("BOff-, {} GeV".format(masses[0])), "BOff-", "l")
+			frame_boff.Draw()
+			l_boff.Draw()
+			c_boff.SaveAs(analysis_config.figure_directory + "/" + c_boff.GetName() + ".pdf")
+
+			frame_boff_fit = mjj.frame()
+			c_boff_fit = TCanvas("c_signal_fits_boff_" + analysis + "_" + model + "_multiplemasses_" + fit_function, "c_signal_fits_boff_" + analysis + "_" + model + "_multiplemasses_" + fit_function, 800, 600)
+			l_boff_fit = TLegend(0.55, 0.6, 0.88, 0.88)
+			l_boff_fit.SetFillColor(0)
+			l_boff_fit.SetBorderSize(0)
+			for mass in masses:
+				signal_epdfs[mass].plotOn(frame_boff_fit, RooFit.LineColor(seaborn.GetColorRoot("default", 0)), RooFit.LineStyle(1), RooFit.Name("Central, {} GeV".format(mass)))
+				signal_epdfs_syst[mass]["BOffUp"].plotOn(frame_boff_fit, RooFit.LineColor(seaborn.GetColorRoot("default", 1)), RooFit.LineStyle(2), RooFit.Name("BOff+, {} GeV".format(mass)))
+				signal_epdfs_syst[mass]["BOffDown"].plotOn(frame_boff_fit, RooFit.LineColor(seaborn.GetColorRoot("default", 2)), RooFit.LineStyle(3), RooFit.Name("BOff-, {} GeV".format(mass)))
+			l_boff_fit.AddEntry(frame_boff_fit.findObject("Central, {} GeV".format(masses[0])), "Central", "l")
+			l_boff_fit.AddEntry(frame_boff_fit.findObject("BOff+, {} GeV".format(masses[0])), "BOff+", "l")
+			l_boff_fit.AddEntry(frame_boff_fit.findObject("BOff-, {} GeV".format(masses[0])), "BOff-", "l")
+			frame_boff_fit.Draw()
+			l_boff_fit.Draw()
+			c_boff_fit.SaveAs(analysis_config.figure_directory + "/" + c_boff_fit.GetName() + ".pdf")
 		f.Close()
 
 
@@ -939,6 +1060,7 @@ def signal_interpolations(analysis, model, input_masses, output_masses, fit_func
 				output_parameters[output_mass]["nominal"][parameter_name].setVal(input_parameter_splines["nominal"][parameter_name].Eval(output_mass))
 			else:
 				output_parameters[output_mass]["nominal"][parameter_name].setVal(input_parameter_graphs["nominal"][parameter_name].Eval(output_mass))
+			print "[debug] Mass {}, set par {} to {}".format(output_mass, parameter_name, output_parameters[output_mass]["nominal"][parameter_name].getVal())
 		output_shapes_raw[output_mass]["nominal"].SetName("signal_bukin")
 		if fit_trigger:
 			output_shapes[output_mass]["nominal"] = RooEffProd("signal", "signal", output_shapes_raw[output_mass]["nominal"], trigger_efficiency_formula)
@@ -1008,9 +1130,11 @@ if __name__ == "__main__":
 	parser.add_argument("--plots", action="store_true", help="Plot signal fits")
 	parser.add_argument("--table", action="store_true", help="Table of fit parameters")
 	parser.add_argument("--interpolate", action="store_true", help="Run signal interpolation")
+	parser.add_argument("--interpolate375", action="store_true", help="Run signal interpolation at 375 GeV (for granularity study)")
 	parser.add_argument("--validate_interpolation", action="store_true", help="Compare actual fits to interpolations")
-	parser.add_argument("--analyses", type=str, default="NoTrigger_eta1p7_CSVTM,NoTrigger_eta2p2_CSVTM", help="List of analyses to run (comma-separated)")
-	parser.add_argument("--models", type=str, default="Hbb,RSG", help="List of models to run")
+	#parser.add_argument("--analyses", type=str, default="NoTrigger_eta1p7_CSVTM,NoTrigger_eta2p2_CSVTM", help="List of analyses to run (comma-separated)")
+	parser.add_argument("--analyses", type=str, default="trigbbl_CSVTM,trigbbh_CSVTM", help="List of analyses to run (comma-separated)")
+	parser.add_argument("--models", type=str, default="Hbb,ZPrime,RSG", help="List of models to run")
 	parser.add_argument("--mass", type=int, help="Manually specify mass (otherwise, script runs all mass points)")
 	parser.add_argument("--fit_functions", type=str, default="bukin", help="List of fit functions")
 	parser.add_argument("--no_systematics", action="store_true", help="Run without systematics")
@@ -1026,7 +1150,7 @@ if __name__ == "__main__":
 		# No need for limited masses, Tyler's files have all the interpolations
 		for analysis in analyses:
 			if "trigbbl" in analysis or "eta1p7" in analysis:
-				masses[analysis] = [350,400,500,600,750,900]
+				masses[analysis] = [325,350,400,500,600,750,900]
 			elif "trigbbh" in analysis or "eta2p2" in analysis:
 				masses[analysis] = [600, 750, 900, 1200]
 	fit_functions = args.fit_functions.split(",")
@@ -1037,12 +1161,14 @@ if __name__ == "__main__":
 		systematics_arg = systematics
 
 	if args.fit:
+		from joblib import Parallel, delayed
 		for analysis in analyses:
 			for model in models:
-				for mass in masses[analysis]:
-					#signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, fitTrigger=True)
-					#signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, correctTrigger=True)
-					signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg)
+				Parallel(n_jobs=4)(delayed(signal_fit)(analysis, model, mass, fit_functions, systematics=systematics_arg) for mass in masses[analysis])
+				#for mass in masses[analysis]:
+				#	#signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, fitTrigger=True)
+				#	#signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg, correctTrigger=True)
+				#	signal_fit(analysis, model, mass, fit_functions, systematics=systematics_arg)
 
 	if args.plots:
 		for analysis in analyses:
@@ -1079,4 +1205,29 @@ if __name__ == "__main__":
 		for analysis in analyses:
 			for model in models:
 				for fit_function in fit_functions:
-					signal_interpolations(analysis, model, masses[analysis], output_masses[analysis], fit_function, systematic_variations=["JERUp", "JERDown", "JESUp", "JESDown"])
+					signal_interpolations(analysis, model, masses[analysis], output_masses[analysis], fit_function, systematic_variations=["JERUp", "JERDown", "JESUp", "JESDown", "BOffUp", "BOffDown"])
+
+	if args.interpolate375:
+		output_masses = {}
+		if args.mass:
+			print "[signal_fits] ERROR : Argument mass not supported for interpolation. The input/output masses are too complicated for the command line, and are written into the code."
+			sys.exit(1)
+		for analysis in analyses:
+			if "trigbbl" in analysis or "eta1p7" in analysis:
+				output_masses[analysis] = [375]
+			elif "trigbbh" in analysis or "eta2p2" in analysis:
+				output_masses[analysis] = [375]
+		#output_masses = {
+		#	"trigbbll_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbll_CSVTM"])),
+		#	"trigbbl_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVTM"])),
+		#	"trigbbhl_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbhl_CSVTM"])),
+		#	"trigbbh_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVTM"])),
+		#	"trigbbl_CSVM":list(set(range(400, 950, 50)) - set(masses["trigbbl_CSVM"])),
+		#	"trigbbh_CSVM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_CSVM"])),
+		#	"trigbbl_notrig_CSVTM":list(set(range(400, 950, 50)) - set(masses["trigbbl_notrig_CSVTM"])),
+		#	"trigbbh_notrig_CSVTM":list(set(range(600, 1250, 50)) - set(masses["trigbbh_notrig_CSVTM"])),
+		#}
+		for analysis in analyses:
+			for model in models:
+				for fit_function in fit_functions:
+					signal_interpolations(analysis, model, masses[analysis], output_masses[analysis], fit_function, systematic_variations=["JERUp", "JERDown", "JESUp", "JESDown", "BOffUp", "BOffDown"])					

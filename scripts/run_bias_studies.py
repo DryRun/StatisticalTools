@@ -137,6 +137,9 @@ def plot_all_averages(model, analysis, gen_functions, fit_functions, mu=0, twosi
 		for f_gen in gen_functions:
 			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen] = TH1D("h_avg_centered_pull_fit{}_gen{}".format(f_fit, f_gen), "h_avg_centered_pull_fit{}_gen{}".format(f_fit, f_gen), len(analysis_config.simulation.limit_signal_masses[analysis]), analysis_config.simulation.limit_signal_masses[analysis][0] - 25., analysis_config.simulation.limit_signal_masses[analysis][-1] + 25.)
 			h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetDirectory(0)
+			for binm1, this_mass in enumerate(analysis_config.simulation.limit_signal_masses[analysis]):
+				h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].GetXaxis().SetBinLabel(binm1+1, "{} GeV".format(this_mass))
+
 			#containers["f_gen"][0] = int(f_gen[1:])
 			h_avg_mu.GetXaxis().SetBinLabel(x_bin, "Gen " + f_gen + " / Fit " + f_fit)
 			h_avg_pull.GetXaxis().SetBinLabel(x_bin, "Gen " + f_gen + " / Fit " + f_fit)
@@ -144,7 +147,7 @@ def plot_all_averages(model, analysis, gen_functions, fit_functions, mu=0, twosi
 			h_rms_pull.GetXaxis().SetBinLabel(x_bin, "Gen " + f_gen + " / Fit " + f_fit)
 			h_avg_centered_pull_single_fit[f_fit].GetXaxis().SetBinLabel(x_bin_single_fit, "Gen " + f_gen + " / Fit " + f_fit)
 			y_bin = 1
-			for mass in analysis_config.simulation.limit_signal_masses[analysis]:
+			for binm1, mass in enumerate(analysis_config.simulation.limit_signal_masses[analysis]):
 				#containers["mass"][0] = mass
 				#print "[plot_all_averages] INFO : Opening " + analysis_config.get_bias_study_results(model, analysis, mass, mu, f_gen, f_fit)
 				results_file = TFile(analysis_config.get_bias_study_results(model, analysis, mass, mu, f_gen, f_fit), "READ")
@@ -213,7 +216,7 @@ def plot_all_averages(model, analysis, gen_functions, fit_functions, mu=0, twosi
 				h_avg_centered_pull.SetBinContent(x_bin, h_avg_centered_pull.GetYaxis().FindBin(mass), centered_pull_avg)
 				h_rms_pull.SetBinContent(x_bin, y_bin, pull_rms)
 				h_avg_centered_pull_single_fit[f_fit].SetBinContent(x_bin_single_fit, h_avg_centered_pull_single_fit[f_fit].GetYaxis().FindBin(mass), centered_pull_avg)
-				h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetBinContent(h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].GetXaxis().FindBin(mass), centered_pull_avg)
+				h_avg_centered_pull_single_fit_single_gen[f_fit][f_gen].SetBinContent(binm1+1, centered_pull_avg)
 				#containers["average_mu"][0] = mu_avg
 				#containers["average_pull"][0] = pull_avg
 				#containers["average_pull_centered"][0] = centered_pull_avg
@@ -384,6 +387,8 @@ if __name__ == "__main__":
 	models = args.model.split(",")
 	analyses = args.analysis.split(",")
 	masses = {"trigbbl_CSVTM":range(350, 850, 50), "trigbbh_CSVTM":range(600, 1250, 50)}
+	masses["trigbbl_CSVTM"].append(325)
+	#masses = {"trigbbl_CSVTM":[325], "trigbbh_CSVTM":[]}
 
 	job_mu_values = {}
 	for model in models:
@@ -394,7 +399,7 @@ if __name__ == "__main__":
 				if args.mu == 0:
 					job_mu_values[model][analysis][mass] = 0.
 				else:
-					workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False), "READ")
+					workspace_file = TFile(limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=False, useMCTrigger=False, qcd=False, fitTrigger=True, fitBonly=False), "READ")
 					#workspace_file = TFile(datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root", "READ")
 					workspace = workspace_file.Get("w")
 					signal_norm = workspace.var("signal_norm").getVal()
@@ -440,10 +445,10 @@ if __name__ == "__main__":
 						for f_fit in fit_functions:
 							name = model + "_" + analysis + "_m" + str(mass) + "_gen_" + f_gen + "_fit_" + f_fit + "_mu" + str(args.mu)
 							job_names.append(name)
-							gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False)
-							gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False)
-							fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False)
-							fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True, useMCTrigger=False, qcd=False, fitTrigger=False, fitBonly=False)
+							gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, correctTrigger=False, useMCTrigger=False, qcd=False, fitTrigger=True, fitBonly=False)
+							gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=False, useMCTrigger=False, qcd=False, fitTrigger=True, fitBonly=False)
+							fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, correctTrigger=False, useMCTrigger=False, qcd=False, fitTrigger=True, fitBonly=False)
+							fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=False, useMCTrigger=False, qcd=False, fitTrigger=True, fitBonly=False)
 							#gen_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_gen + ".txt"
 							#gen_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
 							#fit_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_fit + ".txt"
@@ -475,10 +480,10 @@ if __name__ == "__main__":
 							if retry_this_job:
 								name = model + "_" + analysis + "_m" + str(mass) + "_gen_" + f_gen + "_fit_" + f_fit + "_mu" + str(args.mu)
 								job_names.append(name)
-								gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, correctTrigger=True)
-								gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True)
-								fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, correctTrigger=True)
-								fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=True)
+								gen_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_gen, correctTrigger=False)
+								gen_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=False)
+								fit_datacards[name] = limit_config.get_datacard_filename(analysis, model, mass, f_fit, correctTrigger=False)
+								fit_workspaces[name] = limit_config.get_workspace_filename(analysis, model, mass, correctTrigger=False)
 								#gen_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_gen + ".txt"
 								#gen_workspaces[name] = datacard_folders[model][analysis] + "/workspace_qq_m" + str(mass) + ".root"
 								#fit_datacards[name] = datacard_folders[model][analysis] + "/datacard_qq_m" + str(mass) + "_" + f_fit + ".txt"

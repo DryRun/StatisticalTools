@@ -131,10 +131,22 @@ def get_var_formula(analysis, mjj_var):
 		eff_analysis = "trigbbh_CSVTM"
 
 	eff_vars = {}
-	for varname in ["trigeff_p0", "trigeff_p1"]:
-		eff_vars[varname] = RooRealVar(varname, varname, sigmoid_parameters[eff_analysis][varname][0], sigmoid_parameters[eff_analysis][varname][0]-10.*sigmoid_parameters[eff_analysis][varname][1], sigmoid_parameters[eff_analysis][varname][0]+10.*sigmoid_parameters[eff_analysis][varname][1])
+	for parameter in ["p0", "p1"]:
+		this_par = sigmoid_parameters[eff_analysis]["trigeff_" + parameter][0]
+		this_dpar = sigmoid_parameters[eff_analysis]["trigeff_" + parameter][1]
+		eff_vars["alpha_trigeff_" + parameter] = RooRealVar("alpha_trigeff_" + parameter, "alpha_trigeff_" + parameter, 0., -7., 7.)
+		eff_vars["trigeff_d" + parameter] = RooRealVar("trigeff_d" + parameter, "trigeff_d" + parameter, this_dpar, 0., 1000.*this_dpar)
+		eff_vars["trigeff_d" + parameter].setConstant(True)
+		eff_vars["trigeff_" + parameter + "_0"] = RooRealVar("trigeff_" + parameter + "_0", "trigeff_" + parameter + "_0", this_par, 0., 1000.*this_par)
+		eff_vars["trigeff_" + parameter + "_0"].setConstant(True)
+		eff_vars["trigeff_" + parameter] = RooFormulaVar("trigeff_" + parameter, "@0 + (@1*@2)", 
+			RooArgList(eff_vars["trigeff_" + parameter + "_0"], eff_vars["alpha_trigeff_" + parameter], eff_vars["trigeff_d" + parameter]))
+
+	# Old way without nuisance parameters
+	#for varname in ["trigeff_p0", "trigeff_p1"]:
+	#	eff_vars[varname] = RooRealVar(varname, varname, sigmoid_parameters[eff_analysis][varname][0], sigmoid_parameters[eff_analysis][varname][0]-10.*sigmoid_parameters[eff_analysis][varname][1], sigmoid_parameters[eff_analysis][varname][0]+10.*sigmoid_parameters[eff_analysis][varname][1])
 	return [
-				RooFormulaVar("trigger_efficiency_bb", 
+				RooFormulaVar("trigger_efficiency_pt", 
 					"1. / (1. + exp(-1. * (@0 - @1) / @2))", 
 					RooArgList(mjj_var, eff_vars["trigeff_p0"], eff_vars["trigeff_p1"])), 
 				eff_vars

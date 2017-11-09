@@ -95,7 +95,7 @@ def main():
     from ROOT import kGreen, kYellow, kWhite
 
     # Make acc*eff TGraph
-    ae_x = array('d',[350, 400, 500, 600, 750, 900, 1200])
+    ae_x = array('d',[325, 350, 400, 500, 600, 750, 900, 1200])
     if args.timesAE:
         ae_y = np.ones(len(ae_x))
     else:
@@ -221,6 +221,9 @@ def main():
                     if re.search("^Observed Limit: r", line):
                         xs_obs_limits.append(float(line.split()[-1])/acceptance_times_efficiency.Eval(mass) * input_xs)
                         found_limit["obs"] = True
+                        if mass == 325 and args.model == "ZPrime":
+                            print "[debug] ZPrime 325 GeV limit = {}".format(xs_obs_limits[-1])
+                            print "[debug] \tA*e={}, input_xs={}".format(acceptance_times_efficiency.Eval(mass), input_xs)
                     if re.search("^Expected 50.0%: r", line):
                         middle = float(line.split()[-1])
                         found_limit["exp"] = True
@@ -320,7 +323,7 @@ def main():
     gStyle.SetOptStat(0)
     gStyle.SetOptTitle(0)
     gStyle.SetTitleFont(42, "XYZ")
-    gStyle.SetTitleSize(0.06, "XYZ")
+    gStyle.SetTitleSize(0.05, "XYZ")
     gStyle.SetLabelFont(42, "XYZ")
     gStyle.SetLabelSize(0.05, "XYZ")
     gStyle.SetCanvasBorderMode(0)
@@ -412,7 +415,7 @@ def main():
     c = TCanvas("c", "",800,800)
     c.cd()
 
-    legend = TLegend(.60,.75,.90,.90)
+    legend = TLegend(.58,.72,.90,.90)
     legend.SetBorderSize(0)
     legend.SetFillColor(0)
     legend.SetFillStyle(0)
@@ -426,25 +429,27 @@ def main():
         frame = graph_obs.GetHistogram().Clone()
     frame.Reset()
     frame.GetXaxis().SetTitle("Resonance mass [GeV]")
+    frame.GetXaxis().SetTitleOffset(1.05)
     if args.timesAE:
-        if args.model == "ZPrime":
-            frame.GetYaxis().SetTitle("#sigma #times (BR(c#bar{c})+BR(b#bar{b})) #times #it{A} #times #epsilon [pb]")
-        else:
-            frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) #times #it{A} #times #epsilon [pb]")
+        #if args.model == "ZPrime":
+        #    frame.GetYaxis().SetTitle("#sigma #times BR(c#bar{c},b#bar{b}) #times #it{A} #times #epsilon [pb]")
+        #else:
+        frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) #times #it{A} #times #epsilon [pb]")
     else:
-        if args.model == "ZPrime":
-            frame.GetYaxis().SetTitle("#sigma #times (BR(c#bar{c})+BR(b#bar{b})) [pb]")
-        else:
-            frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) [pb]")
-    frame.GetYaxis().SetTitleOffset(1.1)
+        #if args.model == "ZPrime":
+        #    frame.GetYaxis().SetTitle("#sigma #times BR(c#bar{c},b#bar{b}) [pb]")
+        #else:
+        frame.GetYaxis().SetTitle("#sigma #times BR(b#bar{b}) [pb]")
+    frame.GetYaxis().SetTitleOffset(1.2)
     if args.timesAE:
         frame.GetYaxis().SetRangeUser(1e-03,1e+01)
     else:
-        frame.GetYaxis().SetRangeUser(1e-01,2e+02)
+        frame.GetYaxis().SetRangeUser(1e-01,5e+02)
     frame.Draw("axis")
 
     if len(xs_exp_limits_2sigma) > 0 and (args.method == "Asymptotic" or args.method == "HybridNewGrid"):
         graph_exp_2sigma.GetXaxis().SetTitle("Resonance mass [GeV]")
+        graph_exp_2sigma.GetXaxis().SetTitleOffset(1.1)
         graph_exp_2sigma.GetYaxis().SetTitle("#sigma #times #it{B} [pb]")
         graph_exp_2sigma.GetYaxis().SetTitleOffset(1.1)
         #graph_exp_2sigma.GetYaxis().SetRangeUser(1e-03,1e+02)
@@ -523,6 +528,7 @@ def main():
     c.SaveAs(fileName)
     print "Plot saved to '%s'"%(fileName)
 
+    graph_obs.Print("all")
     if args.saveObjects:
         output_file = args.saveObjects
         if args.timesAE:
