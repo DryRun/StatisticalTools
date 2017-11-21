@@ -3,10 +3,10 @@ import sys
 import pickle
 import math
 
-cL_uptype = 0.3442
-cR_uptype = -0.1558
-cL_downtype = -0.4221
-cR_downtype = 0.0779
+cL_uptype = 0.003442
+cR_uptype = -0.001558
+cL_downtype = -0.004221
+cR_downtype = 0.000779
 cuuL = cL_uptype
 cuuR = cR_uptype
 cccL = cL_uptype
@@ -22,8 +22,8 @@ cbbR = cR_downtype
 aEW = 1. / 127.9 
 ee = 2*math.sqrt(aEW)*math.sqrt(math.pi)
 MB = 4.7
-MT = 172.44
-MW = 80.
+MT = 172
+MW = 79.8244
 MZ = 91.2
 sw2 = 1 - MW**2/MZ**2
 sw = math.sqrt(sw2)

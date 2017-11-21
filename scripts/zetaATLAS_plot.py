@@ -27,32 +27,45 @@ seaborn = Root.SeabornInterface()
 seaborn.Initialize()
 Root.SetCanvasStyle()
 
-# Get sigmatilde
-import pickle
-sigmatilde_file = open(os.path.expandvars("$CMSSW_BASE/src/CMSDIJET/StatisticalTools/data/sigmatildeATLAS.pkl"), 'r')
-sigmatilde = pickle.load(sigmatilde_file)
-print sigmatilde
-sigmatilde_file.close()
-
-acceptance_mass_array = array('d', [1500., 2000., 3000., 4000., 5000.])
-acceptance_array = array('d', [0.085, 0.072, 0.035, 0.025, 0.021,])
+acceptance_mass_array = array('d', [1500., 1750., 2000., 2500., 3000., 4000., 5000.])
+# acceptance_array = array('d', [0.085, 0.072, 0.035, 0.025, 0.021,]) # My old values, taken from the ATLAS tables
+acceptance_array = array('d', [0.0993114,0.0857177,0.0742023,0.0398483,0.0264772,0.0173586,0.00952033]) # Kirtimaan's values
 tg_acceptance = TGraph(len(acceptance_mass_array), acceptance_mass_array, acceptance_array)
 
 mass_array = array('d', [1250., 1500., 1750., 2000., 2500., 3000., 4000.])
+# xs*BR*A values taken from digitizing the ATLAS plot
+# My values
+#xsBRAs = {
+#	1250.:0.04739380332427473,
+#	1500.:0.03107133633710692,
+#	1750.:0.04851860651757168,
+#	2000.:0.027310695958172537,
+#	2500.:0.029647386673537533,
+#	3000.:0.010439404400468555,
+#	4000.:0.008256731259846755,
+#}
+# Kirtimaan's values
 xsBRAs = {
-	1250.:0.04739380332427473,
-	1500.:0.03107133633710692,
-	1750.:0.04851860651757168,
-	2000.:0.027310695958172537,
-	2500.:0.029647386673537533,
-	3000.:0.010439404400468555,
-	4000.:0.008256731259846755,
+	1250.:4.74091e-2,
+	1500.:3.11740e-2,
+	1750.:4.78630e-2,
+	2000.:2.67662e-2,
+	2500.:2.94419e-2,
+	3000.:1.05213e-2,
+	4000.:8.38136e-3,
 }
+
+# Make zeta graphs from Kirtimaan's values
+tg_zetak_dd = TGraph(6, array('d', [1500, 1750, 2000, 2500, 3000, 4000]), array('d', [0.0013312522507005833,0.005025548076102553,0.006599736969591383,0.04923882631706747,0.09090334861384042,1.1696268711916282]))
+tg_zetak_uu = TGraph(6, array('d', [1500, 1750, 2000, 2500, 3000, 4000]), array('d', [0.0007210878296123747,0.0025428775275811795,0.0031194845587142724,0.021740929438381247,0.03502504470058057,0.331672954303128,
+]))
+
 xsBRs = {}
 xsBR_array = array('d', [])
 for mass in mass_array:
 	xsBRs[mass] = xsBRAs[mass] / tg_acceptance.Eval(mass)
 	xsBR_array.append(xsBRs[mass])
+	print "[debug] ATLAS xs({}) = {}".format(mass, xsBRs[mass])
 tg_xsBR = TGraph(len(mass_array), mass_array, xsBR_array)
 
 # Analytical function for zeta
@@ -102,13 +115,13 @@ def get_total_width(MZP=1000.):
 	return sum([get_partial_width(x, MZP) for x in ["uu", "dd", "cc", "ss", "tt", "bb"]])
  
 def get_zeta(x):
-	for final_state in ["uu", "dd", "cc", "ss", "tt", "bb"]:
-		print get_partial_width(final_state, x[0])
+	#for final_state in ["uu", "dd", "cc", "ss", "tt", "bb"]:
+	#	print get_partial_width(final_state, x[0])
 	width = get_total_width(x[0])
 	BR_initial = (get_partial_width("uu", x[0]) + get_partial_width("dd", x[0])) / width
 	BR_final = get_partial_width("bb", x[0]) / width
 	zeta = BR_initial * BR_final * width / x[0]
-	print "zeta({}) = {}* {} * {} / {} = {}".format(x[0], BR_initial, BR_final, width, x[0], zeta)
+	#print "zeta({}) = {}* {} * {} / {} = {}".format(x[0], BR_initial, BR_final, width, x[0], zeta)
 	return zeta
 
 class ZetaPlot():
@@ -123,29 +136,17 @@ class ZetaPlot():
 
 	# initial_states = u, d, or ud
 	# final_states = b
-	def add_xsbr_graph(self, name, legend, xsbr_limit, initial_states, marker_style=None, marker_size=None, marker_color=None, line_color=None, line_style=None, line_width=None):
+	def add_xsbr_graph(self, name, legend, xsbr_limit, initial_states, marker_style=None, marker_size=None, marker_color=None, line_color=None, line_style=None, line_width=None, sigmatilde=None):
 		print "add_xsbr_graph({})".format(name)
 		self._names.append(name)
 		self._zeta_graphs[name] = TGraph(xsbr_limit.GetN())
+		print "[debug] Zeta for {}".format(name)
 		for i in xrange(xsbr_limit.GetN()):
 			mass = int(xsbr_limit.GetX()[i])
 			xsbr = xsbr_limit.GetY()[i]
 			zeta = xsbr / sigmatilde[mass][initial_states]
+			print "zeta[{}] = {} / {} = {}".format(mass, xsbr, sigmatilde[mass][initial_states], zeta)
 			self._zeta_graphs[name].SetPoint(i, mass, zeta)
-
-			self._legend_entries[name] = legend
-
-			if marker_style:
-				self._zeta_graphs[name].SetMarkerStyle(marker_style)
-			if marker_size:
-				self._zeta_graphs[name].SetMarkerSize(marker_size)
-			self._zeta_graphs[name].SetMarkerSize(0)
-			if marker_color:
-				self._zeta_graphs[name].SetMarkerColor(marker_color)
-			if line_color:
-				self._zeta_graphs[name].SetLineColor(line_color)
-			if line_style:
-				self._zeta_graphs[name].SetLineStyle(line_style)
 
 			# Keep track of plot boundaries
 			if mass < self._xrange[0]:
@@ -156,6 +157,48 @@ class ZetaPlot():
 				self._yrange[0] = zeta
 			if zeta > self._yrange[0]:
 				self._yrange[1] = zeta
+			print "\t{} => {}".format(mass, zeta)
+		self._legend_entries[name] = legend
+
+		if marker_style:
+			self._zeta_graphs[name].SetMarkerStyle(marker_style)
+		if marker_size:
+			self._zeta_graphs[name].SetMarkerSize(marker_size)
+		self._zeta_graphs[name].SetMarkerSize(0)
+		if marker_color:
+			self._zeta_graphs[name].SetMarkerColor(marker_color)
+		if line_color:
+			self._zeta_graphs[name].SetLineColor(line_color)
+		if line_style:
+			self._zeta_graphs[name].SetLineStyle(line_style)
+
+	def add_zeta_graph(self, name, legend, zeta_graph, marker_style=None, marker_size=None, marker_color=None, line_color=None, line_style=None, line_width=None):
+		self._names.append(name)
+		self._zeta_graphs[name] = zeta_graph
+		if marker_style:
+			self._zeta_graphs[name].SetMarkerStyle(marker_style)
+		if marker_size:
+			self._zeta_graphs[name].SetMarkerSize(marker_size)
+		self._zeta_graphs[name].SetMarkerSize(0)
+		if marker_color:
+			self._zeta_graphs[name].SetMarkerColor(marker_color)
+		if line_color:
+			self._zeta_graphs[name].SetLineColor(line_color)
+		if line_style:
+			self._zeta_graphs[name].SetLineStyle(line_style)
+
+		for i in xrange(zeta_graph.GetN()):
+			mass = int(zeta_graph.GetX()[i])
+			zeta = int(zeta_graph.GetY()[i])
+			if mass < self._xrange[0]:
+				self._xrange[0] = mass
+			if mass > self._xrange[1]:
+				self._xrange[1] = mass
+			if zeta < self._yrange[0]:
+				self._yrange[0] = zeta
+			if zeta > self._yrange[0]:
+				self._yrange[1] = zeta
+		self._legend_entries[name] = legend
 
 	def add_zeta_tf1(self, name, legend, zeta_tf1, line_style=None, line_width=None, line_color=None):
 		print "add_zeta_tf1({})".format(name)
@@ -198,7 +241,7 @@ class ZetaPlot():
 		if not canvas_name:
 			canvas_name = str(time.time())
 		self._canvas = TCanvas(canvas_name, canvas_name, 700, 500)
-		self._legend = TLegend(0.22, 0.6, 0.4, 0.88)
+		self._legend = TLegend(0.22, 0.6, 0.5, 0.88)
 		self._legend.SetFillColor(0)
 		self._legend.SetBorderSize(0)
 		if logy:
@@ -231,7 +274,7 @@ class ZetaPlot():
 					self._legend.AddEntry(self._zeta_tf1s[name], self._legend_entries[name], "l")
 		self._legend.Draw()
 
-		Root.CMSLabel(0.64, 0.88, "Preliminary", 1, 0.5); 
+		#Root.CMSLabel(0.64, 0.88, "Preliminary", 1, 0.5); 
 
 	def save(self, save_path):
 		print "save()"
@@ -247,17 +290,50 @@ def JoinTGraphs(graph1, graph2):
 	return graph
 
 if __name__ == "__main__":
+	# Get sigmatilde
+	import pickle
+	with open(os.path.expandvars("$CMSSW_BASE/src/CMSDIJET/StatisticalTools/data/ATLAS_CT14_zerowidth/sigmatildeATLAS.pkl"), 'r') as f:
+		sigmatilde_zerowidth_CT14 = pickle.load(f)
+	print sigmatilde_zerowidth_CT14
+
+	with open(os.path.expandvars("$CMSSW_BASE/src/CMSDIJET/StatisticalTools/data/ATLAS_CT14_nonzerowidth/sigmatildeATLAS.pkl"), 'r') as f:
+		sigmatilde_nonzerowidth_CT14 = pickle.load(f)
+
+
 	zeta_plot = ZetaPlot()
 
-	zeta_plot.add_xsbr_graph("obs_uu", "Obs u#bar{u}#rightarrowZ'#rightarrowb#bar{b}", tg_xsBR, "u", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=1, line_width=1)
-	zeta_plot.add_xsbr_graph("obs_dd", "Obs d#bar{d}#rightarrowZ'#rightarrowb#bar{b}", tg_xsBR, "d", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=1, line_width=1)
-
-	zeta_plot.add_shading("obs_uu", "obs_dd", fill_color=seaborn.GetColorRoot("pastel", 2))
+	zeta_plot.add_xsbr_graph("obs_uu", "Obs u#bar{u}#rightarrowZ'#rightarrowb#bar{b}", tg_xsBR, "u", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=4, line_width=1, sigmatilde=sigmatilde_zerowidth_CT14)
+	zeta_plot.add_xsbr_graph("obs_dd", "Obs d#bar{d}#rightarrowZ'#rightarrowb#bar{b}", tg_xsBR, "d", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=4, line_width=1, sigmatilde=sigmatilde_zerowidth_CT14)
+	#zeta_plot.add_shading("obs_uu", "obs_dd", fill_color=seaborn.GetColorRoot("pastel", 2))
 
 	zp_zeta = TF1("zp_zeta", get_zeta, 325., 1200.)
 	zp_zeta.SetParameter(0, 0.25 * 6)
-	print zp_zeta
+	#print zp_zeta
 	zeta_plot.add_zeta_tf1("zp", "u#bar{u}/d#bar{d}#rightarrowZ'_{SSM}#rightarrowb#bar{b}", zp_zeta, line_style=3, line_color=seaborn.GetColorRoot("default", 1), line_width=2)
+
+	zeta_plot.add_zeta_graph("theory_uu", "1607.05525, uu", tg_zetak_uu, marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 4), line_style=1, line_width=2)
+	zeta_plot.add_zeta_graph("theory_dd", "1607.05525, dd", tg_zetak_dd, marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 5), line_style=1, line_width=2)
 
 	zeta_plot.draw(logy=True)
 	zeta_plot.save("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/zeta/zetaATLAS.pdf")
+
+	# Plot for comparing zero/nonzero width
+	zeta_plot_widthstudy = ZetaPlot()
+
+	zeta_plot_widthstudy.add_xsbr_graph("obs_uu_zerowidth", "Obs u#bar{u}#rightarrowZ'#rightarrowb#bar{b}, zero width", tg_xsBR, "u", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=4, line_width=1, sigmatilde=sigmatilde_zerowidth_CT14)
+	zeta_plot_widthstudy.add_xsbr_graph("obs_dd_zerowidth", "Obs d#bar{d}#rightarrowZ'#rightarrowb#bar{b}, zero width", tg_xsBR, "d", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=4, line_width=1, sigmatilde=sigmatilde_zerowidth_CT14)
+
+	zeta_plot_widthstudy.add_xsbr_graph("obs_uu_nonzerowidth", "Obs u#bar{u}#rightarrowZ'#rightarrowb#bar{b}, nonzero width", tg_xsBR, "u", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 0), line_style=2, line_width=1, sigmatilde=sigmatilde_nonzerowidth_CT14)
+	zeta_plot_widthstudy.add_xsbr_graph("obs_dd_nonzerowidth", "Obs d#bar{d}#rightarrowZ'#rightarrowb#bar{b}, nonzero width", tg_xsBR, "d", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 1), line_style=2, line_width=1, sigmatilde=sigmatilde_nonzerowidth_CT14)
+
+
+	zp_zeta = TF1("zp_zeta", get_zeta, 325., 1200.)
+	zp_zeta.SetParameter(0, 0.25 * 6)
+	#print zp_zeta
+	#zeta_plot_widthstudy.add_zeta_tf1("zp", "u#bar{u}/d#bar{d}#rightarrowZ'_{SSM}#rightarrowb#bar{b}", zp_zeta, line_style=3, line_color=seaborn.GetColorRoot("default", 1), line_width=2)
+
+	zeta_plot_widthstudy.add_zeta_graph("theory_uu", "1607.05525, uu", tg_zetak_uu, marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 4), line_style=1, line_width=2)
+	zeta_plot_widthstudy.add_zeta_graph("theory_dd", "1607.05525, dd", tg_zetak_dd, marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 5), line_style=1, line_width=2)
+
+	zeta_plot_widthstudy.draw(logy=True)
+	zeta_plot_widthstudy.save("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/zeta/zetaATLAS_widthcomparison.pdf")

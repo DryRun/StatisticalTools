@@ -34,12 +34,20 @@ sigmatilde = pickle.load(sigmatilde_file)
 print sigmatilde
 sigmatilde_file.close()
 
+# My values, taken from the tables in the paper
+#acceptances = {
+#	1500:0.085,
+#	2000:0.072,
+#	3000:0.035,
+#	4000:0.025,
+#	5000:0.021,
+#}
+
+# Kirtimaan's values
 acceptances = {
-	1500:0.085,
-	2000:0.072,
-	3000:0.035,
-	4000:0.025,
-	5000:0.021,
+	1500:0.0993114,
+	2000:0.0742023,
+	3000:0.0264772,
+	4000:0.0173586,
+	5000:0.00952033,
 }
-
-

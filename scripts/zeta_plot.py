@@ -28,13 +28,25 @@ Root.SetCanvasStyle()
 
 # Get sigmatilde
 import pickle
-sigmatilde_file = open(os.path.expandvars("$CMSSW_BASE/src/CMSDIJET/StatisticalTools/data/sigmatilde2.pkl"), 'r')
+sigmatilde_file = open(os.path.expandvars("$CMSSW_BASE/src/CMSDIJET/StatisticalTools/data/sigmatilde.pkl"), 'r')
 sigmatilde = pickle.load(sigmatilde_file)
 print sigmatilde
 sigmatilde_file.close()
 
 # Analytical function for zeta
 # Equal coupling, 
+def get_br(decay, mZp):
+	if mZp > 2. * 172:
+		tpart = (1 + 2*172.**2/mZp**2) * math.sqrt(max(0., 1.-4.*172.**2/mZp**2))
+	else:
+		tpart = 0.
+	if decay == "tt":
+		num = tpart
+	else:
+		num = 1.
+	return num / (5. + tpart)
+
+
 def get_zeta(x):
 	gB = 0.25 * 6
 	tpart = (1 + 2*172.**2/x[0]**2) * math.sqrt(max(0., 1.-4.*172.**2/x[0]**2))
@@ -66,7 +78,7 @@ class ZetaPlot():
 		for i in xrange(xsbr_limit.GetN()):
 			mass = xsbr_limit.GetX()[i]
 			xsbr = xsbr_limit.GetY()[i]
-			zeta = xsbr / sigmatilde[mass][initial_states]
+			zeta = xsbr / (sigmatilde[mass][initial_states] * 1.2)
 			print "zeta = {} / {} = {}".format(xsbr, sigmatilde[mass][initial_states], xsbr / sigmatilde[mass][initial_states])
 			self._zeta_graphs[name].SetPoint(i, mass, zeta)
 
@@ -135,7 +147,8 @@ class ZetaPlot():
 		if not canvas_name:
 			canvas_name = str(time.time())
 		self._canvas = TCanvas(canvas_name, canvas_name, 700, 500)
-		self._legend = TLegend(0.22, 0.6, 0.44, 0.85)
+		self._legend = TLegend(0.22, 0.6, 0.58, 0.85)
+		self._legend.SetNColumns(2)
 		self._legend.SetFillColor(0)
 		self._legend.SetBorderSize(0)
 		self._legend.SetHeader("95% CL upper limits")
@@ -199,18 +212,22 @@ if __name__ == "__main__":
 	gr_Xbb_8TeVl_exp = f_Xbb_8TeVl.Get("graph_exp")
 	gr_Xbb_8TeVh_exp = f_Xbb_8TeVh.Get("graph_exp")
 	gr_Xbb_8TeV_exp = JoinTGraphs(gr_Xbb_8TeVl_exp, gr_Xbb_8TeVh_exp)
-	print "Printing xs*br limits, sigmatilde, and zeta:"
-	for i in xrange(gr_Xbb_8TeV_exp.GetN()):
-		mass = gr_Xbb_8TeV_exp.GetX()[i]
-		print "{}\t:\t{}\t/\t{}\t=\t{}".format(mass , gr_Xbb_8TeV_exp.GetY()[i], sigmatilde[mass]["u"], gr_Xbb_8TeV_exp.GetY()[i] / sigmatilde[mass]["u"])
-	zeta_plot.add_xsbr_graph("exp_uu", "Exp. u#bar{u}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_exp, "u", marker_style=25, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=2, line_width=1)
-	zeta_plot.add_xsbr_graph("exp_dd", "Exp. d#bar{d}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_exp, "d", marker_style=25, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=2, line_width=1)
 
 	gr_Xbb_8TeVl_obs = f_Xbb_8TeVl.Get("graph_obs")
 	gr_Xbb_8TeVh_obs = f_Xbb_8TeVh.Get("graph_obs")
 	gr_Xbb_8TeV_obs = JoinTGraphs(gr_Xbb_8TeVl_obs, gr_Xbb_8TeVh_obs)
-	zeta_plot.add_xsbr_graph("obs_uu", "Obs. u#bar{u}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_obs, "u", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=1, line_width=1)
-	zeta_plot.add_xsbr_graph("obs_dd", "Obs. d#bar{d}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_obs, "d", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=1, line_width=1)
+
+	print "Printing xs*br limits, sigmatilde, and zeta:"
+	for i in xrange(gr_Xbb_8TeV_exp.GetN()):
+		mass = gr_Xbb_8TeV_exp.GetX()[i]
+		print "{}\t:\t{}\t/\t{}\t=\t{}".format(mass , gr_Xbb_8TeV_exp.GetY()[i], sigmatilde[mass]["u"], gr_Xbb_8TeV_exp.GetY()[i] / sigmatilde[mass]["u"])
+	zeta_plot.add_xsbr_graph("exp_uu", "Exp. u#bar{u}#rightarrowZ'#rightarrowb#bar{b} ", gr_Xbb_8TeV_exp, "u", marker_style=25, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=8, line_width=1)
+	zeta_plot.add_xsbr_graph("obs_uu", "Obs. u#bar{u}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_obs, "u", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=1, line_width=1)	
+	zeta_plot.add_xsbr_graph("exp_dd", "Exp. d#bar{d}#rightarrowZ'#rightarrowb#bar{b} ", gr_Xbb_8TeV_exp, "d", marker_style=25, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=5, line_width=1)
+	zeta_plot.add_xsbr_graph("obs_dd", "Obs. d#bar{d}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_obs, "d", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=1, line_width=1)	
+	zeta_plot.add_xsbr_graph("exp_pp", "Exp. pp#rightarrowZ'#rightarrowb#bar{b} ", gr_Xbb_8TeV_exp, "pp", marker_style=25, marker_size=0, line_color=1, line_style=2, line_width=1)
+	zeta_plot.add_xsbr_graph("obs_pp", "Obs. pp#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_obs, "pp", marker_style=24, marker_size=0, line_color=1, line_style=1, line_width=1)	
+
 
 	zeta_plot.add_shading("obs_uu", "obs_dd", fill_color=seaborn.GetColorRoot("pastel", 2), fill_style=3004)
 

@@ -214,6 +214,14 @@ class ZetaPlot():
 		print "save()"
 		self._canvas.SaveAs(save_path)
 
+	# Print mass => zeta for all the curves
+	def print_zeta(self):
+		for name in self._names:
+			if name in self._zeta_graphs:
+				print "Zeta limits for {}:".format(name)
+				for i in xrange(self._zeta_graphs[name].GetN()):
+					print "{} => {}".format(self._zeta_graphs[name].GetX()[i], self._zeta_graphs[name].GetY()[i])
+
 def JoinTGraphs(graph1, graph2):
 	graph = TGraph(graph1.GetN() + graph2.GetN())
 	for i in xrange(graph1.GetN()):
@@ -238,19 +246,22 @@ if __name__ == "__main__":
 		print "{}\t:\t{}\t/\t{}\t=\t{}".format(mass , gr_Xbb_8TeV_exp.GetY()[i], sigmatilde[mass]["u"], gr_Xbb_8TeV_exp.GetY()[i] / sigmatilde[mass]["u"])
 	zeta_plot.add_xsbr_graph("exp_uu", "Exp u#bar{u}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_exp, "u", marker_style=25, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=2, line_width=1)
 	zeta_plot.add_xsbr_graph("exp_dd", "Exp d#bar{d}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_exp, "d", marker_style=25, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=2, line_width=1)
+	zeta_plot.add_xsbr_graph("exp_pp", "Exp pp#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_exp, "pp", marker_style=25, marker_size=0, line_color=1, line_style=2, line_width=1)
 
 	gr_Xbb_8TeVl_obs = f_Xbb_8TeVl.Get("graph_obs")
 	gr_Xbb_8TeVh_obs = f_Xbb_8TeVh.Get("graph_obs")
 	gr_Xbb_8TeV_obs = JoinTGraphs(gr_Xbb_8TeVl_obs, gr_Xbb_8TeVh_obs)
 	zeta_plot.add_xsbr_graph("obs_uu", "Obs u#bar{u}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_obs, "u", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 2), line_style=1, line_width=1)
 	zeta_plot.add_xsbr_graph("obs_dd", "Obs d#bar{d}#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_obs, "d", marker_style=24, marker_size=0, line_color=seaborn.GetColorRoot("default", 3), line_style=1, line_width=1)
+	zeta_plot.add_xsbr_graph("obs_pp", "Obs pp#rightarrowZ'#rightarrowb#bar{b}", gr_Xbb_8TeV_obs, "pp", marker_style=24, marker_size=0, line_color=1, line_style=1, line_width=1)
 
 	zeta_plot.add_shading("obs_uu", "obs_dd", fill_color=seaborn.GetColorRoot("pastel", 2))
 
 	zp_zeta = TF1("zp_zeta", get_zeta, 325., 1200.)
 	zp_zeta.SetParameter(0, 0.25 * 6)
 	print zp_zeta
-	zeta_plot.add_zeta_tf1("zp", "u#bar{u}/d#bar{d}#rightarrowZ'_{SSM}#rightarrowb#bar{b}", zp_zeta, line_style=3, line_color=seaborn.GetColorRoot("default", 1), line_width=2)
+	zeta_plot.add_zeta_tf1("zp", "pp#rightarrowZ'_{SSM}#rightarrowb#bar{b}", zp_zeta, line_style=3, line_color=seaborn.GetColorRoot("default", 1), line_width=2)
 
 	zeta_plot.draw(logy=True)
 	zeta_plot.save("/uscms/home/dryu/Dijets/data/EightTeeEeVeeBee/zeta/zeta2.pdf")
+	zeta_plot.print_zeta()
